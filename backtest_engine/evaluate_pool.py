@@ -1,16 +1,21 @@
-from jqdata import *
+try:
+    from jqdata import *
+except ImportError:
+    print("jqdata module not found. Running in simulation mode if mocks are provided.")
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
 class PoolEvaluator:
-    def __init__(self, backtest_id, etf_list, price_field='close'):
+    def __init__(self, backtest_id, etf_list, price_field='open', percent = (0.25, 0.75)):
         """
         初始化评估器 (Backtest集成版)
         :param backtest_id: str, 回测ID (from create_backtest)
         :param etf_list: list, 标的池代码列表
         :param price_field: str, 使用的价格字段
+        :param percent: tuple, 排名分档阈值 (high, low), 默认(0.25, 0.75)即前25%和后25%
         """
+        self.percent = percent
         print(f"正在加载回测数据 ID: {backtest_id}...")
         self.gt = get_backtest(backtest_id)
         
@@ -108,14 +113,18 @@ class PoolEvaluator:
         self.strategy_nav = (1 + self.strategy_ret).cumprod()
         self.pool_index_nav = (1 + self.pool_index_ret).cumprod()
 
-    def evaluate_rolling_returns(self, window=20, fig=False):
+    def evaluate_rolling_returns(self, window=20, fig=False, percent=None):
         """
         方法1: 滚动收益对比 (Rolling Return Comparison)
         计算策略与池内所有资产的N日滚动收益，并分析策略处于排名的百分位。
         """
+        if percent is None:
+            percent = self.percent
+        high, low = percent
+
         # 计算滚动收益
-        strategy_roll = self.strategy_ret.rolling(window).apply(lambda x: (1+x).prod() - 1)
-        pool_roll = self.pool_rets.rolling(window).apply(lambda x: (1+x).prod() - 1)
+        strategy_roll = self.strategy_ret.rolling(window).apply(lambda x: (1+x).prod() - 1, raw=True)
+        pool_roll = self.pool_rets.rolling(window).apply(lambda x: (1+x).prod() - 1, raw=True)
         
         # 合并数据
         combined = pool_roll.copy()
@@ -127,24 +136,28 @@ class PoolEvaluator:
         strategy_rank = ranks['Strategy']
         
         print(f"\n[滚动收益分析 (N={window}日)]")
-        print(f"平均排名百分位: {strategy_rank.mean():.2%}")
-        print(f"位列前25%的时间占比: {(strategy_rank >= 0.75).mean():.2%}")
-        print(f"位列后25%的时间占比: {(strategy_rank <= 0.25).mean():.2%}")
+        print(f"平均排名百分位: {1-strategy_rank.mean():.2%}")
+        print(f"位列前{high:.0%}的时间占比: {(strategy_rank >= (1-high)).mean():.2%}")
+        print(f"位列后{(1-low):.0%}的时间占比: {(strategy_rank <= (1-low)).mean():.2%}")
         if fig:
-            self.plot_rolling_returns(window)
+            self.plot_rolling_returns(window, percent=percent)
         
         return strategy_rank
 
-    def plot_rolling_returns(self, window=20):
+    def plot_rolling_returns(self, window=20, percent=None):
         """
         方法1绘图: 滚动收益可视化
         绘制两个子图:
         1. 滚动收益对比: 策略 vs 标的池(最大/最小/平均)
         2. 排名分位数: 策略在池子中的排名 (1.0=最优)
         """
+        if percent is None:
+            percent = self.percent
+        high, low = percent
+
         # 计算数据
-        strategy_roll = self.strategy_ret.rolling(window).apply(lambda x: (1+x).prod() - 1)
-        pool_roll = self.pool_rets.rolling(window).apply(lambda x: (1+x).prod() - 1)
+        strategy_roll = self.strategy_ret.rolling(window).apply(lambda x: (1+x).prod() - 1, raw=True)
+        pool_roll = self.pool_rets.rolling(window).apply(lambda x: (1+x).prod() - 1, raw=True)
         
         # 计算标的池统计量
         pool_mean = pool_roll.mean(axis=1)
@@ -172,12 +185,12 @@ class PoolEvaluator:
         
         # 子图2: 排名百分位
         ax2.plot(ranks, label='Strategy Rank Percentile', color='blue')
-        ax2.axhline(0.75, color='green', linestyle=':', label='Top 25%')
+        ax2.axhline(high, color='green', linestyle=':', label=f'Top {high:.0%}')
         ax2.axhline(0.50, color='orange', linestyle=':', label='Median')
-        ax2.axhline(0.25, color='red', linestyle=':', label='Bottom 25%')
+        ax2.axhline(low, color='red', linestyle=':', label=f'Bottom {(1-low):.0%}')
         
-        ax2.fill_between(ranks.index, 0.75, 1.0, color='green', alpha=0.1) # 优秀区
-        ax2.fill_between(ranks.index, 0, 0.25, color='red', alpha=0.1)     # 差区
+        ax2.fill_between(ranks.index, high, 1.0, color='green', alpha=0.1) # 优秀区
+        ax2.fill_between(ranks.index, 0, low, color='red', alpha=0.1)     # 差区
         
         ax2.set_title(f'Strategy Rank Percentile (1.0=Best)')
         ax2.set_ylabel('Percentile')
@@ -188,7 +201,7 @@ class PoolEvaluator:
         plt.tight_layout()
         print(f"\n[滚动绘图] 已生成 {window}日 滚动收益分析图。")
 
-    def evaluate_holding_attribution(self):
+    def evaluate_holding_attribution(self, simple_df=False):
         """
         方法2: 持仓周期归因 (Holding Period Attribution)
         自动使用 self.strategy_positions 进行分析
@@ -245,6 +258,16 @@ class PoolEvaluator:
             # 平均收益
             avg_ret = period_ret.mean()
             
+            # 计算排名 (Rank)
+            # 排名 = (有多少个池内资产收益 > 策略收益) + 1
+            # 注意: 如果策略持仓就是池内资产，它自己也在比较序列中，不影响逻辑(> implies strict greater)
+            # 但通常排名是 1-based. 
+            # E.g. [0.1, 0.05, 0.02]. My Ret=0.1. >0.1 count=0. Rank=1.
+            # E.g. [0.1, 0.05, 0.02]. My Ret=0.05. >0.05 count=1. Rank=2.
+            better_count = (period_ret > held_ret).sum()
+            rank = better_count + 1
+            pool_size = len(period_ret)
+            
             # 判断是否"赢了"
             # 如果我是 CASH (空仓)，且 CASH > Pool_Avg，则视为防守成功 (Win)
             is_best = (asset_held == best_asset)
@@ -261,11 +284,12 @@ class PoolEvaluator:
                 'Pool_Best': best_asset,
                 'Best_Return': best_ret,
                 'Pool_Avg': avg_ret,
+                'Rank': f"{rank}/{pool_size}",
                 'Is_Best': is_best,
                 'Beats_Avg': (held_ret > avg_ret)
             })
             
-        df_res = pd.DataFrame(results)
+        df_res = pd.DataFrame(results, columns=['Start', 'End', 'Days', 'Held_Asset', 'Held_Return', 'Pool_Best', 'Best_Return', 'Pool_Avg', 'Rank', 'Is_Best', 'Beats_Avg'])
         
         if df_res.empty:
             print("\n[持仓归因] 未找到有效的持仓周期。")
@@ -273,11 +297,54 @@ class PoolEvaluator:
 
         print(f"\n[持仓归因分析]")
         print(f"总持仓段数: {len(df_res)}")
-        print(f"命中率 (选中最优标的): {df_res['Is_Best'].mean():.2%}")
-        print(f"胜率 (跑赢池均值): {df_res['Beats_Avg'].mean():.2%}")
+        
+        # 按段数统计
+        print(f"命中率 (按段数): {df_res['Is_Best'].mean():.2%}")
+        print(f"胜率 (按段数): {df_res['Beats_Avg'].mean():.2%}")
+        
+        # 按天数统计
+        total_days = df_res['Days'].sum()
+        best_days = df_res.loc[df_res['Is_Best'], 'Days'].sum()
+        beat_days = df_res.loc[df_res['Beats_Avg'], 'Days'].sum()
+        
+        print(f"命中率 (按天数): {best_days/total_days:.2%} ({best_days}/{total_days} days)")
+        print(f"胜率 (按天数): {beat_days/total_days:.2%} ({beat_days}/{total_days} days)")
+        
         print(f"平均超额收益 (vs 池均值): {(df_res['Held_Return'] - df_res['Pool_Avg']).mean():.2%}")
         
-        return df_res
+        if simple_df:
+            # 简单模式: 聚合Rank
+            # 解析 Rank (e.g. "1/5" -> 1)
+            # 这里只要分子即可
+            df_res['Rank_Num'] = df_res['Rank'].apply(lambda x: int(x.split('/')[0]))
+            
+            # 聚合
+            # 1. Segments count
+            rank_seg_counts = df_res['Rank_Num'].value_counts().sort_index()
+            total_segs = len(df_res)
+            
+            # 2. Days sum
+            rank_day_sums = df_res.groupby('Rank_Num')['Days'].sum()
+            
+            # 合并为 summary DataFrame
+            df_simple = pd.DataFrame({
+                'Rank': rank_seg_counts.index,
+                'Segments_Count': rank_seg_counts.values,
+                'Days_Sum': rank_day_sums.reindex(rank_seg_counts.index).values # align with index
+            })
+            
+            df_simple['Segments_Pct'] = df_simple['Segments_Count'] / total_segs
+            df_simple['Days_Pct'] = df_simple['Days_Sum'] / total_days
+            
+            # 格式化输出
+            df_simple['Segments_Pct_Str'] = df_simple['Segments_Pct'].apply(lambda x: f"{x:.2%}")
+            df_simple['Days_Pct_Str'] = df_simple['Days_Pct'].apply(lambda x: f"{x:.2%}")
+            
+            # 清理列
+            df_simple = df_simple[['Rank', 'Segments_Pct_Str', 'Days_Pct_Str']].sort_values('Rank')
+            df_simple.columns = ['Rank', 'Segment_Pct', 'Days_Pct']
+            
+            return df_simple
 
         return df_res
 
@@ -349,7 +416,7 @@ class PoolEvaluator:
                 'Is_Correct': (switch_alpha > 0)
             })
             
-        df_switch = pd.DataFrame(switching_results)
+        df_switch = pd.DataFrame(switching_results, columns=['Date', 'Old_Asset', 'New_Asset', 'New_Return', 'Old_Return', 'Switch_Alpha', 'Is_Correct'])
         
         if df_switch.empty:
             print("\n[换仓分析] 未发现换仓操作。")
@@ -363,12 +430,19 @@ class PoolEvaluator:
         
         return df_switch
 
-    def plot_relative_strength(self):
+    def plot_relative_strength(self, start_date=None, end_date=None):
         """
         方法3: 相对强弱曲线 (Relative Strength Curve)
         绘制 策略净值 / 标的池等权净值
         """
         rs = self.strategy_nav / self.pool_index_nav
+        if start_date is not None:
+            original_len = len(rs)
+            rs = rs.loc[start_date:]
+            if not rs.empty and len(rs) < original_len:
+                rs = rs / rs.iloc[0]
+        if end_date is not None:
+            rs = rs.loc[:end_date]
         
         plt.figure(figsize=(12, 6))
         plt.plot(rs, label='Relative Strength (Strategy / Pool Index)')
