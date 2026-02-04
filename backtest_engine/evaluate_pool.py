@@ -433,25 +433,53 @@ class PoolEvaluator:
     def plot_relative_strength(self, start_date=None, end_date=None):
         """
         方法3: 相对强弱曲线 (Relative Strength Curve)
-        绘制 策略净值 / 标的池等权净值
+        绘制 策略净值 / 标的池等权净值 (上图)
+        绘制 策略与标的池等权净值曲线 (下图)
         """
+        # 1. 准备数据
         rs = self.strategy_nav / self.pool_index_nav
+        strat_nav = self.strategy_nav.copy()
+        pool_nav = self.pool_index_nav.copy()
+
+        # 日期过滤与重归一化
         if start_date is not None:
-            original_len = len(rs)
             rs = rs.loc[start_date:]
-            if not rs.empty and len(rs) < original_len:
+            strat_nav = strat_nav.loc[start_date:]
+            pool_nav = pool_nav.loc[start_date:]
+            
+            # 如果截取后非空，重新归一化到1.0，便于区间对比
+            if not rs.empty:
                 rs = rs / rs.iloc[0]
+                strat_nav = strat_nav / strat_nav.iloc[0]
+                pool_nav = pool_nav / pool_nav.iloc[0]
+
         if end_date is not None:
             rs = rs.loc[:end_date]
+            strat_nav = strat_nav.loc[:end_date]
+            pool_nav = pool_nav.loc[:end_date]
         
-        plt.figure(figsize=(12, 6))
-        plt.plot(rs, label='Relative Strength (Strategy / Pool Index)')
-        plt.axhline(1.0, color='gray', linestyle='--')
-        plt.title('Relative Strength Analysis')
-        plt.legend()
-        plt.grid(True)
+        # 2. 绘图 (2个子图)
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
+        
+        # 子图1: 相对强弱 (比值)
+        ax1.plot(rs, label='Relative Strength (Strategy / Pool Index)', color='#800080') # Purple
+        ax1.axhline(1.0, color='gray', linestyle='--')
+        ax1.set_title('Relative Strength Analysis (Strategy / Pool)')
+        ax1.set_ylabel('Ratio')
+        ax1.legend(loc='upper left')
+        ax1.grid(True)
+        
+        # 子图2: 净值曲线
+        ax2.plot(strat_nav, label='Strategy NAV', color='red', linewidth=1.5)
+        ax2.plot(pool_nav, label='Pool Equal Weighted NAV', color='blue', linestyle='--', linewidth=1.5)
+        ax2.set_title('Net Value Comparison')
+        ax2.set_ylabel('Net Value')
+        ax2.legend(loc='upper left')
+        ax2.grid(True)
+        
+        plt.tight_layout()
         # plt.show() # Uncomment to show locally
-        print("\n[相对强弱] 已生成RS曲线 (斜率>0 意味着存在Alpha)。")
+        print("\n[相对强弱] 已生成RS曲线 (上) 与净值对比曲线 (下)。")
         return rs
 
 # ==========================================
