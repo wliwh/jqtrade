@@ -22,7 +22,7 @@ CONFIG = {
     "filter_gold": False,         # 剔除黄金
     "black_list": ["510900.XSHG"],  # 黑名单
     
-    # 聚类方法选择 ("hierarchical", "ap", "mst")
+    # 聚类方法选择 ("hierarchical", "ap", "mst", "dbscan")
     "clustering_method": "ap",
 
     # Hierarchical聚类参数

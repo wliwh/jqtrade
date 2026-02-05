@@ -230,22 +230,20 @@ class PoolEvaluator:
             period_ret = (1 + period_pool_rets).prod() - 1
             
             # 策略持仓收益 Calculation
-            if asset_held == "CASH":
-                # 计算策略在此期间的实际收益 (通常接近0或货币基金收益)
-                # 使用 cumprod 计算区间复合收益
-                strat_period_trace = (1 + self.strategy_ret.loc[start_date:end_date]).cumprod()
-                # 如果区间为空或只有1天，trace可能只有1个值
-                if len(strat_period_trace) > 0:
-                     held_ret = strat_period_trace.iloc[-1] - 1
-                else:
-                     held_ret = 0.0
+            # 修正: 为了使"分段累积收益"与"净值曲线"完全一致，必须统一使用 self.strategy_ret (实际收益)
+            # 之前的逻辑在持仓Stock时使用理论收益，导致忽略了交易成本/滑点，从而无法还原真实净值
+            strat_period_trace = (1 + self.strategy_ret.loc[start_date:end_date]).cumprod()
+            if len(strat_period_trace) > 0:
+                 held_ret = strat_period_trace.iloc[-1] - 1
             else:
-                 # 依然使用标的理论收益 (Pure Signal)，也可改为 actual strategy return
-                 # 这里保持一致性，使用标的收益
-                 if asset_held in period_ret:
-                     held_ret = period_ret[asset_held]
-                 else:
-                     continue
+                 held_ret = 0.0
+
+            # 仅用于标记是否是池内资产的Rank (如果资产不在池内无法Rank，但不影响收益计算)
+            if asset_held != "CASH" and asset_held not in period_ret:
+                 # 持有非池内资产，无法排名，Rank设为 N/A 或最差
+                 # 这里简化处理，依然计算收益，但Rank可能不准确
+                 pass
+
 
             # 池内最好收益
             best_asset = period_ret.idxmax()
@@ -255,16 +253,26 @@ class PoolEvaluator:
             worst_asset = period_ret.idxmin()
             worst_ret = period_ret.min()
             
-            # 平均收益
-            avg_ret = period_ret.mean()
+            # 平均收益 (Benchmark Return)
+            # 原逻辑: avg_ret = period_ret.mean() -> 这是成分股的等权平均(Buy-and-Hold)，不包含每日再平衡收益
+            # 修改为: 使用 self.pool_index_ret (每日均值的复利)，即"日频等权指数"收益
+            # 这样能与 Method 3 的 Index 曲线对齐，通常 Index > Component Mean (Volatility Pumping)
+            # 如果策略跑不赢这个 Index，那就说明跑不赢"傻瓜式等权持有"
+            pool_index_period = self.pool_index_ret.loc[start_date:end_date]
+            if len(pool_index_period) > 0:
+                avg_ret = (1 + pool_index_period).prod() - 1
+            else:
+                avg_ret = 0.0
             
             # 计算排名 (Rank)
             # 排名 = (有多少个池内资产收益 > 策略收益) + 1
-            # 注意: 如果策略持仓就是池内资产，它自己也在比较序列中，不影响逻辑(> implies strict greater)
-            # 但通常排名是 1-based. 
-            # E.g. [0.1, 0.05, 0.02]. My Ret=0.1. >0.1 count=0. Rank=1.
-            # E.g. [0.1, 0.05, 0.02]. My Ret=0.05. >0.05 count=1. Rank=2.
-            better_count = (period_ret > held_ret).sum()
+            # 修正: 如果持仓就是池内资产，应该用"策略实际收益"替换"标的理论收益"参与排名
+            # 否则会出现 5/4 的情况 (因为扣费后跑输了理论上的自己，导致比所有人都差)
+            compare_set = period_ret.copy()
+            if asset_held in compare_set:
+                compare_set[asset_held] = held_ret
+            
+            better_count = (compare_set > held_ret).sum()
             rank = better_count + 1
             pool_size = len(period_ret)
             
@@ -310,7 +318,20 @@ class PoolEvaluator:
         print(f"命中率 (按天数): {best_days/total_days:.2%} ({best_days}/{total_days} days)")
         print(f"胜率 (按天数): {beat_days/total_days:.2%} ({beat_days}/{total_days} days)")
         
-        print(f"平均超额收益 (vs 池均值): {(df_res['Held_Return'] - df_res['Pool_Avg']).mean():.2%}")
+        print(f"平均超额收益 (vs 池均值): {(df_res['Held_Return'] - df_res['Pool_Avg']).mean():.2%} (算术平均)")
+
+        # 验证: 从分段收益重建总收益 (几何累积)
+        # 这能解释为何"算术平均"为正，但"总收益"跑输的问题 (波动率拖累/Volatility Drag)
+        total_strat_geo = (1 + df_res['Held_Return']).prod() - 1
+        total_pool_geo = (1 + df_res['Pool_Avg']).prod() - 1
+        
+        print(f"\n[几何累积收益对比]")
+        print(f"分段累积策略收益: {total_strat_geo:.2%}")
+        print(f"分段累积基准收益: {total_pool_geo:.2%}")
+        print(f"实际总超额收益: {total_strat_geo - total_pool_geo:.2%}")
+        
+        # if total_strat_geo < total_pool_geo and (df_res['Held_Return'] - df_res['Pool_Avg']).mean() > 0:
+        #     print("注意: 算术平均超额为正但总超额为负，说明由于高波动导致了严重的'波动率损耗'。")
         
         if simple_df:
             # 简单模式: 聚合Rank
@@ -381,30 +402,33 @@ class PoolEvaluator:
                 end_date = self.strategy_ret.index[-1]
             
             # 计算区间收益 (使用 pool_rets)
+            # 1. 包含换仓日 (T)
             period_pool_rets = self.pool_rets.loc[date:end_date]
+            
+            # 2. 不包含换仓日 (T+1) - 用于检测"信号延迟"或"收盘成交"带来的影响
+            # 如果 T 日涨幅巨大导致 Alpha 高，但 T+1 开始并不好，说明是"追高"且没吃到 T 日收益
+            period_pool_rets_lagged = self.pool_rets.loc[date:end_date].iloc[1:]
+
             if len(period_pool_rets) < 1:
                 continue
                 
-            # 计算期间各资产累计涨幅 (Compound Return)
-            period_comp_ret = (1 + period_pool_rets).prod() - 1
+            # Calculation Helper
+            def get_asset_ret(asset, rets_df):
+                if len(rets_df) == 0: return 0.0
+                comp_ret = (1 + rets_df).prod() - 1
+                if asset == "CASH": return 0.0
+                if asset in comp_ret: return comp_ret[asset]
+                return 0.0
 
-            # 计算 "新资产" 在此期间的收益
-            if new_asset == "CASH":
-                ret_new = 0.0 # 简化为0
-            elif new_asset in period_comp_ret:
-                ret_new = period_comp_ret[new_asset]
-            else:
-                ret_new = 0.0
-                
-            # 计算 "旧资产" 在此期间的收益 (如果不卖会怎样?)
-            if old_asset == "CASH":
-                ret_old = 0.0
-            elif old_asset in period_comp_ret:
-                ret_old = period_comp_ret[old_asset]
-            else:
-                ret_old = 0.0
-                
+            # T (Current)
+            ret_new = get_asset_ret(new_asset, period_pool_rets)
+            ret_old = get_asset_ret(old_asset, period_pool_rets)
             switch_alpha = ret_new - ret_old
+            
+            # T+1 (Lagged)
+            ret_new_lag = get_asset_ret(new_asset, period_pool_rets_lagged)
+            ret_old_lag = get_asset_ret(old_asset, period_pool_rets_lagged)
+            switch_alpha_lag = ret_new_lag - ret_old_lag
             
             switching_results.append({
                 'Date': date,
@@ -413,10 +437,12 @@ class PoolEvaluator:
                 'New_Return': ret_new,
                 'Old_Return': ret_old,
                 'Switch_Alpha': switch_alpha,
-                'Is_Correct': (switch_alpha > 0)
+                'Is_Correct': (switch_alpha > 0),
+                'Switch_Alpha_Lag': switch_alpha_lag,
+                'Is_Correct_Lag': (switch_alpha_lag > 0)
             })
             
-        df_switch = pd.DataFrame(switching_results, columns=['Date', 'Old_Asset', 'New_Asset', 'New_Return', 'Old_Return', 'Switch_Alpha', 'Is_Correct'])
+        df_switch = pd.DataFrame(switching_results, columns=['Date', 'Old_Asset', 'New_Asset', 'New_Return', 'Old_Return', 'Switch_Alpha', 'Is_Correct', 'Switch_Alpha_Lag', 'Is_Correct_Lag'])
         
         if df_switch.empty:
             print("\n[换仓分析] 未发现换仓操作。")
@@ -424,9 +450,13 @@ class PoolEvaluator:
             
         print(f"\n[换仓效果分析]")
         print(f"总换仓次数: {len(df_switch)}")
-        print(f"换仓成功率 (新>旧): {df_switch['Is_Correct'].mean():.2%}")
-        print(f"平均换仓Alpha: {df_switch['Switch_Alpha'].mean():.2%}")
-        print(f"累计换仓Alpha: {df_switch['Switch_Alpha'].sum():.2%}")
+        print(f"换仓成功率 (新>旧) [含T日]: {df_switch['Is_Correct'].mean():.2%}")
+        print(f"平均换仓Alpha [含T日]: {df_switch['Switch_Alpha'].mean():.2%}")
+        print(f"累计换仓Alpha [含T日]: {df_switch['Switch_Alpha'].sum():.2%}")
+        print(f"----------")
+        print(f"换仓成功率 (新>旧) [T+1日]: {df_switch['Is_Correct_Lag'].mean():.2%} (排除换仓当日涨跌幅)")
+        print(f"平均换仓Alpha [T+1日]: {df_switch['Switch_Alpha_Lag'].mean():.2%}")
+        print(f"累计换仓Alpha [T+1日]: {df_switch['Switch_Alpha_Lag'].sum():.2%}")
         
         return df_switch
 

@@ -54,9 +54,10 @@ def initialize(context):
     # ETF池字典配置：方便用户按类别构建组合
     g.etf_pool_dict = {
         '基础4款': [
-            "159915.XSHE",                                  # 创业板ETF
             "518880.XSHG",                                  # 黄金ETF
             "513100.XSHG",                                  # 纳指ETF
+            "159915.XSHE",                                  # 创业板ETF
+            "510180.XSHG",                                  # 上证180ETF
             "511220.XSHG",                                  # 城投债ETF
         ],
         '大宗商品': [
