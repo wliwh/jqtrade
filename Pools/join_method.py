@@ -1,4 +1,3 @@
-
 from jqdata import *
 from jqfactor import *
 import pandas as pd
@@ -68,6 +67,83 @@ def get_history_data(security_list, end_date, count, field="close"):
         print(f"  [Error] get_history_data failed: {e}")
         return pd.DataFrame()
 
+# -------------------- 1.5 核心工具：平滑相关性计算 --------------------------
+def get_smoothed_correlation(etf_list, config, target_date=None, verbose=True):
+    """
+    计算平滑后的相关性矩阵，以保证聚类结果的时序稳定性。
+    逻辑：计算过去N个时间窗口的相关性矩阵平均值。
+    """
+    if target_date is None: target_date = datetime.date.today()
+    
+    # 1. 获取参数
+    window = config["correlation_window"]
+    steps = config.get("smoothing_steps", 1)  # 平滑步数，默认1(不平滑)
+    lag = config.get("smoothing_lag", 20)     # 每次滞后的天数，默认20(约1个月)
+    
+    if verbose and steps > 1:
+        print(f"  -> Computing smoothed correlation (Steps={steps}, Lag={lag}d)...")
+        
+    # 2. 计算所需总数据长度
+    # 需要的数据长度 = 窗口 + (步数-1) * 滞后
+    total_count = window + (steps - 1) * lag
+    
+    # 3. 获取数据
+    price_data = get_history_data(etf_list, target_date, total_count, "close")
+    price_data = price_data.fillna(method="ffill").dropna(axis=1, how="any")
+    
+    if price_data.empty:
+        if verbose: print("  -> Price data empty.")
+        return None, []
+        
+    # 计算所有日期的收益率
+    all_returns = price_data.pct_change().dropna()
+    valid_etfs = all_returns.columns.tolist()
+    
+    if verbose and len(valid_etfs) < len(etf_list):
+        print(f"  -> Dropped {len(etf_list)-len(valid_etfs)} ETFs due to NaN data.")
+        
+    # 4. 滚动计算相关性矩阵并求和
+    sum_corr = None
+    count = 0
+    
+    # 数据长度: all_returns 的行数 (N)
+    # 我们需要取切片: [end - window : end]
+    n_samples = len(all_returns)
+    
+    for i in range(steps):
+        # 计算切片索引
+        # 第0步(current): end_idx = n_samples
+        # 第1步(lag 1):   end_idx = n_samples - lag
+        end_idx = n_samples - i * lag
+        start_idx = end_idx - window
+        
+        # 边界检查
+        if start_idx < 0:
+            if verbose: print(f"  -> Warning: Not enough data for smoothing step {i+1}.")
+            break
+            
+        # 切片收益率
+        slice_returns = all_returns.iloc[start_idx:end_idx]
+        
+        if len(slice_returns) < window * 0.9: # 简单数据量检查
+             continue
+             
+        # 计算该窗口的相关性
+        corr = slice_returns.corr(method="spearman")
+        
+        if sum_corr is None:
+            sum_corr = corr
+        else:
+            sum_corr += corr
+        count += 1
+        
+    if count == 0:
+        return None, []
+        
+    # 5. 取平均
+    avg_corr = sum_corr / count
+    return avg_corr, valid_etfs
+
 # -------------------- 2.1 AP 聚类筛选 (Affinity Propagation) --------------------------
 def ap_clustering_filter(etf_list, config, target_date=None, verbose=True):
     """
@@ -87,21 +163,11 @@ def ap_clustering_filter(etf_list, config, target_date=None, verbose=True):
         if verbose: print("  -> No ETFs passed liquidity filter.")
         return []
 
-    # 2. 获取价格并计算收益率
-    # price_data = history(config["correlation_window"], "1d", "close", valid_etfs, df=True)
-    price_data = get_history_data(valid_etfs, target_date, config["correlation_window"], "close")
-    price_data = price_data.fillna(method="ffill").dropna(axis=1, how="any")
+    # 2. 计算平滑相关性矩阵 (替代原有的直接获取数据计算)
+    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date, verbose)
     
-    if price_data.empty:
-        if verbose: print("  -> Price data empty.")
+    if corr_matrix is None or corr_matrix.empty:
         return []
-        
-    returns = price_data.pct_change().dropna()
-    final_etf_list = returns.columns.tolist()
-    
-    # 3. 计算相关性矩阵 (Spearman)
-    if verbose: print(f"  -> Computing correlation matrix for {len(final_etf_list)} ETFs...")
-    corr_matrix = returns.corr(method="spearman")
     
     # 4. 执行 AP 聚类
     # 注意：AP 接受相似度矩阵 (Similarity Matrix)，相关系数本身就是一种相似度 (-1 ~ 1)
@@ -146,13 +212,12 @@ def ap_clustering_filter(etf_list, config, target_date=None, verbose=True):
 # -------------------- 2.2 层次聚类筛选 (Hierarchical Clustering) --------------------------
 def hierarchical_clustering_filter(etf_list, config, target_date=None, verbose=True):
     """
-    使用层次聚类筛选 (移植自 oix_pools.py slow_track_filter)
+    使用层次聚类筛选
     """
     if verbose: print(f"Step 2: Hierarchical Clustering (Corr Threshold={config['cluster_corr_threshold']})...")
 
     # 1. 预先过滤流动性
     if target_date is None: target_date = datetime.date.today()
-    # money_median_20d = history(20, "1d", "money", etf_list, df=True).median()
     money_median_20d = get_history_data(etf_list, target_date, 20, "money").median()
     valid_etfs = [etf for etf in etf_list if money_median_20d.get(etf, 0) > config["min_liquidity"]]
 
@@ -160,22 +225,11 @@ def hierarchical_clustering_filter(etf_list, config, target_date=None, verbose=T
         if verbose: print("  -> No ETFs passed liquidity filter.")
         return []
 
-    # 2. 获取价格并计算收益率
-    # 注意: oix 使用 120 天，这里 config["correlation_window"] 也是 120
-    # price_data = history(config["correlation_window"], "1d", "close", valid_etfs, df=True)
-    price_data = get_history_data(valid_etfs, target_date, config["correlation_window"], "close")
-    price_data = price_data.fillna(method="ffill").dropna(axis=1, how="any")
+    # 2. 计算平滑相关性矩阵
+    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date, verbose)
 
-    if price_data.empty:
-        if verbose: print("  -> Price data empty.")
+    if corr_matrix is None or corr_matrix.empty:
         return []
-
-    returns = price_data.pct_change().dropna()
-    final_etf_list = returns.columns.tolist()
-
-    # 3. 计算相关性矩阵 (Spearman)
-    if verbose: print(f"  -> Computing correlation matrix for {len(final_etf_list)} ETFs...")
-    corr_matrix = returns.corr(method="spearman")
 
     # 4. 转换为距离矩阵 & 聚类
     # distance = sqrt(2 * (1 - correlation))
@@ -195,14 +249,6 @@ def hierarchical_clustering_filter(etf_list, config, target_date=None, verbose=T
     if verbose: print(f"  -> Converged into {n_clusters_} clusters.")
 
     # 6. 从每个簇中选择流动性最好的 ETF
-    money_data = history(30, "1d", "money", final_etf_list, df=True).median() # or mean, oix uses mean in fast/slow logic varies slightly, oix slow uses median for filter but mean for selection? oix line 88 uses fillna(0) then selection uses mean.
-    # oix line 88: money_data = history(30, "1d", "money", filtered_etfs, df=True).fillna(0)
-    # oix selection: max(etfs, key=lambda etf: money_data[etf].mean()) 
-    # Wait, money_data[etf] is a series. .mean() is scalar. Correct.
-    # I will stick to simple scalar mean for sorting.
-    money_means = money_data.mean() if isinstance(money_data, pd.DataFrame) else money_data # JQ returns DF usually. 
-    # Actually, let's just get the mean directly
-    # money_means = history(30, "1d", "money", final_etf_list, df=True).mean()
     money_means = get_history_data(final_etf_list, target_date, 30, "money").mean()
 
     cluster_dict = defaultdict(list)
@@ -232,7 +278,6 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True):
 
     # 1. 预先过滤流动性
     if target_date is None: target_date = datetime.date.today()
-    # money_median_20d = history(20, "1d", "money", etf_list, df=True).median()
     money_median_20d = get_history_data(etf_list, target_date, 20, "money").median()
     valid_etfs = [etf for etf in etf_list if money_median_20d.get(etf, 0) > config["min_liquidity"]]
 
@@ -240,22 +285,13 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True):
         if verbose: print("  -> No ETFs passed liquidity filter.")
         return []
 
-    # 2. 获取价格并计算收益率
-    # price_data = history(config["correlation_window"], "1d", "close", valid_etfs, df=True)
-    price_data = get_history_data(valid_etfs, target_date, config["correlation_window"], "close")
-    price_data = price_data.fillna(method="ffill").dropna(axis=1, how="any")
-
-    if price_data.empty:
-        if verbose: print("  -> Price data empty.")
+    # 2. 计算平滑相关性矩阵
+    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date, verbose)
+    
+    if corr_matrix is None or corr_matrix.empty:
         return []
 
-    returns = price_data.pct_change().dropna()
-    final_etf_list = returns.columns.tolist() # 节点列表 of size N
-
     # 3. 构建距离矩阵 (Distance Matrix)
-    # distance = sqrt(2 * (1 - correlation))
-    if verbose: print(f"  -> Computing correlation & distance matrix for {len(final_etf_list)} ETFs...")
-    corr_matrix = returns.corr(method="spearman")
     dist_matrix = np.sqrt(2 * (1 - corr_matrix))
     np.fill_diagonal(dist_matrix.values, 0) # 自身距离为0
 
@@ -265,8 +301,6 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True):
     G.add_nodes_from(final_etf_list)
     
     # 添加边 (完全图)
-    # 优化: networkx 处理完全图比较慢，我们可以直接通过距离矩阵构建
-    # 这里直接遍历矩阵的上三角部分添加边
     edges = []
     n = len(final_etf_list)
     for i in range(n):
@@ -285,7 +319,6 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True):
     total_weight = sum(d['weight'] for u, v, d in mst.edges(data=True)) 
     ntl = total_weight / (len(mst.nodes()) - 1)
     # 2. 计算平均路径长度 (需要算拓扑距离，或是加权距离)
-    # 这里通常算的是跳数(hops)，或者加权距离
     avg_path_len = nx.average_shortest_path_length(mst, weight='weight')
     # 3. 打印观测
     if verbose:
@@ -293,17 +326,10 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True):
         print(f"  [Market Structure] Avg Path: {avg_path_len:.4f}")
     
     # 5. 切断最长的 K-1 条边
-    # 获取MST中所有边及其权重
     mst_edges = sorted(mst.edges(data=True), key=lambda x: x[2]['weight'], reverse=True)
-    
-    # 需要移除的边数 = 目标簇数 - 1
-    # 如果当前连通分量已经是1 (MST本身)，移除1条边变2个分量...
-    # 注意: MST是连通的，初始分量为1
     num_to_remove = config['mst_n_clusters'] - 1
     
     if num_to_remove > 0 and len(mst_edges) >= num_to_remove:
-        # 移除权重最大的前 num_to_remove 条边 (即距离最远/相关性最低的连接)
-        # 这样会断开大的群组
         edges_to_remove = mst_edges[:num_to_remove]
         mst.remove_edges_from([(u, v) for u, v, d in edges_to_remove])
         if verbose: print(f"  -> Removed {num_to_remove} longest edges to form clusters.")
@@ -313,7 +339,6 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True):
     if verbose: print(f"  -> Generated {len(components)} clusters.")
     
     # 7. 从每个簇中选择流动性最好的 ETF
-    # money_means = history(30, "1d", "money", final_etf_list, df=True).mean()
     money_means = get_history_data(final_etf_list, target_date, 30, "money").mean()
     
     selected_etfs = []
@@ -350,21 +375,13 @@ def dbscan_clustering_filter(etf_list, config, target_date=None, verbose=True):
         if verbose: print("  -> No ETFs passed liquidity filter.")
         return []
 
-    # 2. 获取价格并计算收益率
-    price_data = get_history_data(valid_etfs, target_date, config["correlation_window"], "close")
-    price_data = price_data.fillna(method="ffill").dropna(axis=1, how="any")
-
-    if price_data.empty:
-        if verbose: print("  -> Price data empty.")
+    # 2. 计算平滑相关性矩阵
+    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date, verbose)
+    
+    if corr_matrix is None or corr_matrix.empty:
         return []
 
-    returns = price_data.pct_change().dropna()
-    final_etf_list = returns.columns.tolist()
-
     # 3. 计算相关性矩阵 & 距离矩阵
-    if verbose: print(f"  -> Computing correlation & distance matrix for {len(final_etf_list)} ETFs...")
-    corr_matrix = returns.corr(method="spearman")
-    # distance = sqrt(2 * (1 - correlation))
     # DBSCAN metric='precomputed' 需要距离矩阵
     dist_matrix = np.sqrt(2 * (1 - corr_matrix))
     np.fill_diagonal(dist_matrix.values, 0)
@@ -383,9 +400,6 @@ def dbscan_clustering_filter(etf_list, config, target_date=None, verbose=True):
     if verbose: print(f"  -> DBSCAN found {n_clusters_} clusters and {n_noise_} noise points.")
 
     # 5. 选择逻辑
-    # 对于每个簇 (Label >= 0)，选流动性最好的
-    # 对于噪声 (-1)，通常意味着它们独特，全部保留 (或视为单独的簇)
-    
     money_means = get_history_data(final_etf_list, target_date, 30, "money").mean()
     cluster_dict = defaultdict(list)
     

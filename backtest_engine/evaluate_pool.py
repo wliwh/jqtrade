@@ -334,38 +334,63 @@ class PoolEvaluator:
         #     print("注意: 算术平均超额为正但总超额为负，说明由于高波动导致了严重的'波动率损耗'。")
         
         if simple_df:
-            # 简单模式: 聚合Rank
-            # 解析 Rank (e.g. "1/5" -> 1)
-            # 这里只要分子即可
-            df_res['Rank_Num'] = df_res['Rank'].apply(lambda x: int(x.split('/')[0]))
+            # 简单模式: 聚合 Rank 和 Held_Asset 并排显示
+            # 目标列: Rank, Rank_Seg_Pct, Rank_Day_Pct, | Asset, Asset_Seg_Pct, Asset_Day_Pct
             
-            # 聚合
-            # 1. Segments count
-            rank_seg_counts = df_res['Rank_Num'].value_counts().sort_index()
             total_segs = len(df_res)
+            total_days = df_res['Days'].sum()
             
-            # 2. Days sum
+            # --- Part 1: Rank Stats ---
+            df_res['Rank_Num'] = df_res['Rank'].apply(lambda x: int(x.split('/')[0]))
+            rank_seg_counts = df_res['Rank_Num'].value_counts().sort_index()
             rank_day_sums = df_res.groupby('Rank_Num')['Days'].sum()
             
-            # 合并为 summary DataFrame
-            df_simple = pd.DataFrame({
+            df_rank = pd.DataFrame({
                 'Rank': rank_seg_counts.index,
-                'Segments_Count': rank_seg_counts.values,
-                'Days_Sum': rank_day_sums.reindex(rank_seg_counts.index).values # align with index
+                'Rank_Seg_Count': rank_seg_counts.values,
+                'Rank_Day_Sum': rank_day_sums.reindex(rank_seg_counts.index).values
+            })
+            df_rank['Rank_Seg_Pct'] = (df_rank['Rank_Seg_Count'] / total_segs).apply(lambda x: f"{x:.2%}")
+            df_rank['Rank_Day_Pct'] = (df_rank['Rank_Day_Sum'] / total_days).apply(lambda x: f"{x:.2%}")
+            
+            # Keep only required columns
+            df_rank_final = df_rank[['Rank', 'Rank_Seg_Pct', 'Rank_Day_Pct']]
+            
+            # --- Part 2: Asset Stats ---
+            asset_seg_counts = df_res['Held_Asset'].value_counts()
+            asset_day_sums = df_res.groupby('Held_Asset')['Days'].sum()
+            
+            df_asset = pd.DataFrame({
+                'Asset': asset_seg_counts.index,
+                'Asset_Name': [get_security_info(etf).display_name if hasattr(get_security_info(etf),'display_name') else '' for etf in asset_seg_counts.index],
+                'Asset_Seg_Count': asset_seg_counts.values,
+                'Asset_Day_Sum': asset_day_sums.reindex(asset_seg_counts.index).values
             })
             
-            df_simple['Segments_Pct'] = df_simple['Segments_Count'] / total_segs
-            df_simple['Days_Pct'] = df_simple['Days_Sum'] / total_days
+            # 按天数占比降序排列
+            df_asset['Sort_Key'] = df_asset['Asset_Day_Sum']
+            df_asset = df_asset.sort_values('Sort_Key', ascending=False)
             
-            # 格式化输出
-            df_simple['Segments_Pct_Str'] = df_simple['Segments_Pct'].apply(lambda x: f"{x:.2%}")
-            df_simple['Days_Pct_Str'] = df_simple['Days_Pct'].apply(lambda x: f"{x:.2%}")
+            df_asset['Asset_Seg_Pct'] = (df_asset['Asset_Seg_Count'] / total_segs).apply(lambda x: f"{x:.2%}")
+            df_asset['Asset_Day_Pct'] = (df_asset['Asset_Day_Sum'] / total_days).apply(lambda x: f"{x:.2%}")
             
-            # 清理列
-            df_simple = df_simple[['Rank', 'Segments_Pct_Str', 'Days_Pct_Str']].sort_values('Rank')
-            df_simple.columns = ['Rank', 'Segment_Pct', 'Days_Pct']
+            # Keep only required columns
+            df_asset_final = df_asset[['Asset', 'Asset_Name', 'Asset_Seg_Pct', 'Asset_Day_Pct']]
             
-            return df_simple
+            # --- Combine ---
+            # Reset index to allow side-by-side concat
+            df_rank_final = df_rank_final.reset_index(drop=True)
+            df_asset_final = df_asset_final.reset_index(drop=True)
+            
+            df_combined = pd.concat([df_rank_final, df_asset_final], axis=1)
+            
+            # Rename for display
+            df_combined.columns = ['Rank', 'Seg_Pct', 'Days_Pct', 'Asset', 'Asset_Name', 'Seg_Pct', 'Days_Pct']
+            
+            # Fill NaN with empty string
+            df_combined = df_combined.fillna('')
+            
+            return df_combined
 
         return df_res
 

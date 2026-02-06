@@ -15,6 +15,8 @@ CONFIG = {
     "min_liquidity": 50e6,       # 最小成交额 (5000万)
     "min_listing_days": 60,      # 最小上市天数
     "correlation_window": 120,      # 计算相关性的回看窗口 (天)
+    "smoothing_steps": 1,        # 恢复原状：1表示不平滑，只计算当前窗口
+    "smoothing_lag": 20,         # (此参数在steps=1时无效)
     
     # 类型过滤配置 (True=剔除, False=保留)
     "filter_bond_money": True,    # 剔除债券、货币
@@ -277,23 +279,98 @@ def multi_round_aggregation(freq="M", periods=6, end_date=None, verbose=False, c
         pretty_print(res_df[["date", "count", "etfs"]])
         
     return res_df
+
+# -------------------- 5. 稳定性分析工具 --------------------------
+def analyze_cluster_stability(base_date=None, lag_days=1, verbose=True, config=CONFIG):
+    """
+    研究两个相似时间点（base_date vs base_date - lag_days）的聚类结果偏差。
+    用于量化观察聚类算法的时序不稳定性。
+    """
+    if base_date is None:
+        base_date = datetime.date.today()
+        
+    prev_date = base_date - datetime.timedelta(days=lag_days)
+    
+    print("=" * 60)
+    print(f"Stability Analysis: {base_date} vs {prev_date} (Lag: {lag_days} days)")
+    print(f"Algorithm: {config['clustering_method']}")
+    print("=" * 60)
+    
+    # Run 1: Base Date
+    print(f"\n[Run 1] Processing {base_date}...")
+    pool1 = []
+    try:
+        c1 = initial_etf_filter(target_date=base_date, verbose=False)
+        if config["clustering_method"] == "ap":
+            pool1 = ap_clustering_filter(c1, config, target_date=base_date, verbose=False)
+        elif config["clustering_method"] == "mst":
+            pool1 = mst_clustering_filter(c1, config, target_date=base_date, verbose=False)
+        elif config["clustering_method"] == "dbscan":
+            pool1 = dbscan_clustering_filter(c1, config, target_date=base_date, verbose=False)
+        else:
+            pool1 = hierarchical_clustering_filter(c1, config, target_date=base_date, verbose=False)
+    except Exception as e:
+        print(f"  Error in Run 1: {e}")
+
+    # Run 2: Previous Date
+    print(f"[Run 2] Processing {prev_date}...")
+    pool2 = []
+    try:
+        c2 = initial_etf_filter(target_date=prev_date, verbose=False)
+        if config["clustering_method"] == "ap":
+            pool2 = ap_clustering_filter(c2, config, target_date=prev_date, verbose=False)
+        elif config["clustering_method"] == "mst":
+            pool2 = mst_clustering_filter(c2, config, target_date=prev_date, verbose=False)
+        elif config["clustering_method"] == "dbscan":
+            pool2 = dbscan_clustering_filter(c2, config, target_date=prev_date, verbose=False)
+        else:
+            pool2 = hierarchical_clustering_filter(c2, config, target_date=prev_date, verbose=False)
+    except Exception as e:
+        print(f"  Error in Run 2: {e}")
+        
+    # Analysis
+    set1 = set(pool1)
+    set2 = set(pool2)
+    
+    intersection = set1.intersection(set2)
+    union = set1.union(set2)
+    
+    # Jaccard Index
+    stability_score = len(intersection) / len(union) if union else 0
+    
+    # Changes
+    newly_added = set1 - set2
+    dropped = set2 - set1
+    
+    print("\n" + "-"*30 + " Results " + "-"*30)
+    print(f"Pool 1 Size ({base_date}): {len(pool1)}")
+    print(f"Pool 2 Size ({prev_date}): {len(pool2)}")
+    print(f"Intersection: {len(intersection)}")
+    print(f"Stability Score (Jaccard): {stability_score:.4f} (1.0 = Identical)")
+    
+    print(f"\nChanged: {len(newly_added) + len(dropped)}")
+    if newly_added:
+        names = [f"{get_security_info(c).display_name}" for c in newly_added]
+        print(f"  + Added ({len(newly_added)}): {', '.join(names)}")
+    if dropped:
+        names = [f"{get_security_info(c).display_name}" for c in dropped]
+        print(f"  - Dropped ({len(dropped)}): {', '.join(names)}")
+        
+    return stability_score
+
 # -------------------- 主程序 --------------------------
 if __name__ == "__main__":
     
-    # Check if we want to run multi-round or single
-    # For now, let's keep single run as default unless configured?
-    # Or just run single run for 'today'.
+    # Mode Switch: "SINGLE", "MULTI", "STABILITY"
+    MODE = "STABILITY" 
     
-    # To enable multi-round for testing, uncomment below or set a flag
-    RUN_MULTI_ROUND = True
+    if MODE == "STABILITY":
+        analyze_cluster_stability(lag_days=1) # Comparative Analysis
+        exit()
     
-    if RUN_MULTI_ROUND:
+    if MODE == "MULTI":
         # Example: Last 6 month-ends
         multi_round_aggregation(freq="ME", periods=6, verbose=False)
-        
-        # Don't run the rest if just testing multi-round
-        # exit() 
-        # But user might want standard output too.
         print("\n" + "-"*30 + " Single Round (Today) " + "-"*30)
 
     print("-" * 50)
