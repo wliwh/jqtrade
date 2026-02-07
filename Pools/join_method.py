@@ -145,7 +145,7 @@ def get_smoothed_correlation(etf_list, config, target_date=None, verbose=True):
     return avg_corr, valid_etfs
 
 # -------------------- 2.1 AP 聚类筛选 (Affinity Propagation) --------------------------
-def ap_clustering_filter(etf_list, config, target_date=None, verbose=True):
+def ap_clustering_filter(etf_list, config, target_date=None, verbose=True, return_details=False):
     """
     使用 Affinity Propagation (AP) 算法进行聚类筛选
     """
@@ -207,10 +207,16 @@ def ap_clustering_filter(etf_list, config, target_date=None, verbose=True):
         
         if verbose: print(f"    Cluster {label}: Selected {display_name} ({best_etf}) from {len(etfs)} candidates.")
 
+    if return_details:
+        # construct a dict {etf: label}
+        # final_etf_list contains the ETFs used in clustering
+        details = {etf: label for etf, label in zip(final_etf_list, labels)}
+        return selected_etfs, details
+
     return selected_etfs
 
 # -------------------- 2.2 层次聚类筛选 (Hierarchical Clustering) --------------------------
-def hierarchical_clustering_filter(etf_list, config, target_date=None, verbose=True):
+def hierarchical_clustering_filter(etf_list, config, target_date=None, verbose=True, return_details=False):
     """
     使用层次聚类筛选
     """
@@ -266,10 +272,14 @@ def hierarchical_clustering_filter(etf_list, config, target_date=None, verbose=T
         display_name = get_security_info(best_etf).display_name
         if verbose: print(f"    Cluster {label}: Selected {display_name} ({best_etf}) from {len(etfs)} candidates.")
 
+    if return_details:
+        details = {etf: label for etf, label in zip(final_etf_list, clusters)}
+        return selected_etfs, details
+
     return selected_etfs
 
 # -------------------- 2.3 MST 聚类筛选 (Minimum Spanning Tree) --------------------------
-def mst_clustering_filter(etf_list, config, target_date=None, verbose=True):
+def mst_clustering_filter(etf_list, config, target_date=None, verbose=True, return_details=False):
     """
     使用最小生成树 (MST) 算法进行聚类筛选
     原理: 构建完全图 (权重=距离)，生成MST，切断最长的K-1条边，形成K个连通分量
@@ -353,10 +363,19 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True):
         display_name = get_security_info(best_etf).display_name
         if verbose: print(f"    Cluster {i+1}: Selected {display_name} ({best_etf}) from {len(etfs_in_cluster)} candidates.")
         
+    if return_details:
+        # Map back to labels. For MST, components are clusters.
+        # Assign an arbitrary ID to each component
+        details = {}
+        for idx, comp in enumerate(components):
+            for etf in comp:
+                details[etf] = idx
+        return selected_etfs, details
+
     return selected_etfs
 
 # -------------------- 2.4 DBSCAN 聚类筛选 (Density-Based) --------------------------
-def dbscan_clustering_filter(etf_list, config, target_date=None, verbose=True):
+def dbscan_clustering_filter(etf_list, config, target_date=None, verbose=True, return_details=False):
     """
     使用 DBSCAN 进行基于密度的聚类
     原理: 将高密度区域划分为簇，稀疏区域标记为噪声 (-1)
@@ -431,4 +450,8 @@ def dbscan_clustering_filter(etf_list, config, target_date=None, verbose=True):
             selected_etfs.append(etf)
             # if verbose: print(f"     Outlier: {get_security_info(etf).display_name} ({etf})")
             
+    if return_details:
+        details = {etf: label for etf, label in zip(final_etf_list, labels)}
+        return selected_etfs, details
+
     return selected_etfs

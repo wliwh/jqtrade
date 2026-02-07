@@ -1,5 +1,7 @@
 from jqdata import *
-from jqfactor import *
+from sklearn.cluster import DBSCAN
+from sklearn.metrics import adjusted_rand_score
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 import datetime
@@ -299,32 +301,34 @@ def analyze_cluster_stability(base_date=None, lag_days=1, verbose=True, config=C
     # Run 1: Base Date
     print(f"\n[Run 1] Processing {base_date}...")
     pool1 = []
+    details1 = {}
     try:
         c1 = initial_etf_filter(target_date=base_date, verbose=False)
         if config["clustering_method"] == "ap":
-            pool1 = ap_clustering_filter(c1, config, target_date=base_date, verbose=False)
+            pool1, details1 = ap_clustering_filter(c1, config, target_date=base_date, verbose=False, return_details=True)
         elif config["clustering_method"] == "mst":
-            pool1 = mst_clustering_filter(c1, config, target_date=base_date, verbose=False)
+            pool1, details1 = mst_clustering_filter(c1, config, target_date=base_date, verbose=False, return_details=True)
         elif config["clustering_method"] == "dbscan":
-            pool1 = dbscan_clustering_filter(c1, config, target_date=base_date, verbose=False)
+            pool1, details1 = dbscan_clustering_filter(c1, config, target_date=base_date, verbose=False, return_details=True)
         else:
-            pool1 = hierarchical_clustering_filter(c1, config, target_date=base_date, verbose=False)
+            pool1, details1 = hierarchical_clustering_filter(c1, config, target_date=base_date, verbose=False, return_details=True)
     except Exception as e:
         print(f"  Error in Run 1: {e}")
 
     # Run 2: Previous Date
     print(f"[Run 2] Processing {prev_date}...")
     pool2 = []
+    details2 = {}
     try:
         c2 = initial_etf_filter(target_date=prev_date, verbose=False)
         if config["clustering_method"] == "ap":
-            pool2 = ap_clustering_filter(c2, config, target_date=prev_date, verbose=False)
+            pool2, details2 = ap_clustering_filter(c2, config, target_date=prev_date, verbose=False, return_details=True)
         elif config["clustering_method"] == "mst":
-            pool2 = mst_clustering_filter(c2, config, target_date=prev_date, verbose=False)
+            pool2, details2 = mst_clustering_filter(c2, config, target_date=prev_date, verbose=False, return_details=True)
         elif config["clustering_method"] == "dbscan":
-            pool2 = dbscan_clustering_filter(c2, config, target_date=prev_date, verbose=False)
+            pool2, details2 = dbscan_clustering_filter(c2, config, target_date=prev_date, verbose=False, return_details=True)
         else:
-            pool2 = hierarchical_clustering_filter(c2, config, target_date=prev_date, verbose=False)
+            pool2, details2 = hierarchical_clustering_filter(c2, config, target_date=prev_date, verbose=False, return_details=True)
     except Exception as e:
         print(f"  Error in Run 2: {e}")
         
@@ -335,8 +339,30 @@ def analyze_cluster_stability(base_date=None, lag_days=1, verbose=True, config=C
     intersection = set1.intersection(set2)
     union = set1.union(set2)
     
-    # Jaccard Index
+    # 1. Selection Stability (Jaccard)
     stability_score = len(intersection) / len(union) if union else 0
+    
+    # 2. Structural Stability (ARI)
+    # Find common ETFs in both clustering runs (candidates that survived filtering in both)
+    # Note: details keys are the 'final_etf_list' used in clustering, which includes all valid candidates before selection.
+    
+    common_candidates = set(details1.keys()) & set(details2.keys())
+    ari_score = 0.0
+    
+    if common_candidates:
+        labels_true = [details1[etf] for etf in common_candidates]
+        labels_pred = [details2[etf] for etf in common_candidates]
+        ari_score = adjusted_rand_score(labels_true, labels_pred)
+    
+    print("\n" + "-"*30 + " Results " + "-"*30)
+    print(f"Pool 1 Selected ({base_date}): {len(pool1)}")
+    print(f"Pool 2 Selected ({prev_date}): {len(pool2)}")
+    print(f"Selection Stability (Jaccard): {stability_score:.4f} (1.0 = Identical Selection)")
+    
+    print(f"\nCommon Candidates Analysis (Structure):")
+    print(f"Common candidate ETFs count: {len(common_candidates)}")
+    print(f"Structural Stability (ARI):    {ari_score:.4f} (1.0 = Identical Grouping)")
+    print(f"  (ARI measures how similar the clustering partitions are for the same set of assets)")
     
     # Changes
     newly_added = set1 - set2
