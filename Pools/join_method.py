@@ -1,9 +1,9 @@
 from jqdata import *
+import logging
 from jqfactor import *
 import pandas as pd
 import numpy as np
 import datetime
-import builtins
 import math
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -13,24 +13,26 @@ from scipy.spatial.distance import squareform
 from sklearn.cluster import DBSCAN
 from collections import defaultdict
 
+logger = logging.getLogger(__name__)
+
 def get_history_data(security_list, end_date, count, field="close"):
     """
-    Helper to fetch history data ending at a specific date using get_price.
-    Handles strict formatting to return a DataFrame (Index=Date, Columns=Securities).
+    辅助函数：使用 get_price 获取截至特定日期的历史数据。
+    处理严格的格式以返回 DataFrame (Index=Date, Columns=Securities)。
     """
-    # Ensure input is a list
+    # 确保输入是列表
     if isinstance(security_list, str):
         security_list = [security_list]
 
     try:
-        # User confirmed get_price with panel=False returns a flat DataFrame
+        # 用户确认 get_price 带 panel=False 返回扁平 DataFrame
         df = get_price(list(security_list), end_date=end_date, count=count, 
                        frequency='daily', fields=[field], panel=False)
         
         if df.empty:
             return pd.DataFrame()
 
-        # 1. Handle Flat DataFrame (Multiple Securities) using Pivot
+        # 1. 处理扁平 DataFrame (多个标的) 使用 Pivot
         if 'code' in df.columns:
             index_col = 'time' if 'time' in df.columns else 'date' if 'date' in df.columns else None
             
@@ -40,7 +42,7 @@ def get_history_data(security_list, end_date, count, field="close"):
             else:
                 return df.pivot(columns='code', values=field)
 
-        # 2. Handle Single Security (Index = Date)
+        # 2. 处理单个标的 (Index = Date)
         if isinstance(df.index, (pd.DatetimeIndex, pd.PeriodIndex)) or (len(df) > 0 and isinstance(df.index[0], (datetime.date, datetime.datetime, pd.Timestamp))):
             if len(security_list) == 1:
                 security_code = security_list[0]
@@ -49,11 +51,11 @@ def get_history_data(security_list, end_date, count, field="close"):
             
             return df[field] # Fallback
 
-        # 3. Legacy Panel or ndim=3
+        # 3. 旧版 Panel 或 ndim=3
         if getattr(df, "ndim", 2) == 3:
              return df[field]
              
-        # 4. MultiIndex (Date, Code) - New JQData sometimes
+        # 4. MultiIndex (Date, Code) - 新版 JQData 有时会出现
         if isinstance(df.index, pd.MultiIndex):
             unstacked = df.unstack(level=1)
             if field in unstacked.columns:
@@ -64,11 +66,11 @@ def get_history_data(security_list, end_date, count, field="close"):
         return df[field]
 
     except Exception as e:
-        print(f"  [Error] get_history_data failed: {e}")
+        logger.error(f"  [错误] 获取历史数据失败: {e}")
         return pd.DataFrame()
 
 # -------------------- 1.5 核心工具：平滑相关性计算 --------------------------
-def get_smoothed_correlation(etf_list, config, target_date=None, verbose=True):
+def get_smoothed_correlation(etf_list, config, target_date=None):
     """
     计算平滑后的相关性矩阵，以保证聚类结果的时序稳定性。
     逻辑：计算过去N个时间窗口的相关性矩阵平均值。
@@ -80,8 +82,8 @@ def get_smoothed_correlation(etf_list, config, target_date=None, verbose=True):
     steps = config.get("smoothing_steps", 1)  # 平滑步数，默认1(不平滑)
     lag = config.get("smoothing_lag", 20)     # 每次滞后的天数，默认20(约1个月)
     
-    if verbose and steps > 1:
-        print(f"  -> Computing smoothed correlation (Steps={steps}, Lag={lag}d)...")
+    if steps > 1:
+        logger.debug(f"  -> 计算平滑相关性 (步数={steps}, 滞后={lag}天)...")
         
     # 2. 计算所需总数据长度
     # 需要的数据长度 = 窗口 + (步数-1) * 滞后
@@ -92,15 +94,15 @@ def get_smoothed_correlation(etf_list, config, target_date=None, verbose=True):
     price_data = price_data.fillna(method="ffill").dropna(axis=1, how="any")
     
     if price_data.empty:
-        if verbose: print("  -> Price data empty.")
+        logger.debug("  -> 价格数据为空。")
         return None, []
         
     # 计算所有日期的收益率
     all_returns = price_data.pct_change().dropna()
     valid_etfs = all_returns.columns.tolist()
     
-    if verbose and len(valid_etfs) < len(etf_list):
-        print(f"  -> Dropped {len(etf_list)-len(valid_etfs)} ETFs due to NaN data.")
+    if len(valid_etfs) < len(etf_list):
+        logger.debug(f"  -> 因数据缺失丢弃了 {len(etf_list)-len(valid_etfs)} 个 ETF。")
         
     # 4. 滚动计算相关性矩阵并求和
     sum_corr = None
@@ -119,7 +121,7 @@ def get_smoothed_correlation(etf_list, config, target_date=None, verbose=True):
         
         # 边界检查
         if start_idx < 0:
-            if verbose: print(f"  -> Warning: Not enough data for smoothing step {i+1}.")
+            logger.warning(f"  -> 警告: 平滑步骤 {i+1} 数据不足。")
             break
             
         # 切片收益率
@@ -144,34 +146,120 @@ def get_smoothed_correlation(etf_list, config, target_date=None, verbose=True):
     avg_corr = sum_corr / count
     return avg_corr, valid_etfs
 
-# -------------------- 2.1 AP 聚类筛选 (Affinity Propagation) --------------------------
-def ap_clustering_filter(etf_list, config, target_date=None, verbose=True, return_details=False):
+# -------------------- 1.6 核心工具：获取排序依据数据 --------------------------
+def get_ranking_data(etf_list, target_date, method='money'):
     """
-    使用 Affinity Propagation (AP) 算法进行聚类筛选
+    获取用于筛选代表性ETF的排名数据
+    method: 'money' (30日平均成交额), 'market_cap' (总市值)
     """
-    if verbose: print(f"Step 2: Affinity Propagation Clustering (Damping={config['ap_damping']})...")
-    
-    # 1. 预先过滤流动性 (减少计算量)
+    if method == 'money':
+        # 保持原逻辑：30日成交额均值
+        return get_history_data(etf_list, target_date, 30, "money").mean()
+        
+    elif method == 'market_cap':
+        # 获取截至target_date的总市值
+        try:
+            q = query(valuation.code, valuation.market_cap).filter(
+                valuation.code.in_(etf_list)
+            )
+            df = get_fundamentals(q, date=target_date)
+            
+            if df is None or df.empty:
+                logger.warning("  -> 警告: get_fundamentals(market_cap) 返回为空。")
+                return pd.Series()
+                
+            # 建立映射: code -> market_cap
+            # 注意: returns dataframe with columns [code, market_cap]
+            mapping = df.set_index('code')['market_cap']
+            return mapping
+            
+        except Exception as e:
+            logger.error(f"  -> 获取市值出错: {e}")
+            return pd.Series()
+            
+    else:
+        logger.warning(f"  -> 警告: 未知的代表方法 '{method}', 默认为 'money'。")
+        return get_history_data(etf_list, target_date, 30, "money").mean()
+
+
+# -------------------- 1.7 内部助手函数：公共逻辑 --------------------------
+def _prepare_data_and_corr(etf_list, config, target_date):
+    """
+    公共逻辑：预先过滤流动性 + 计算平滑相关性矩阵
+    返回: (corr_matrix, final_etf_list)
+    """
     if target_date is None: target_date = datetime.date.today()
     
-    # money_median_20d = history(20, "1d", "money", etf_list, df=True).median()
-    money_df = get_history_data(etf_list, target_date, 20, "money")
-    money_median_20d = money_df.median()
+    # 1. 预先过滤流动性
+    money_median_20d = get_history_data(etf_list, target_date, 20, "money").median()
     valid_etfs = [etf for etf in etf_list if money_median_20d.get(etf, 0) > config["min_liquidity"]]
     
     if not valid_etfs:
-        if verbose: print("  -> No ETFs passed liquidity filter.")
-        return []
-
-    # 2. 计算平滑相关性矩阵 (替代原有的直接获取数据计算)
-    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date, verbose)
+        logger.debug("  -> 无 ETF 通过流动性过滤。")
+        return None, []
+        
+    # 2. 计算平滑相关性矩阵
+    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date)
     
-    if corr_matrix is None or corr_matrix.empty:
-        return []
+    return corr_matrix, final_etf_list
+
+def _select_best_from_groups(config, groups, final_etf_list, target_date, group_labels=None, return_details=False):
+    """
+    公共逻辑：从分组中选择代表性 ETF
+    参数:
+      groups: list of list, e.g. [[etf1, etf2], [etf3]]
+      group_labels: list of label names corresponding to groups, e.g. [0, 1] (可选)
+      return_details: 是否返回 {etf: label} 映射
+    返回: selected_etfs 或 (selected_etfs, details)
+    """
+    # 获取排序依据
+    rep_method = config.get("represent_method", "money")
+    ranking_data = get_ranking_data(final_etf_list, target_date, method=rep_method)
+    
+    selected_etfs = []
+    
+    logger.debug(f"  -> 正在从每个簇中选择最佳 {rep_method} ETF:")
+    
+    if ranking_data.empty:
+        logger.warning(f"  -> 警告: 方法 '{rep_method}' 的排名数据为空/缺失。选择将依赖列表顺序（任意）。")
+    
+    for i, etfs in enumerate(groups):
+        if not etfs: continue
+        label = group_labels[i] if group_labels else i
+        
+        # 选出该组中 ranking_data 最大的
+        # 如果 ranking_data 为空/不全, default=0, 对于同样都是0的情况, max取第一个
+        best_etf = max(etfs, key=lambda x: ranking_data.get(x, 0))
+        selected_etfs.append(best_etf)
+        
+        display_name = get_security_info(best_etf).display_name
+        logger.debug(f"    簇 {label}: 从 {len(etfs)} 个候选者中选择了 {display_name} ({best_etf})。")
+        
+    if return_details:
+        details = {}
+        # 将结果映射回字典 {etf: label}
+        # 如果是某些特殊情况(如DBSCAN噪声)，label可能需要特殊处理
+        # 这里假设 groups 和 group_labels 是一一对应的
+        for i, etfs in enumerate(groups):
+            label = group_labels[i] if group_labels else i
+            for etf in etfs:
+                details[etf] = label
+        return selected_etfs, details
+        
+    return selected_etfs
+
+# -------------------- 2.1 AP 聚类筛选 (Affinity Propagation) --------------------------
+def ap_clustering_filter(etf_list, config, target_date=None, return_details=False):
+    """
+    使用 Affinity Propagation (AP) 算法进行聚类筛选
+    """
+    logger.debug(f"第二步: Affinity Propagation 聚类 (Damping={config['ap_damping']})...")
+    
+    # 1. 公共准备
+    corr_matrix, final_etf_list = _prepare_data_and_corr(etf_list, config, target_date)
+    if corr_matrix is None or corr_matrix.empty: return []
     
     # 4. 执行 AP 聚类
-    # 注意：AP 接受相似度矩阵 (Similarity Matrix)，相关系数本身就是一种相似度 (-1 ~ 1)
-    # affinity='precomputed' 表示我们直接传入矩阵
     ap = AffinityPropagation(
         damping=config["ap_damping"],
         preference=config["ap_preference"],
@@ -182,124 +270,71 @@ def ap_clustering_filter(etf_list, config, target_date=None, verbose=True, retur
     
     labels = ap.labels_
     n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-    if verbose: print(f"  -> AP converged into {n_clusters_} clusters.")
+    logger.debug(f"  -> AP 收敛为 {n_clusters_} 个簇。")
     
-    # 5. 从每个簇中选择流动性最好的 ETF
-    
-    # 准备成交额数据
-    # money_data = history(30, "1d", "money", final_etf_list, df=True).mean()
-    money_data = get_history_data(final_etf_list, target_date, 30, "money").mean()
-    
+    # 5. 构建分组
     cluster_dict = defaultdict(list)
     for etf, label in zip(final_etf_list, labels):
         cluster_dict[label].append(etf)
         
-    selected_etfs = []
+    groups = list(cluster_dict.values())
+    group_labels = list(cluster_dict.keys())
     
-    if verbose: print("  -> Selecting best liquidity ETF from each cluster:")
-    for label, etfs in cluster_dict.items():
-        # 选出该组中 money_data 最大的
-        best_etf = max(etfs, key=lambda x: money_data.get(x, 0))
-        selected_etfs.append(best_etf)
-        
-        # 可选：打印每组详情
-        display_name = get_security_info(best_etf).display_name
-        
-        if verbose: print(f"    Cluster {label}: Selected {display_name} ({best_etf}) from {len(etfs)} candidates.")
-
-    if return_details:
-        # construct a dict {etf: label}
-        # final_etf_list contains the ETFs used in clustering
-        details = {etf: label for etf, label in zip(final_etf_list, labels)}
-        return selected_etfs, details
-
-    return selected_etfs
+    # 6. 选择代表
+    return _select_best_from_groups(
+        config, groups, final_etf_list, target_date,
+        group_labels=group_labels, return_details=return_details
+    )
 
 # -------------------- 2.2 层次聚类筛选 (Hierarchical Clustering) --------------------------
-def hierarchical_clustering_filter(etf_list, config, target_date=None, verbose=True, return_details=False):
+def hierarchical_clustering_filter(etf_list, config, target_date=None, return_details=False):
     """
     使用层次聚类筛选
     """
-    if verbose: print(f"Step 2: Hierarchical Clustering (Corr Threshold={config['cluster_corr_threshold']})...")
+    logger.debug(f"第二步: 层次聚类 (相关性阈值={config['cluster_corr_threshold']})...")
 
-    # 1. 预先过滤流动性
-    if target_date is None: target_date = datetime.date.today()
-    money_median_20d = get_history_data(etf_list, target_date, 20, "money").median()
-    valid_etfs = [etf for etf in etf_list if money_median_20d.get(etf, 0) > config["min_liquidity"]]
-
-    if not valid_etfs:
-        if verbose: print("  -> No ETFs passed liquidity filter.")
-        return []
-
-    # 2. 计算平滑相关性矩阵
-    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date, verbose)
-
-    if corr_matrix is None or corr_matrix.empty:
-        return []
+    # 1. 公共准备
+    corr_matrix, final_etf_list = _prepare_data_and_corr(etf_list, config, target_date)
+    if corr_matrix is None or corr_matrix.empty: return []
 
     # 4. 转换为距离矩阵 & 聚类
-    # distance = sqrt(2 * (1 - correlation))
     distance_matrix = np.sqrt(2 * (1 - corr_matrix))
-    # distance_matrix 对角线设为0 (虽然公式结果也是0，确保数值稳定)
     np.fill_diagonal(distance_matrix.values, 0)
-
     condensed_dist = squareform(distance_matrix, checks=False)
     Z = linkage(condensed_dist, method="average")
 
     # 5. 聚类划分
-    # threshold = sqrt(2 * (1 - corr_threshold))
     dist_threshold = np.sqrt(2 * (1 - config["cluster_corr_threshold"]))
     clusters = fcluster(Z, dist_threshold, criterion="distance")
     
     n_clusters_ = len(set(clusters))
-    if verbose: print(f"  -> Converged into {n_clusters_} clusters.")
+    logger.debug(f"  -> 收敛为 {n_clusters_} 个簇。")
 
-    # 6. 从每个簇中选择流动性最好的 ETF
-    money_means = get_history_data(final_etf_list, target_date, 30, "money").mean()
-
+    # 6. 构建分组
     cluster_dict = defaultdict(list)
     for etf, label in zip(final_etf_list, clusters):
         cluster_dict[label].append(etf)
-
-    selected_etfs = []
-    
-    if verbose: print("  -> Selecting best liquidity ETF from each cluster:")
-    for label, etfs in cluster_dict.items():
-        # 选出该组中 money_means 最大的
-        best_etf = max(etfs, key=lambda x: money_means.get(x, 0))
-        selected_etfs.append(best_etf)
         
-        display_name = get_security_info(best_etf).display_name
-        if verbose: print(f"    Cluster {label}: Selected {display_name} ({best_etf}) from {len(etfs)} candidates.")
+    groups = list(cluster_dict.values())
+    group_labels = list(cluster_dict.keys())
 
-    if return_details:
-        details = {etf: label for etf, label in zip(final_etf_list, clusters)}
-        return selected_etfs, details
-
-    return selected_etfs
+    # 7. 选择代表
+    return _select_best_from_groups(
+        config, groups, final_etf_list, target_date,
+        group_labels=group_labels, return_details=return_details
+    )
 
 # -------------------- 2.3 MST 聚类筛选 (Minimum Spanning Tree) --------------------------
-def mst_clustering_filter(etf_list, config, target_date=None, verbose=True, return_details=False):
+def mst_clustering_filter(etf_list, config, target_date=None, return_details=False):
     """
     使用最小生成树 (MST) 算法进行聚类筛选
     原理: 构建完全图 (权重=距离)，生成MST，切断最长的K-1条边，形成K个连通分量
     """
-    if verbose: print(f"Step 2: MST Clustering (Target Clusters={config['mst_n_clusters']})...")
+    logger.debug(f"第二步: MST 聚类 (目标簇数={config['mst_n_clusters']})...")
 
-    # 1. 预先过滤流动性
-    if target_date is None: target_date = datetime.date.today()
-    money_median_20d = get_history_data(etf_list, target_date, 20, "money").median()
-    valid_etfs = [etf for etf in etf_list if money_median_20d.get(etf, 0) > config["min_liquidity"]]
-
-    if not valid_etfs:
-        if verbose: print("  -> No ETFs passed liquidity filter.")
-        return []
-
-    # 2. 计算平滑相关性矩阵
-    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date, verbose)
-    
-    if corr_matrix is None or corr_matrix.empty:
-        return []
+    # 1. 公共准备
+    corr_matrix, final_etf_list = _prepare_data_and_corr(etf_list, config, target_date)
+    if corr_matrix is None or corr_matrix.empty: return []
 
     # 3. 构建距离矩阵 (Distance Matrix)
     dist_matrix = np.sqrt(2 * (1 - corr_matrix))
@@ -307,10 +342,8 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True, retu
 
     # 4. 构建完全图并生成 MST
     G = nx.Graph()
-    # 添加节点
     G.add_nodes_from(final_etf_list)
     
-    # 添加边 (完全图)
     edges = []
     n = len(final_etf_list)
     for i in range(n):
@@ -322,18 +355,16 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True, retu
     
     G.add_weighted_edges_from(edges)
     
-    if verbose: print("  -> Building Minimum Spanning Tree...")
+    logger.debug("  -> 正在构建最小生成树...")
     mst = nx.minimum_spanning_tree(G)
 
-    # 1. 计算标准化树长 (NTL)
+    # 计算指标 (保持不变)
     total_weight = sum(d['weight'] for u, v, d in mst.edges(data=True)) 
     ntl = total_weight / (len(mst.nodes()) - 1)
-    # 2. 计算平均路径长度 (需要算拓扑距离，或是加权距离)
     avg_path_len = nx.average_shortest_path_length(mst, weight='weight')
-    # 3. 打印观测
-    if verbose:
-        print(f"  [Market Structure] NTL: {ntl:.4f} (Lower = Higher Risk/Systemic)")
-        print(f"  [Market Structure] Avg Path: {avg_path_len:.4f}")
+    
+        logger.debug(f"  [市场结构] NTL: {ntl:.4f} (越低 = 越高风险/系统性)")
+        logger.debug(f"  [市场结构] 平均路径: {avg_path_len:.4f}")
     
     # 5. 切断最长的 K-1 条边
     mst_edges = sorted(mst.edges(data=True), key=lambda x: x[2]['weight'], reverse=True)
@@ -342,40 +373,24 @@ def mst_clustering_filter(etf_list, config, target_date=None, verbose=True, retu
     if num_to_remove > 0 and len(mst_edges) >= num_to_remove:
         edges_to_remove = mst_edges[:num_to_remove]
         mst.remove_edges_from([(u, v) for u, v, d in edges_to_remove])
-        if verbose: print(f"  -> Removed {num_to_remove} longest edges to form clusters.")
+        logger.debug(f"  -> 移除了 {num_to_remove} 条最长边以形成簇。")
     
     # 6. 获取连通分量 (即聚类结果)
     components = list(nx.connected_components(mst))
-    if verbose: print(f"  -> Generated {len(components)} clusters.")
+    logger.debug(f"  -> 生成了 {len(components)} 个簇。")
     
-    # 7. 从每个簇中选择流动性最好的 ETF
-    money_means = get_history_data(final_etf_list, target_date, 30, "money").mean()
-    
-    selected_etfs = []
-    if verbose: print("  -> Selecting best liquidity ETF from each cluster:")
-    
-    for i, comp in enumerate(components):
-        etfs_in_cluster = list(comp)
-        # 选出该组中 money_means 最大的
-        best_etf = max(etfs_in_cluster, key=lambda x: money_means.get(x, 0))
-        selected_etfs.append(best_etf)
-        
-        display_name = get_security_info(best_etf).display_name
-        if verbose: print(f"    Cluster {i+1}: Selected {display_name} ({best_etf}) from {len(etfs_in_cluster)} candidates.")
-        
-    if return_details:
-        # Map back to labels. For MST, components are clusters.
-        # Assign an arbitrary ID to each component
-        details = {}
-        for idx, comp in enumerate(components):
-            for etf in comp:
-                details[etf] = idx
-        return selected_etfs, details
+    # 7. 构建分组 (components本身就是sets的list)
+    groups = [list(c) for c in components]
+    group_labels = list(range(len(groups))) # MST没有标签，只有分量ID
 
-    return selected_etfs
+    # 8. 选择代表
+    return _select_best_from_groups(
+        config, groups, final_etf_list, target_date,
+        group_labels=group_labels, return_details=return_details
+    )
 
 # -------------------- 2.4 DBSCAN 聚类筛选 (Density-Based) --------------------------
-def dbscan_clustering_filter(etf_list, config, target_date=None, verbose=True, return_details=False):
+def dbscan_clustering_filter(etf_list, config, target_date=None, return_details=False):
     """
     使用 DBSCAN 进行基于密度的聚类
     原理: 将高密度区域划分为簇，稀疏区域标记为噪声 (-1)
@@ -383,25 +398,13 @@ def dbscan_clustering_filter(etf_list, config, target_date=None, verbose=True, r
     eps = config.get('dbscan_eps', 0.5) # 默认距离阈值
     min_samples = config.get('dbscan_min_samples', 2) # 最小样本数
     
-    if verbose: print(f"Step 2: DBSCAN Clustering (eps={eps}, min_samples={min_samples})...")
+    logger.debug(f"第二步: DBSCAN 聚类 (eps={eps}, min_samples={min_samples})...")
 
-    # 1. 预先过滤流动性
-    if target_date is None: target_date = datetime.date.today()
-    money_median_20d = get_history_data(etf_list, target_date, 20, "money").median()
-    valid_etfs = [etf for etf in etf_list if money_median_20d.get(etf, 0) > config["min_liquidity"]]
+    # 1. 公共准备
+    corr_matrix, final_etf_list = _prepare_data_and_corr(etf_list, config, target_date)
+    if corr_matrix is None or corr_matrix.empty: return []
 
-    if not valid_etfs:
-        if verbose: print("  -> No ETFs passed liquidity filter.")
-        return []
-
-    # 2. 计算平滑相关性矩阵
-    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date, verbose)
-    
-    if corr_matrix is None or corr_matrix.empty:
-        return []
-
-    # 3. 计算相关性矩阵 & 距离矩阵
-    # DBSCAN metric='precomputed' 需要距离矩阵
+    # 3. 计算距离矩阵
     dist_matrix = np.sqrt(2 * (1 - corr_matrix))
     np.fill_diagonal(dist_matrix.values, 0)
 
@@ -416,42 +419,33 @@ def dbscan_clustering_filter(etf_list, config, target_date=None, verbose=True, r
     n_clusters_ = len(unique_labels) - (1 if -1 in labels else 0)
     n_noise_ = list(labels).count(-1)
     
-    if verbose: print(f"  -> DBSCAN found {n_clusters_} clusters and {n_noise_} noise points.")
+    logger.debug(f"  -> DBSCAN 发现了 {n_clusters_} 个簇以及 {n_noise_} 个噪声点。")
 
-    # 5. 选择逻辑
-    money_means = get_history_data(final_etf_list, target_date, 30, "money").mean()
+    # 5. 构建分组 (特殊处理: 噪声单独成组)
     cluster_dict = defaultdict(list)
-    
     for etf, label in zip(final_etf_list, labels):
         cluster_dict[label].append(etf)
-        
-    selected_etfs = []
     
-    if verbose: print("  -> Selecting best liquidity ETF from each cluster:")
-    
-    # 处理普通簇
+    groups = []
+    group_labels = []
+
+    # A. 处理普通簇
     for label in unique_labels:
-        if label == -1:
-            continue # 处理噪声单独逻辑
-            
-        etfs = cluster_dict[label]
-        best_etf = max(etfs, key=lambda x: money_means.get(x, 0))
-        selected_etfs.append(best_etf)
-        
-        display_name = get_security_info(best_etf).display_name
-        if verbose: print(f"    Cluster {label}: Selected {display_name} ({best_etf}) from {len(etfs)} candidates.")
-        
-    # 处理噪声 (Outliers)
-    # 策略: 噪声代表独特资产，全部保留
+        if label == -1: continue
+        groups.append(cluster_dict[label])
+        group_labels.append(label)
+    
+    # B. 处理噪声 (Outliers) - 每个噪声单独作为一个组(必选)
+    # 或者直接把它们加到 selected_etfs 里，但为了复用逻辑，我们可以把它们视为单元素组
     if -1 in cluster_dict:
         noise_etfs = cluster_dict[-1]
-        if verbose: print(f"  -> Retaining {len(noise_etfs)} unique outliers (Noise):")
+        logger.debug(f"  -> 保留 {len(noise_etfs)} 个独立离群值 (噪声) 作为单独候选。")
         for etf in noise_etfs:
-            selected_etfs.append(etf)
-            # if verbose: print(f"     Outlier: {get_security_info(etf).display_name} ({etf})")
-            
-    if return_details:
-        details = {etf: label for etf, label in zip(final_etf_list, labels)}
-        return selected_etfs, details
+            groups.append([etf])
+            group_labels.append(-1) # 标记为噪声组
 
-    return selected_etfs
+    # 6. 选择代表
+    return _select_best_from_groups(
+        config, groups, final_etf_list, target_date,
+        group_labels=group_labels, return_details=return_details
+    )

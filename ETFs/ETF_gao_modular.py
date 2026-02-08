@@ -25,7 +25,29 @@ class Config:
     COMMISSION_STOCK_OPEN = 0.0002
     COMMISSION_STOCK_CLOSE = 0.0002
     COMMISSION_MIN = 0
+
+    # 策略参数
+    HOLD_COUNT = 1          # 持仓数量
+    M_DAYS = 25             # 动量参考天数
+    MIN_MONEY = 500         # 最小交易额
     
+    # 评分筛选参数
+    MIN_SCORE = 0.0
+    MAX_SCORE = 5.0
+    DROP_3DAY_LIMIT = 0.97  # 3日跌幅限制
+    
+    # 均线过滤
+    ENABLE_MA_FILTER = False # 原代码默认False，若需启用改为True
+    MA_FILTER_DAYS = 20
+    
+    # 成交量检测
+    ENABLE_VOLUME_CHECK = True
+    VOLUME_LOOKBACK = 5
+    VOLUME_THRESHOLD = 1.0
+    
+    # 评分方式: 'wls' (原版), 'er' (效率系数), 'frama' (分形维数), 'quad' (二次拟合), 'trendflex'
+    SCORING_METHOD = 'wls' 
+
     # ==================== 策略核心参数 ====================
     ETF_POOL = [
         # 境外
@@ -72,25 +94,6 @@ class Config:
         "515790.XSHG",   #光伏
         "515000.XSHG"    #科技
     ]
-    
-    # 策略参数
-    HOLD_COUNT = 1          # 持仓数量
-    M_DAYS = 25             # 动量参考天数
-    MIN_MONEY = 500         # 最小交易额
-    
-    # 评分筛选参数
-    MIN_SCORE = 0.0
-    MAX_SCORE = 5.0
-    DROP_3DAY_LIMIT = 0.95  # 3日跌幅限制
-    
-    # 均线过滤
-    ENABLE_MA_FILTER = False # 原代码默认False，若需启用改为True
-    MA_FILTER_DAYS = 20
-    
-    # 成交量检测
-    ENABLE_VOLUME_CHECK = True
-    VOLUME_LOOKBACK = 5
-    VOLUME_THRESHOLD = 1.0
 
 
 # ==================== 初始化 ====================
@@ -192,6 +195,218 @@ def check_volume_anomaly(etf, context, lookback=5, threshold=1.0):
     except:
         return False, 0
 
+class ScoringMethods:
+    """评分方法集合"""
+    
+    @staticmethod
+    def wls_score(prices):
+        """原版加权线性回归评分"""
+        y = np.log(prices)
+        x = np.arange(len(y))
+        w = np.linspace(1, 2, len(y)) # 线性加权
+        
+        slope, intercept = np.polyfit(x, y, 1, w=w)
+        ann_ret = math.exp(slope * 250) - 1
+        
+        y_pred = slope * x + intercept
+        ss_res = np.sum(w * (y - y_pred) ** 2)
+        ss_tot = np.sum(w * (y - np.mean(y)) ** 2)
+        r2 = 1 - ss_res / ss_tot if ss_tot != 0 else 0
+        
+        score = ann_ret * r2
+        return score, {"r2": r2, "ret": ann_ret}
+
+    @staticmethod
+    def calc_fractal_dimension(prices, n1=10, n2=20, n3=20):
+        """计算分形维数 D"""
+        if len(prices) < n3: return 1.5 # 默认中性
+        
+        # 取最近 n3 天
+        data = prices[-n3:]
+        
+        mid = n3 // 2
+        p1 = data[:mid]
+        p2 = data[mid:]
+        
+        # 极差
+        r1 = np.max(p1) - np.min(p1)
+        r2 = np.max(p2) - np.min(p2)
+        r3 = np.max(data) - np.min(data)
+        
+        if r3 == 0: return 1.0 # 直线
+        if r1 + r2 == 0: return 1.0
+        
+        d = (np.log(r1 + r2) - np.log(r3)) / np.log(2)
+        
+        # D 理论范围 [1, 2], 但计算值可能溢出，限制一下
+        if d < 1.0: d = 1.0
+        if d > 2.0: d = 2.0
+        
+        return d
+
+    @staticmethod
+    def frama_modified_score(prices):
+        """原版改良: WLS Slope * (2 - D)"""
+        # 1. 计算 WLS Slope
+        y = np.log(prices)
+        x = np.arange(len(y))
+        w = np.linspace(1, 2, len(y))
+        slope, intercept = np.polyfit(x, y, 1, w=w)
+        ann_ret = math.exp(slope * 250) - 1
+        
+        # 2. 计算分形维数 D
+        # 使用全长度作为窗口
+        d = ScoringMethods.calc_fractal_dimension(prices, n3=len(prices))
+        
+        # 3. 计算分数
+        # D越大(越乱)，(2-D)越小，分数越低 -> 符合R2逻辑
+        score = ann_ret * (2 - d)
+        
+        return score, {"d": d, "ret": ann_ret}
+
+    @staticmethod
+    def calc_super_smoother(prices, length):
+        """Ehlers SuperSmoother Filter"""
+        # prices: list or np.array
+        if len(prices) < 3: return prices
+        
+        a1 = math.exp(-1.414 * np.pi / length)
+        b1 = 2 * a1 * math.cos(1.414 * np.pi / length)
+        c2 = b1
+        c3 = -a1 * a1
+        c1 = 1 - c2 - c3
+        
+        filt = np.zeros_like(prices)
+        # copy first 2 values
+        filt[0] = prices[0] 
+        filt[1] = prices[1]
+        
+        for i in range(2, len(prices)):
+            filt[i] = c1 * (prices[i] + prices[i-1]) / 2 + c2 * filt[i-1] + c3 * filt[i-2]
+            
+        return filt
+
+    @staticmethod
+    def trendflex_score(prices):
+        """Trendflex 评分"""
+        # 1. 计算 SuperSmoother
+        length = 20 # 默认周期
+        if len(prices) < length + 5: return 0.0, {}
+        
+        filt = ScoringMethods.calc_super_smoother(prices, length)
+        
+        # 2. 计算 Trendflex
+        # Trendflex = Sum(Filt[i] - Filt[i-k]) for k in 1..Length
+        # 然后进行归一化 (MS)
+        
+        # 我们只计算最后一个点的 Trendflex 值
+        i = len(prices) - 1
+        sum_trendflex = 0.0
+        
+        for count in range(1, length + 1):
+            sum_trendflex += filt[i] - filt[i-count]
+            
+        sum_trendflex /= length
+        
+        # 虽然 Ehlers 原版会进行 MS (Mean Square) 归一化，
+        # 但我们这里直接用 sum_trendflex 作为动量分值即可，
+        # 因为我们是在不同 ETF 间横向对比，且 Sum 已经除以 Length 类似于平均差
+        
+        # 为了与 score 维度 (0~5) 匹配:
+        # Trendflex 本质是价格差的平均值。如果价格是 1.0, 涨了 10% -> 1.1
+        # filt ~ 1.1, filt_old ~ 1.0
+        # sum_diff ~ 0.1
+        # 我们通常的 score 是 ann_ret (e.g. 0.5) * r2 (e.g. 0.9) = 0.45
+        # 所以 Trendflex 值可能偏小（如果是绝对价格差）。
+        # !重要!: Trendflex 原版是应用于 Price，这里 Input Prices 是绝对价格。
+        # 不同 ETF 价格不同 (e.g. 1.0 vs 5.0)，直接减会导致高价 ETF 分数高。
+        # 必须使用 Log Price 或者 归一化 Price (Change)。
+        
+        # 修正: 使用 Log Prices 计算 SuperSmoother
+        log_prices = np.log(prices)
+        filt_log = ScoringMethods.calc_super_smoother(log_prices, length)
+        
+        sum_tf_log = 0.0
+        for count in range(1, length + 1):
+            sum_tf_log += filt_log[i] - filt_log[i-count]
+            
+        sum_tf_log /= length
+        
+        # sum_tf_log 代表了 "平均对数收益偏离"，类似于平均涨幅
+        # 乘以一个系数放大到 0~3 左右，或者直接用
+        # 尝试还原为年化收益率量级? 
+        # 简单起见，乘以 250 (年化) ? 
+        # sum_tf_log 是 20天内的平均由于趋势带来的LogPrice增量
+        # 乘 20 还原为总增量? -> 20 * sum_tf_log
+        # 再年化? roughly: sum_tf_log * 250 is huge.
+        
+        # 让我们直接用 sum_tf_log * 100 作为分数，或者 * 50
+        # 经验值: 一个强趋势，20天涨10%，log_diff sum avg approx 0.05?
+        # 0.05 * 50 = 2.5 (符合 Score 范围)
+        
+        score = sum_tf_log * 50
+        
+        return score, {"trendflex": sum_tf_log}
+
+    @staticmethod
+    def quad_score(prices):
+        """二次拟合评分: 瞬时速度 * R2"""
+        # 1. 拟合抛物线 y = ax^2 + bx + c
+        y = np.log(prices)
+        x = np.arange(len(y))
+        w = np.linspace(1, 2, len(y)) # 线性加权
+        
+        # polyfit 返回系数从高次到低次: a, b, c
+        coeffs = np.polyfit(x, y, 2, w=w)
+        a, b, c = coeffs
+        
+        # 2. 计算末端瞬时速度 (Velocity)
+        # y' = 2ax + b
+        end_x = x[-1]
+        velocity = 2 * a * end_x + b
+        
+        # 转换为年化收益率 (近似)
+        # velocity 是 log return 的每周期变化率
+        ann_ret = math.exp(velocity * 250) - 1
+        
+        # 3. 计算稳定性 (R2)
+        y_pred = np.polyval(coeffs, x)
+        ss_res = np.sum(w * (y - y_pred) ** 2)
+        ss_tot = np.sum(w * (y - np.mean(y)) ** 2)
+        r2 = 1 - ss_res / ss_tot if ss_tot != 0 else 0
+        
+        # 4. 计算得分
+        score = ann_ret * r2
+        
+        return score, {"velocity": ann_ret, "r2": r2, "accel": a}
+
+    @staticmethod
+    def er_score(prices):
+        """Efficiency Ratio (ER) 评分"""
+        # ER = |Net Change| / Sum(|Change|)
+        # 价格通常为序列
+        if len(prices) < 2: return 0.0, {}
+
+        y = np.log(prices)
+        x = np.arange(len(y))
+        w = np.linspace(1, 2, len(y)) # 线性加权
+        
+        slope, intercept = np.polyfit(x, y, 1, w=w)
+        ann_ret = math.exp(slope * 250) - 1
+        
+        net_change = abs(prices[-1] - prices[0])
+        
+        abs_changes = np.abs(np.diff(prices))
+        sum_abs_change = np.sum(abs_changes)
+        
+        if sum_abs_change == 0:
+            er = 0.0
+        else:
+            er = net_change / sum_abs_change
+        
+        score = er * ann_ret
+        return score, {"er": er}
+
 def get_etf_score(etf, context):
     try:
         current_data = get_current_data()
@@ -213,23 +428,31 @@ def get_etf_score(etf, context):
                 # log.info(f"排除 {etf}: 近3日有大跌")
                 return None
 
-        # 2. 计算 R2 和 年化收益
-        y = np.log(prices)
-        x = np.arange(len(y))
-        w = np.linspace(1, 2, len(y)) # 线性加权
+        # 2. 计算分数
+        score = 0.0
+        details = {}
         
-        slope, intercept = np.polyfit(x, y, 1, w=w)
-        ann_ret = math.exp(slope * 250) - 1
-        
-        y_pred = slope * x + intercept
-        ss_res = np.sum(w * (y - y_pred) ** 2)
-        ss_tot = np.sum(w * (y - np.mean(y)) ** 2)
-        r2 = 1 - ss_res / ss_tot if ss_tot != 0 else 0
-        
-        score = ann_ret * r2
-        
+        if Config.SCORING_METHOD == 'wls':
+            score, details = ScoringMethods.wls_score(prices)
+        elif Config.SCORING_METHOD == 'er':
+            score, details = ScoringMethods.er_score(prices)
+            # ER 模式下，分数通常在 -1.0 到 1.0 之间
+            # 原有的 MIN_SCORE=0, MAX_SCORE=5 依然适用 (0-1在范围内)
+        elif Config.SCORING_METHOD == 'frama':
+            score, details = ScoringMethods.frama_modified_score(prices)
+        elif Config.SCORING_METHOD == 'quad':
+            score, details = ScoringMethods.quad_score(prices)
+        elif Config.SCORING_METHOD == 'trendflex':
+            score, details = ScoringMethods.trendflex_score(prices)
+        else:
+            log.warn(f"Unknown SCORING_METHOD: {Config.SCORING_METHOD}")
+            return None
+            
+        # 3. 分数过滤
         if Config.MIN_SCORE < score < Config.MAX_SCORE:
-            return {'etf': etf, 'score': score, 'r2': r2, 'ret': ann_ret}
+            result = {'etf': etf, 'score': score}
+            result.update(details)
+            return result
         
         return None
         

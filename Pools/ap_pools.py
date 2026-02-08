@@ -1,4 +1,5 @@
 from jqdata import *
+import logging
 from sklearn.cluster import DBSCAN
 from sklearn.metrics import adjusted_rand_score
 from collections import defaultdict
@@ -10,6 +11,10 @@ import builtins
 import math
 from pca_analysis import analyze_pool_pca
 from join_method import *
+
+# Configure Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # -------------------- 配置区域 (Initial Configuration) --------------------
 CONFIG = {
@@ -25,6 +30,9 @@ CONFIG = {
     "filter_qdii": False,         # 剔除跨境/QDII
     "filter_gold": False,         # 剔除黄金
     "black_list": ["510900.XSHG"],  # 黑名单
+
+    # 选择代表的方法 'money'-最大成交额，'market_cap'-最大市值
+    "represent_method": "money",
     
     # 聚类方法选择 ("hierarchical", "ap", "mst", "dbscan")
     "clustering_method": "ap",
@@ -76,22 +84,22 @@ def pretty_print(df: pd.DataFrame, sep: str = '  ') -> None:
         widths[c] = max(w, _width(c))
     
     header = sep.join(c.ljust(widths[c] - (_width(c) - len(c))) for c in cols)
-    print(header)
+    logger.info(header)
     for _, row in str_df.iterrows():
         line = sep.join(
             row[c].ljust(widths[c] - (_width(row[c]) - len(row[c]))) for c in cols
         )
-        print(line)
+        logger.info(line)
 
 # -------------------- 1. 初始池筛选 --------------------------
-def initial_etf_filter(target_date=None, verbose=True, config=CONFIG):
+def initial_etf_filter(target_date=None, config=CONFIG):
     """
     基础过滤：
     1. 获取所有ETF
     2. 剔除黑名单、非核心深市、特定前缀(债券/货币等)
     3. 剔除上市时间过短的
     """
-    if verbose: print(f"Step 1: Initial Filtering (Date: {target_date})...")
+    logger.debug(f"第一步：初始过滤 (日期: {target_date})...")
     if target_date is None:
         target_date = datetime.date.today()
         
@@ -111,13 +119,12 @@ def initial_etf_filter(target_date=None, verbose=True, config=CONFIG):
         exclude_keywords.extend(["QDII", "标普", "纳指", "道琼斯", "恒生", "H股", "日经", "德国", "法国", "英国", "美国", "海外"])
     
     if exclude_keywords:
-        if verbose: print(f"  -> Excluding keys: {exclude_keywords}")
-        # using regex to filter
+        logger.debug(f"  -> 剔除关键字: {exclude_keywords}")
+        # 使用正则过滤
         pattern = "|".join(exclude_keywords)
         df = df[~df['display_name'].str.contains(pattern, regex=True)]
     
     # 上市时间检查
-    # Use target_date instead of yesterday
     check_date = target_date - datetime.timedelta(days=1)
     df = df[((check_date - df["start_date"]).dt.days >= config["min_listing_days"]) & (df["end_date"] > check_date)]
 
@@ -126,28 +133,25 @@ def initial_etf_filter(target_date=None, verbose=True, config=CONFIG):
     # 策略：如果最近1日均价 > 90，则认为是债券或货币基金
     # ----------------------------------------------------
     if config["filter_bond_money"]:
-        if verbose: print("  -> Checking for high-priced ETFs (Bond/Money > 90)...")
+        logger.debug("  -> 检查高价 ETF (债券/货币 > 90)...")
         
         try:
-            # avg_prices_df = history(1, "1d", "avg", df.index.tolist(), df=True)
             avg_prices_df = get_history_data(df.index.tolist(), target_date, 1, "avg")
-            # Usually get_history_data returns index=Date, columns=Securities.
             
             if not avg_prices_df.empty:
-                # avg_prices_df: rows=date (1 row), cols=securities
                 last_prices = avg_prices_df.iloc[-1]
                 
                 # 找出价格 > 90 的代码
                 high_price_etfs = last_prices[last_prices > 90].index.tolist()
                 if high_price_etfs:
-                    if verbose: print(f"  -> Filtering out {len(high_price_etfs)} ETFs with price > 90 (likely Bond/Money):")
-                    # print(f"     Examples: {high_price_etfs[:5]}")
+                    logger.debug(f"  -> 剔除 {len(high_price_etfs)} 个价格 > 90 的 ETF (可能是债券/货币):")
+                    # logger.debug(f"     Examples: {high_price_etfs[:5]}")
                     df = df[~df.index.isin(high_price_etfs)]
         except Exception as e:
-            print(f"  [Warning] Failed to filter by price: {e}")
+            logger.warning(f"  [警告] 价格过滤失败: {e}")
 
     initial_list = df.index.tolist()
-    if verbose: print(f"  -> Found {len(initial_list)} candidate ETFs.")
+    logger.debug(f"  -> 找到 {len(initial_list)} 个候选 ETF。")
     return initial_list
 
 # -------------------- 3. 动量评分 --------------------------
@@ -155,7 +159,7 @@ def get_best_etf(etf_list, config=CONFIG):
     """
     计算动量得分并排序
     """
-    print("Step 3: Momentum Scoring & Ranking...")
+    logger.info("第三步：动量评分与排名...")
     data = pd.DataFrame(index=etf_list, columns=["code", "name", "annualized_returns", "r2", "score"])
     
     for etf in etf_list:
@@ -211,70 +215,102 @@ def get_best_etf(etf_list, config=CONFIG):
     return filtered
     return filtered
 
-# -------------------- 4. 多轮聚合 (Multi-Round Aggregation) --------------------------
-def multi_round_aggregation(freq="M", periods=6, end_date=None, verbose=False, config=CONFIG):
-    """
-    Perform aggregation for multiple dates looking back from a time series.
-    freq: 'M' (Month End), 'W' (Weekly), etc.
-    periods: Number of periods to look back.
-    end_date: Setup end date.
+# -------------------- 4.1 单轮聚合 (Single-Round Aggregation) --------------------------
+def test_aggregation(date = None, config = CONFIG):
+    if date is None:
+        date = datetime.date.today()
+    logger.info("-" * 50)
+    logger.info(f"开始基于 {config['clustering_method'].upper()} 的 ETF 池生成")
+    logger.info(f"配置: {config}")
+    logger.info("-" * 50)
     
-    Output: Table of selected ETFs for each date.
+    # 1. 初始筛选
+    candidates = initial_etf_filter(target_date=date)
+    
+    # 2. 聚类选择
+    if config["clustering_method"] == "ap":
+        final_pool = ap_clustering_filter(candidates, config, target_date=date)
+        method_name = "Affinity Propagation"
+    elif config["clustering_method"] == "mst":
+        final_pool = mst_clustering_filter(candidates, config, target_date=date)
+        method_name = "Minimum Spanning Tree (MST)"
+    elif config["clustering_method"] == "dbscan":
+        final_pool = dbscan_clustering_filter(candidates, config, target_date=date)
+        method_name = "DBSCAN Clustering"
+    else:
+        final_pool = hierarchical_clustering_filter(candidates, config, target_date=date)
+        method_name = "Hierarchical Clustering"
+        
+    logger.info(f"{method_name} 完成。池大小: {len(final_pool)}")
+    
+    # 2.5 PCA 分析
+    analyze_pool_pca(final_pool, config, overlay_code=config.get("pca_overlay_etf"))
+    
+    # 3. 动量评分展示
+    result_df = get_best_etf(final_pool)
+    
+    logger.info("\n最终选择的 ETF 池 (动量排名前列):")
+    pretty_print(result_df)
+
+# -------------------- 4.2 多轮聚合 (Multi-Round Aggregation) --------------------------
+def multi_round_aggregation(freq="M", periods=6, end_date=None, config=CONFIG):
+    """
+    多轮聚合：回溯多个时间点进行聚类筛选。
+    freq: 'M' (月末), 'W' (周末) 等。
+    periods: 回溯的周期数。
+    end_date: 结束日期。
+    
+    输出: 每个日期的入选ETF列表。
     """
     if end_date is None:
         end_date = datetime.date.today()
     
-    # Generate date range
-    # pandas date_range is powerful
-    # We want points *ending* at end_date, going back.
-    # e.g. end_date='2025-10-30', periodic check points.
-    
+    # 生成日期序列
     dates = pd.date_range(end=end_date, periods=periods, freq=freq).tolist()
-    # Convert to date objects
+    # 转换格式
     dates = [d.date() for d in dates]
     
-    print("=" * 60)
-    print(f"Multi-Round Aggregation ({len(dates)} rounds)")
-    print(f"Dates: {dates}")
-    print(f"Method: {config['clustering_method']}")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info(f"多轮聚合 ({len(dates)} 轮)")
+    logger.info(f"日期: {dates}")
+    logger.info(f"方法: {config['clustering_method']}")
+    logger.info("=" * 60)
     
     results = []
     
     for d in dates:
-        print(f"\nProcessing Date: {d}")
+        logger.info(f"\n处理日期: {d}")
         try:
-            # 1. Initial Filter
-            candidates = initial_etf_filter(target_date=d, verbose=verbose)
+            # 1. 初始筛选
+            candidates = initial_etf_filter(target_date=d)
             if not candidates:
-                print("  -> No candidates found.")
+                logger.info("  -> 未找到候选标的。")
                 results.append({"date": d, "count": 0, "etfs": ""})
                 continue
                 
-            # 2. Clustering
+            # 2. 执行聚类
             method = config["clustering_method"]
             if method == "ap":
-                final_pool = ap_clustering_filter(candidates, config, target_date=d, verbose=verbose)
+                final_pool = ap_clustering_filter(candidates, config, target_date=d)
             elif method == "mst":
-                final_pool = mst_clustering_filter(candidates, config, target_date=d, verbose=verbose)
+                final_pool = mst_clustering_filter(candidates, config, target_date=d)
             elif method == "dbscan":
-                final_pool = dbscan_clustering_filter(candidates, config, target_date=d, verbose=verbose)
+                final_pool = dbscan_clustering_filter(candidates, config, target_date=d)
             else:
-                final_pool = hierarchical_clustering_filter(candidates, config, target_date=d, verbose=verbose)
+                final_pool = hierarchical_clustering_filter(candidates, config, target_date=d)
             
-            # Record result
-            # Convert list to string
+            # 记录结果
             etf_str = ",".join([get_security_info(c).display_name for c in final_pool])
             results.append({"date": d, "count": len(final_pool), "etfs": etf_str, "codes": final_pool})
             
         except Exception as e:
-            print(f"  [Error] Processing {d} failed: {e}")
+            logger.error(f"  [错误] 处理日期 {d} 失败: {e}")
             results.append({"date": d, "count": 0, "etfs": "ERROR"})
 
-    # Output Table
-    print("\n" + "=" * 60)
-    print("Multi-Round Aggregation Results")
-    print("=" * 60)
+    # 输出结果表
+    logger.info("\n" + "=" * 60)
+    logger.info("多轮聚合结果")
+    logger.info("=" * 60)
     
     res_df = pd.DataFrame(results)
     if not res_df.empty:
@@ -283,7 +319,7 @@ def multi_round_aggregation(freq="M", periods=6, end_date=None, verbose=False, c
     return res_df
 
 # -------------------- 5. 稳定性分析工具 --------------------------
-def analyze_cluster_stability(base_date=None, lag_days=1, verbose=True, config=CONFIG):
+def analyze_cluster_stability(base_date=None, lag_days=1, config=CONFIG):
     """
     研究两个相似时间点（base_date vs base_date - lag_days）的聚类结果偏差。
     用于量化观察聚类算法的时序不稳定性。
@@ -293,58 +329,57 @@ def analyze_cluster_stability(base_date=None, lag_days=1, verbose=True, config=C
         
     prev_date = base_date - datetime.timedelta(days=lag_days)
     
-    print("=" * 60)
-    print(f"Stability Analysis: {base_date} vs {prev_date} (Lag: {lag_days} days)")
-    print(f"Algorithm: {config['clustering_method']}")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info(f"稳定性分析: {base_date} vs {prev_date} (滞后: {lag_days} 天)")
+    logger.info(f"算法: {config['clustering_method']}")
+    logger.info("=" * 60)
     
-    # Run 1: Base Date
-    print(f"\n[Run 1] Processing {base_date}...")
+    # 第1轮: 基准日期
+    logger.info(f"\n[第1轮] 处理 {base_date}...")
     pool1 = []
     details1 = {}
     try:
-        c1 = initial_etf_filter(target_date=base_date, verbose=False)
+        c1 = initial_etf_filter(target_date=base_date)
         if config["clustering_method"] == "ap":
-            pool1, details1 = ap_clustering_filter(c1, config, target_date=base_date, verbose=False, return_details=True)
+            pool1, details1 = ap_clustering_filter(c1, config, target_date=base_date, return_details=True)
         elif config["clustering_method"] == "mst":
-            pool1, details1 = mst_clustering_filter(c1, config, target_date=base_date, verbose=False, return_details=True)
+            pool1, details1 = mst_clustering_filter(c1, config, target_date=base_date, return_details=True)
         elif config["clustering_method"] == "dbscan":
-            pool1, details1 = dbscan_clustering_filter(c1, config, target_date=base_date, verbose=False, return_details=True)
+            pool1, details1 = dbscan_clustering_filter(c1, config, target_date=base_date, return_details=True)
         else:
-            pool1, details1 = hierarchical_clustering_filter(c1, config, target_date=base_date, verbose=False, return_details=True)
+            pool1, details1 = hierarchical_clustering_filter(c1, config, target_date=base_date, return_details=True)
     except Exception as e:
-        print(f"  Error in Run 1: {e}")
+        logger.error(f"  第1轮出错: {e}")
 
-    # Run 2: Previous Date
-    print(f"[Run 2] Processing {prev_date}...")
+    # 第2轮: 对比日期
+    logger.info(f"[第2轮] 处理 {prev_date}...")
     pool2 = []
     details2 = {}
     try:
-        c2 = initial_etf_filter(target_date=prev_date, verbose=False)
+        c2 = initial_etf_filter(target_date=prev_date)
         if config["clustering_method"] == "ap":
-            pool2, details2 = ap_clustering_filter(c2, config, target_date=prev_date, verbose=False, return_details=True)
+            pool2, details2 = ap_clustering_filter(c2, config, target_date=prev_date, return_details=True)
         elif config["clustering_method"] == "mst":
-            pool2, details2 = mst_clustering_filter(c2, config, target_date=prev_date, verbose=False, return_details=True)
+            pool2, details2 = mst_clustering_filter(c2, config, target_date=prev_date, return_details=True)
         elif config["clustering_method"] == "dbscan":
-            pool2, details2 = dbscan_clustering_filter(c2, config, target_date=prev_date, verbose=False, return_details=True)
+            pool2, details2 = dbscan_clustering_filter(c2, config, target_date=prev_date, return_details=True)
         else:
-            pool2, details2 = hierarchical_clustering_filter(c2, config, target_date=prev_date, verbose=False, return_details=True)
+            pool2, details2 = hierarchical_clustering_filter(c2, config, target_date=prev_date, return_details=True)
     except Exception as e:
-        print(f"  Error in Run 2: {e}")
+        logger.error(f"  第2轮出错: {e}")
         
-    # Analysis
+    # 结果分析
     set1 = set(pool1)
     set2 = set(pool2)
     
     intersection = set1.intersection(set2)
     union = set1.union(set2)
     
-    # 1. Selection Stability (Jaccard)
+    # 1. 选股稳定性 (Jaccard系数)
     stability_score = len(intersection) / len(union) if union else 0
     
-    # 2. Structural Stability (ARI)
-    # Find common ETFs in both clustering runs (candidates that survived filtering in both)
-    # Note: details keys are the 'final_etf_list' used in clustering, which includes all valid candidates before selection.
+    # 2. 结构稳定性 (ARI指数)
+    # 仅针对在两次筛选中都存在的ETF进行结构比较
     
     common_candidates = set(details1.keys()) & set(details2.keys())
     ari_score = 0.0
@@ -354,80 +389,53 @@ def analyze_cluster_stability(base_date=None, lag_days=1, verbose=True, config=C
         labels_pred = [details2[etf] for etf in common_candidates]
         ari_score = adjusted_rand_score(labels_true, labels_pred)
     
-    print("\n" + "-"*30 + " Results " + "-"*30)
-    print(f"Pool 1 Selected ({base_date}): {len(pool1)}")
-    print(f"Pool 2 Selected ({prev_date}): {len(pool2)}")
-    print(f"Selection Stability (Jaccard): {stability_score:.4f} (1.0 = Identical Selection)")
+    logger.info("\n" + "-"*30 + " 结果 " + "-"*30)
+    logger.info(f"池1 选中 ({base_date}): {len(pool1)}")
+    logger.info(f"池2 选中 ({prev_date}): {len(pool2)}")
+    logger.info(f"选择稳定性 (Jaccard): {stability_score:.4f} (1.0 = 完全相同)")
     
-    print(f"\nCommon Candidates Analysis (Structure):")
-    print(f"Common candidate ETFs count: {len(common_candidates)}")
-    print(f"Structural Stability (ARI):    {ari_score:.4f} (1.0 = Identical Grouping)")
-    print(f"  (ARI measures how similar the clustering partitions are for the same set of assets)")
+    logger.info(f"\n公共候选分析 (结构):")
+    logger.info(f"公共候选 ETF 数量: {len(common_candidates)}")
+    logger.info(f"结构稳定性 (ARI):    {ari_score:.4f} (1.0 = 完全相同分组)")
+    logger.info(f"  (ARI 衡量同一组资产聚类划分的相似度)")
     
-    # Changes
+    # 变动详情
     newly_added = set1 - set2
     dropped = set2 - set1
     
-    print("\n" + "-"*30 + " Results " + "-"*30)
-    print(f"Pool 1 Size ({base_date}): {len(pool1)}")
-    print(f"Pool 2 Size ({prev_date}): {len(pool2)}")
-    print(f"Intersection: {len(intersection)}")
-    print(f"Stability Score (Jaccard): {stability_score:.4f} (1.0 = Identical)")
+    logger.info("\n" + "-"*30 + " 结果 " + "-"*30)
+    logger.info(f"池1 大小 ({base_date}): {len(pool1)}")
+    logger.info(f"池2 大小 ({prev_date}): {len(pool2)}")
+    logger.info(f"交集: {len(intersection)}")
+    logger.info(f"稳定性得分 (Jaccard): {stability_score:.4f} (1.0 = 完全相同)")
     
-    print(f"\nChanged: {len(newly_added) + len(dropped)}")
+    logger.info(f"\n变动: {len(newly_added) + len(dropped)}")
     if newly_added:
         names = [f"{get_security_info(c).display_name}" for c in newly_added]
-        print(f"  + Added ({len(newly_added)}): {', '.join(names)}")
+        logger.info(f"  + 新增 ({len(newly_added)}): {', '.join(names)}")
     if dropped:
         names = [f"{get_security_info(c).display_name}" for c in dropped]
-        print(f"  - Dropped ({len(dropped)}): {', '.join(names)}")
+        logger.info(f"  - 移除 ({len(dropped)}): {', '.join(names)}")
         
     return stability_score
 
 # -------------------- 主程序 --------------------------
 if __name__ == "__main__":
     
-    # Mode Switch: "SINGLE", "MULTI", "STABILITY"
+    # 模式选择: "SINGLE" (单次), "MULTI" (多轮), "STABILITY" (稳定性)
     MODE = "STABILITY" 
     
     if MODE == "STABILITY":
         analyze_cluster_stability(lag_days=1) # Comparative Analysis
         exit()
     
-    if MODE == "MULTI":
-        # Example: Last 6 month-ends
-        multi_round_aggregation(freq="ME", periods=6, verbose=False)
-        print("\n" + "-"*30 + " Single Round (Today) " + "-"*30)
+    elif MODE == "SINGLE":
+        test_aggregation(date = None, config = CONFIG)
+        exit()
+    
+    elif MODE == "MULTI":
+        # 示例: 最近6个月末
+        multi_round_aggregation(freq="ME", periods=6)
+        logger.info("\n" + "-"*30 + " 单轮 (今日) " + "-"*30)
 
-    print("-" * 50)
-    print(f"Starting {CONFIG['clustering_method'].upper()}-Based ETF Pool Generation")
-    print("Configuration:", CONFIG)
-    print("-" * 50)
-    
-    # 1. 初始筛选
-    candidates = initial_etf_filter(target_date=today)
-    
-    # 2. 聚类选择
-    if CONFIG["clustering_method"] == "ap":
-        final_pool = ap_clustering_filter(candidates, CONFIG, target_date=today)
-        method_name = "Affinity Propagation"
-    elif CONFIG["clustering_method"] == "mst":
-        final_pool = mst_clustering_filter(candidates, CONFIG, target_date=today)
-        method_name = "Minimum Spanning Tree (MST)"
-    elif CONFIG["clustering_method"] == "dbscan":
-        final_pool = dbscan_clustering_filter(candidates, CONFIG, target_date=today)
-        method_name = "DBSCAN Clustering"
-    else:
-        final_pool = hierarchical_clustering_filter(candidates, CONFIG, target_date=today)
-        method_name = "Hierarchical Clustering"
-        
-    print(f"{method_name} Complete. Pool Size: {len(final_pool)}")
-    
-    # 2.5 PCA 分析
-    analyze_pool_pca(final_pool, CONFIG, overlay_code=CONFIG.get("pca_overlay_etf"))
-    
-    # 3. 动量评分展示
-    result_df = get_best_etf(final_pool)
-    
-    print("\nFinal Selected ETF Pool (Top Momentum):")
-    pretty_print(result_df)
+
