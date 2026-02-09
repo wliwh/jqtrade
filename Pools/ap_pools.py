@@ -1,6 +1,5 @@
 from jqdata import *
 import logging
-from sklearn.cluster import DBSCAN
 from sklearn.metrics import adjusted_rand_score
 from collections import defaultdict
 import numpy as np

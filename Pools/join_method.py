@@ -1,6 +1,6 @@
 from jqdata import *
-import logging
 from jqfactor import *
+import logging
 import pandas as pd
 import numpy as np
 import datetime
@@ -87,7 +87,7 @@ def get_smoothed_correlation(etf_list, config, target_date=None):
         
     # 2. 计算所需总数据长度
     # 需要的数据长度 = 窗口 + (步数-1) * 滞后
-    total_count = window + (steps - 1) * lag
+    total_count = window + (steps - 1) * lag + 1
     
     # 3. 获取数据
     price_data = get_history_data(etf_list, target_date, total_count, "close")
@@ -362,9 +362,8 @@ def mst_clustering_filter(etf_list, config, target_date=None, return_details=Fal
     total_weight = sum(d['weight'] for u, v, d in mst.edges(data=True)) 
     ntl = total_weight / (len(mst.nodes()) - 1)
     avg_path_len = nx.average_shortest_path_length(mst, weight='weight')
-    
-        logger.debug(f"  [市场结构] NTL: {ntl:.4f} (越低 = 越高风险/系统性)")
-        logger.debug(f"  [市场结构] 平均路径: {avg_path_len:.4f}")
+    logger.debug(f"  [市场结构] NTL: {ntl:.4f} (越低 = 越高风险/系统性)")
+    logger.debug(f"  [市场结构] 平均路径: {avg_path_len:.4f}")
     
     # 5. 切断最长的 K-1 条边
     mst_edges = sorted(mst.edges(data=True), key=lambda x: x[2]['weight'], reverse=True)

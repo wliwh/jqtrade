@@ -302,10 +302,8 @@ class MomentumScorer:
         """
         return series.rolling(window=window).quantile(quantile)
 
-
-if __name__ == "__main__":
-    # Test execution
-    symbol = "159628" # 沪深300 ETF
+def signal_score(symbol):
+    # symbol = "518880" # 沪深300 ETF
     print(f"Fetching data for {symbol}...")
     df = AkshareDataLoader.fetch_etf_daily(symbol, "20220101", "20260208")
     
@@ -338,15 +336,21 @@ if __name__ == "__main__":
         df['score_wls_er'] = df['slope_wls'] * df['er']
         
         # Calculate Top 10% Threshold (90th percentile)
-        top_10_threshold = MomentumScorer.quantile_threshold(df['score_trend_dim'], quantile=0.96)
-        print(f"\nGlobal Top 10% Threshold for Score (Trendflex * (2-D)): {top_10_threshold:.4f}")
+        top_10_threshold = MomentumScorer.quantile_threshold(df['score_wls_r2'], quantile=0.96)
+        print(f"\nGlobal Top 10% Threshold for Score (WLS * R2): {top_10_threshold:.4f}")
         
         # Calculate Rolling Top 10% Threshold (e.g., 60-day window)
-        df['score_trend_dim_top10'] = MomentumScorer.rolling_quantile_threshold(df['score_trend_dim'], window=200, quantile=0.96)
+        df['score_wls_r2_top10'] = MomentumScorer.rolling_quantile_threshold(df['score_wls_r2'], window=200, quantile=0.95)
         
         print("\nTail of the calculated data (with rolling threshold):")
-        ndf = df[['open', 'trendflex', 'fractal_dim', 'score_trend_dim', 'score_trend_dim_top10']]
-        ndf = ndf[ndf['score_trend_dim'] > 0.02]
+        ndf = df[['open', 'slope_wls', 'r2', 'score_wls_r2', 'score_wls_r2_top10']]
+        ndf = ndf[ (ndf['score_wls_r2'] > 2)]
+
         print(ndf)
+
+
+if __name__ == "__main__":
+    # Test execution
+
     else:
         print("Failed to fetch data.")
