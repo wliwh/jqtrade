@@ -157,24 +157,41 @@ def get_ranking_data(etf_list, target_date, method='money'):
         return get_history_data(etf_list, target_date, 30, "money").mean()
         
     elif method == 'market_cap':
-        # 获取截至target_date的总市值
         try:
-            q = query(valuation.code, valuation.market_cap).filter(
-                valuation.code.in_(etf_list)
-            )
-            df = get_fundamentals(q, date=target_date)
+            # 1. 获取价格 (收盘价)
+            price_df = get_price(list(etf_list), end_date=target_date, count=1, 
+                               frequency='daily', fields=['close'], panel=False)
             
-            if df is None or df.empty:
-                logger.warning("  -> 警告: get_fundamentals(market_cap) 返回为空。")
+            if price_df.empty:
+                logger.warning("  -> 警告: get_price 返回为空，无法计算市值。")
+                return pd.Series()
+
+            # 2. 获取基金份额
+            q = query(finance.FUND_SHARE_DAILY.code, finance.FUND_SHARE_DAILY.shares, finance.FUND_SHARE_DAILY.date).filter(
+                finance.FUND_SHARE_DAILY.code.in_(etf_list),
+                finance.FUND_SHARE_DAILY.date.in_(price_df['time'].tolist()) 
+            )
+            shares_df = finance.run_query(q)
+            
+            if shares_df is None or shares_df.empty:
+                logger.warning(f"  -> 警告: finance.FUND_SHARE_DAILY 查询为空 (target_date={target_date})。")
                 return pd.Series()
                 
-            # 建立映射: code -> market_cap
-            # 注意: returns dataframe with columns [code, market_cap]
-            mapping = df.set_index('code')['market_cap']
-            return mapping
+            # 3. 合并计算
+            price_df['date_key'] = pd.to_datetime(price_df['time']).dt.date
+            shares_df['date_key'] = pd.to_datetime(shares_df['date']).dt.date            
+            merged_df = pd.merge(price_df, shares_df, left_on=['code', 'date_key'], right_on=['code', 'date_key'], how='inner')
+            
+            if merged_df.empty:
+                logger.warning(f"  -> 警告: 价格和份额数据无法对齐 (target_date={target_date})。")
+                return pd.Series()
+
+            merged_df['market_cap'] = merged_df['close'] * merged_df['shares']
+            
+            return merged_df.set_index('code')['market_cap']
             
         except Exception as e:
-            logger.error(f"  -> 获取市值出错: {e}")
+            logger.error(f"  -> 获取ETF市值出错: {e}")
             return pd.Series()
             
     else:

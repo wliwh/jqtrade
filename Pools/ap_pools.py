@@ -215,9 +215,11 @@ def get_best_etf(etf_list, config=CONFIG):
     return filtered
 
 # -------------------- 4.1 单轮聚合 (Single-Round Aggregation) --------------------------
-def test_aggregation(date = None, config = CONFIG):
+def test_aggregation(date = None, return_details = False, config = CONFIG):
     if date is None:
         date = datetime.date.today()
+    elif isinstance(date, str):
+        date = pd.to_datetime(date).date()
     logger.info("-" * 50)
     logger.info(f"开始基于 {config['clustering_method'].upper()} 的 ETF 池生成")
     logger.info(f"配置: {config}")
@@ -228,16 +230,16 @@ def test_aggregation(date = None, config = CONFIG):
     
     # 2. 聚类选择
     if config["clustering_method"] == "ap":
-        final_pool = ap_clustering_filter(candidates, config, target_date=date)
+        final_pool = ap_clustering_filter(candidates, config, target_date=date, return_details=return_details)
         method_name = "Affinity Propagation"
     elif config["clustering_method"] == "mst":
-        final_pool = mst_clustering_filter(candidates, config, target_date=date)
+        final_pool = mst_clustering_filter(candidates, config, target_date=date, return_details=return_details)
         method_name = "Minimum Spanning Tree (MST)"
     elif config["clustering_method"] == "dbscan":
-        final_pool = dbscan_clustering_filter(candidates, config, target_date=date)
+        final_pool = dbscan_clustering_filter(candidates, config, target_date=date, return_details=return_details)
         method_name = "DBSCAN Clustering"
     else:
-        final_pool = hierarchical_clustering_filter(candidates, config, target_date=date)
+        final_pool = hierarchical_clustering_filter(candidates, config, target_date=date, return_details=return_details)
         method_name = "Hierarchical Clustering"
         
     logger.info(f"{method_name} 完成。池大小: {len(final_pool)}")
@@ -325,6 +327,8 @@ def analyze_cluster_stability(base_date=None, lag_days=1, config=CONFIG):
     """
     if base_date is None:
         base_date = datetime.date.today()
+    elif isinstance(base_date, str):
+        base_date = pd.to_datetime(base_date).date()
         
     prev_date = base_date - datetime.timedelta(days=lag_days)
     
