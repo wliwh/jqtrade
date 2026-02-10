@@ -397,8 +397,8 @@ def generate_sankey_chart(series_data, save_path="cluster_sankey.html", min_size
 if __name__ == "__main__":
     # 示例运行参数
     PERIODS = 6
-    FREQ = "ME" # Month End
-    CLUSTER_DIR = "/home/hh01/Documents/jqtrade/Pools/cluster_results"
+    FREQ = "M" # Month End
+    CLUSTER_DIR = os.path.join(os.path.dirname(__file__), 'cluster_results')
     CACHE_FILE = os.path.join(CLUSTER_DIR, "cluster_data_cache.pkl")
     
     logger.info(">>> 开始聚类演变分析程序 <<<")
@@ -413,16 +413,10 @@ if __name__ == "__main__":
     # 2. 执行方案一：族谱表
     logger.info("\n>>> 方案一：生成族谱追踪表 <<<")
     df_genealogy = track_cluster_genealogy(data_series, threshold=0.3)
-    
     # 打印前几行
     if not df_genealogy.empty:
-        # 填充 NaN 为空字符串以便阅读
         print_df = df_genealogy.fillna("")
-        # 截取 display_name 长度防止错位 (只显示前4个字)
-        # pd.set_option('display.max_colwidth', 20)
         print(print_df.drop(columns=['Survival_Rate']).to_string())
-        
-        # 保存 CSV
         csv_path = os.path.join(CLUSTER_DIR, "cluster_genealogy.csv")
         df_genealogy.to_csv(csv_path)
         logger.info(f"族谱表已保存至: {csv_path}")
@@ -431,6 +425,5 @@ if __name__ == "__main__":
         
     # 3. 执行方案二：桑基图
     logger.info("\n>>> 方案二：生成桑基图 <<<")
-    generate_sankey_chart(data_series, save_path=os.path.join(CLUSTER_DIR, "cluster_sankey.html"), min_size=1)
-    
+    generate_sankey_chart(data_series, save_path=os.path.join(CLUSTER_DIR, "cluster_sankey.html"), min_size=1)    
     logger.info("分析完成。")

@@ -20,7 +20,7 @@ CONFIG = {
     # 基础过滤参数
     "min_liquidity": 50e6,       # 最小成交额 (5000万)
     "min_listing_days": 60,      # 最小上市天数
-    "correlation_window": 120,      # 计算相关性的回看窗口 (天)
+    "correlation_window": 120,   # 计算相关性的回看窗口 (天)
     "smoothing_steps": 1,        # 恢复原状：1表示不平滑，只计算当前窗口
     "smoothing_lag": 20,         # (此参数在steps=1时无效)
     
@@ -28,7 +28,9 @@ CONFIG = {
     "filter_bond_money": True,    # 剔除债券、货币
     "filter_qdii": False,         # 剔除跨境/QDII
     "filter_gold": False,         # 剔除黄金
-    "black_list": ["510900.XSHG"],  # 黑名单
+    "filter_to_index": False,     # 剔除每个指数多余的ETF
+    # 黑名单
+    "black_list": ["510900.XSHG"],
 
     # 选择代表的方法 'money'-最大成交额，'market_cap'-最大市值
     "represent_method": "money",
@@ -90,6 +92,68 @@ def pretty_print(df: pd.DataFrame, sep: str = '  ') -> None:
         )
         logger.info(line)
 
+# -------------------- 1.0 去除指数对应的多余ETF ---------------
+
+def filter_unique_etf_per_index(etf_list, target_date=None):
+    """
+    过滤 ETF，使得每个指数只保留一只代表 ETF。
+    默认规则：
+    1. 找到每只 ETF 在 target_date 时对应的指数。
+    2. 对同一指数的 ETF，保留最早发布、code最小的那个
+    """
+    if not etf_list:
+        return []
+
+    # 1. 查询指数关联信息
+    try:
+        q = query(finance.FUND_INVEST_TARGET).filter(
+            finance.FUND_INVEST_TARGET.code.in_(etf_list)
+        )
+        df_all = finance.run_query(q)
+    except Exception as e:
+        logger.warning(f"无法查询指数信息: {e}")
+        return etf_list
+
+    if df_all.empty:
+        pass
+
+    # 2. 处理时间过滤 (避免未来函数)
+    if target_date is not None and not df_all.empty:
+        if not isinstance(target_date, (datetime.date, datetime.datetime)):
+             try:
+                 target_date = pd.to_datetime(target_date).date()
+             except:
+                 pass
+        df_all['start_date'] = pd.to_datetime(df_all['start_date'])
+        df_all = df_all[df_all['start_date'].dt.date <= target_date]
+
+    if df_all.empty:
+        selected_codes = set()
+    else:
+        # 3. 确定每只 ETF 在该日期的“当前”指数
+        current_index_map = df_all.sort_values('start_date', ascending=False).drop_duplicates('code', keep='first')
+        # 4. 生成分组 Key (优先 index_code, 其次 index_name)
+        current_index_map['group_key'] = current_index_map['traced_index_code'].fillna(current_index_map['traced_index_name'])
+        # 剔除无指数信息的 (group_key仍为空)
+        grouped = current_index_map[current_index_map['group_key'].notna()].copy()
+        # 5. 每个指数选一个 
+        # 规则：选 start_date 最早的。这意味着该 ETF 跟踪该指数最久，或者成立最早。
+        best_etfs = grouped.sort_values(['start_date', 'code'], ascending=[True, True]).drop_duplicates('group_key', keep='first')
+        selected_codes = set(best_etfs['code'].tolist())
+    
+    # 6. 特殊处理：保留输入中存在的白名单ETF (如黄金 518880)
+    whitelist = ['518880.XSHG'] 
+    for wl in whitelist:
+        if wl in etf_list:
+            selected_codes.add(wl)
+
+    final_list = [code for code in etf_list if code in selected_codes]
+    dropped_count = len(etf_list) - len(final_list)
+    if dropped_count > 0:
+        logger.debug(f"  -> 指数去重过滤掉 {dropped_count} 只 ETF")
+        
+    return final_list
+
 # -------------------- 1. 初始池筛选 --------------------------
 def initial_etf_filter(target_date=None, config=CONFIG):
     """
@@ -108,7 +172,7 @@ def initial_etf_filter(target_date=None, config=CONFIG):
     blacklist = config['black_list']
     df = df[~df.index.isin(blacklist)]
     
-    # 关键字剔除 (主要针对深市及名字中包含特定标识的ETF)
+    # 关键字剔除
     exclude_keywords = []
     # if config["filter_bond_money"]: 
     #     exclude_keywords.extend(["债", "货币", "理财"])
@@ -150,6 +214,10 @@ def initial_etf_filter(target_date=None, config=CONFIG):
             logger.warning(f"  [警告] 价格过滤失败: {e}")
 
     initial_list = df.index.tolist()
+    # 新增：指数去重 (每指数保留一只)
+    # 修正 Config Key 并传入 target_date
+    if config.get('filter_to_index', False):
+        initial_list = filter_unique_etf_per_index(initial_list, target_date=None)
     logger.debug(f"  -> 找到 {len(initial_list)} 个候选 ETF。")
     return initial_list
 
@@ -211,7 +279,6 @@ def get_best_etf(etf_list, config=CONFIG):
         (data["r2"] > config["min_r2"])
     ].sort_values(by="score", ascending=False)
     
-    return filtered
     return filtered
 
 # -------------------- 4.1 单轮聚合 (Single-Round Aggregation) --------------------------
