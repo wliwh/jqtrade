@@ -23,6 +23,8 @@ try:
     from pyecharts import options as opts
     from pyecharts.options import EmphasisOpts
     from pyecharts.charts import Sankey
+    from pyecharts.commons.utils import JsCode
+    import textwrap
     HAS_PYECHARTS = True
 except ImportError:
     logger.warning("未检测到 pyecharts，方案二 (桑基图) 将不可用。")
@@ -205,8 +207,8 @@ def track_cluster_genealogy(series_data, threshold=0.3):
             
             # 记录信息
             rep_code = curr_reps.get(label, "Unknown")
-            if 'label_map' in step and label in step['label_map']:
-                rep_name = step['label_map'][label]
+            if 'label_map' in step and rep_code in step['label_map']:
+                rep_name = step['label_map'][rep_code]
             else:
                 try:
                     rep_name = get_security_info(rep_code).display_name
@@ -282,8 +284,8 @@ def generate_sankey_chart(series_data, save_path="cluster_sankey.html", min_size
             rep_code = step['representatives'].get(label, "")
             
             # 使用更健壮的方式获取名字
-            if 'label_map' in step and label in step['label_map']:
-                 full_name = step['label_map'][label].upper()
+            if 'label_map' in step and rep_code in step['label_map']:
+                 full_name = step['label_map'][rep_code].upper()
                  rep_name = full_name.replace("ETF", "").replace("联接", "")[:5]
             else:
                 try:
@@ -307,7 +309,21 @@ def generate_sankey_chart(series_data, save_path="cluster_sankey.html", min_size
                 suffix += 1
             
             existing_node_names.add(unique_name)
-            nodes.append({"name": unique_name})
+            
+            # 生成工具提示内容（包含所有ETF）
+            member_names = []
+            for etf in members:
+                if 'label_map' in step and etf in step['label_map']:
+                    member_names.append(step['label_map'][etf])
+                else:
+                    try:
+                        member_names.append(get_security_info(etf).display_name)
+                    except:
+                        member_names.append(str(etf))
+            members_str = ", ".join(member_names)
+            wrapped_members = "<br/>".join(textwrap.wrap(members_str, width=40))
+            
+            nodes.append({"name": unique_name, "desc": wrapped_members})
             node_map[(i, label)] = unique_name
             
         max_clusters_per_period = max(max_clusters_per_period, current_period_clusters)
@@ -379,6 +395,16 @@ def generate_sankey_chart(series_data, save_path="cluster_sankey.html", min_size
                     focus='series',
                     blur_scope="global",
                     is_show_label_line=True,
+                ),
+                tooltip_opts=opts.TooltipOpts(
+                    formatter=JsCode(
+                        "function (params) { "
+                        "if (params.dataType === 'node') { "
+                        "return params.data.name.replace('\\n', '<br/>') + '<br/><hr/><b>包含的ETF:</b><br/>' + params.data.desc; "
+                        "} else { "
+                        "return params.data.source.replace('\\n', ' ') + ' -> ' + params.data.target.replace('\\n', ' ') + ' : ' + params.data.value; "
+                        "} }"
+                    )
                 )
             )
             .set_global_opts(
@@ -399,7 +425,7 @@ if __name__ == "__main__":
     PERIODS = 6
     FREQ = "M" # Month End
     CLUSTER_DIR = os.path.join(os.path.dirname(__file__), 'cluster_results')
-    CACHE_FILE = os.path.join(CLUSTER_DIR, "cluster_data_cache.pkl")
+    CACHE_FILE = os.path.join(CLUSTER_DIR, "cluster_data_cache2.pkl")
     
     logger.info(">>> 开始聚类演变分析程序 <<<")
     

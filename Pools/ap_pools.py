@@ -138,7 +138,7 @@ def filter_unique_etf_per_index(etf_list, target_date=None):
         grouped = current_index_map[current_index_map['group_key'].notna()].copy()
         # 5. 每个指数选一个 
         # 规则：选 start_date 最早的。这意味着该 ETF 跟踪该指数最久，或者成立最早。
-        best_etfs = grouped.sort_values(['start_date', 'code'], ascending=[True, True]).drop_duplicates('group_key', keep='first')
+        best_etfs = grouped.sort_values(['start_date', 'code'], ascending=[True, False]).drop_duplicates('group_key', keep='first')
         selected_codes = set(best_etfs['code'].tolist())
     
     # 6. 特殊处理：保留输入中存在的白名单ETF (如黄金 518880)
@@ -159,8 +159,9 @@ def initial_etf_filter(target_date=None, config=CONFIG):
     """
     基础过滤：
     1. 获取所有ETF
-    2. 剔除黑名单、非核心深市、特定前缀(债券/货币等)
+    2. 剔除黑名单、特定类型ETF(黄金/债券/货币/QDII等)
     3. 剔除上市时间过短的
+    4. 流动性过滤
     """
     logger.debug(f"第一步：初始过滤 (日期: {target_date})...")
     if target_date is None:
@@ -214,6 +215,22 @@ def initial_etf_filter(target_date=None, config=CONFIG):
             logger.warning(f"  [警告] 价格过滤失败: {e}")
 
     initial_list = df.index.tolist()
+    
+    # ----------------------------------------------------
+    # 新增：流动性过滤
+    # ----------------------------------------------------
+    logger.debug("  -> 执行流动性过滤...")
+    try:
+        money_median_20d = get_history_data(initial_list, target_date, 20, "money").median()
+        valid_etfs = [etf for etf in initial_list if money_median_20d.get(etf, 0) > config["min_liquidity"]]
+        if not valid_etfs:
+            logger.debug("  -> 无 ETF 通过流动性过滤。")
+            initial_list = []
+        else:
+            initial_list = valid_etfs
+    except Exception as e:
+        logger.warning(f"  [警告] 流动性过滤失败: {e}")
+
     # 新增：指数去重 (每指数保留一只)
     # 修正 Config Key 并传入 target_date
     if config.get('filter_to_index', False):

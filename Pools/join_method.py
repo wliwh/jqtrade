@@ -201,21 +201,16 @@ def get_ranking_data(etf_list, target_date, method='money'):
 # -------------------- 1.7 内部助手函数：公共逻辑 --------------------------
 def _prepare_data_and_corr(etf_list, config, target_date):
     """
-    公共逻辑：预先过滤流动性 + 计算平滑相关性矩阵
+    公共逻辑：计算平滑相关性矩阵
     返回: (corr_matrix, final_etf_list)
     """
     if target_date is None: target_date = datetime.date.today()
     
-    # 1. 预先过滤流动性
-    money_median_20d = get_history_data(etf_list, target_date, 20, "money").median()
-    valid_etfs = [etf for etf in etf_list if money_median_20d.get(etf, 0) > config["min_liquidity"]]
-    
-    if not valid_etfs:
-        logger.debug("  -> 无 ETF 通过流动性过滤。")
+    if not etf_list:
         return None, []
         
     # 2. 计算平滑相关性矩阵
-    corr_matrix, final_etf_list = get_smoothed_correlation(valid_etfs, config, target_date)
+    corr_matrix, final_etf_list = get_smoothed_correlation(etf_list, config, target_date)
     
     return corr_matrix, final_etf_list
 
