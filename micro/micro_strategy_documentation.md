@@ -5,7 +5,7 @@
 ## 1. 策略起源与核心逻辑
 
 ### 来源
-*   **参考代码**: `test1/micro/jsg_2000.py`
+*   **参考代码**: `jsg_2000.py`
 *   **原始文章**: [JoinQuant: 中证2000搅屎棍指数增强策略](https://www.joinquant.com/post/56890)
 
 ### 核心观点
