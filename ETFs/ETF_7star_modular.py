@@ -1,591 +1,612 @@
-# 策略名称：ETF收益率稳定性轮动策略（模块化重构版）
-# 原始逻辑参考：ETF_atr.py
-# 重构作者：Antigravity
-# 说明：保留所有原有功能及未来函数修复逻辑，采用 Config 类及模块化架构。
+# -*- coding: utf-8 -*-
+# ETF_7star_modular.py
+# 基于聚宽平台重构的模块化ETF 7-star策略
 
 import numpy as np
 import math
 import pandas as pd
-from datetime import datetime, timedelta
 from jqdata import *
+from datetime import datetime, date
 
+# ==============================================================================
+# 1. Config (参数配置模块)
+# ==============================================================================
 class Config:
-    # ==================== 交易环境设置 ====================
-    BENCHMARK = "513100.XSHG"
-    AVOID_FUTURE_DATA = True
-    USE_REAL_PRICE = True
-    
-    # 滑点
-    SLIPPAGE_FUND = 0.0005
-    SLIPPAGE_STOCK = 0.003
-    
-    # 交易成本
-    COMMISSION_FUND = 0.0003
-    MIN_COMMISSION_FUND = 5
-    
-    # ==================== 策略核心参数 ====================
-    ETF_POOL = [
-        # 境外
-        "513100.XSHG",  # 纳指ETF
-        "159509.XSHE",  # 纳指科技ETF
-        "513520.XSHG",  # 日经ETF
-        "513030.XSHG",  # 德国ETF
-        # 商品
-        "518880.XSHG",  # 黄金ETF
-        "159980.XSHE",  # 有色ETF
-        "159985.XSHE",  # 豆粕ETF
-        "159981.XSHE",  # 能源化工ETF
-        # "159870.XSHE",   # 化工
-
-        "501018.XSHG",  # 南方原油
-        # 债券
-        "511090.XSHG",  # 30年国债ETF
-        # 国内
-        "513130.XSHG",  # 恒生科技
-        "513690.XSHG",  # 港股红利
-
-        "510180.XSHG",  # 上证180
-        "159915.XSHE",  # 创业板ETF
-
-        "510410.XSHG",  # 资源
-        "515650.XSHG",  # 消费50
-        "512290.XSHG",  # 生物医药
-        "588120.XSHG",  # 科创100
-        "515070.XSHG",  # 人工智能ETF
-
-        "159851.XSHE",  # 金融科技
-        "159637.XSHE",  # 新能源车
-        "516160.XSHG",  # 新能源
-
-        "159550.XSHE",  # 互联网ETF
-        "512710.XSHG",  # 军工ETF
-        "159692.XSHE",  # 证券
-        "512480.XSHG",  # 半导体
-        "515250.XSHG",  # 智能汽车
-        "159378.XSHE",  # 通用航空
-        "516510.XSHG",  # 云计算
-        "515050.XSHG",  # 5G通信
-        "159995.XSHE",  # 芯片
-        "515790.XSHG",  # 光伏
-        "515000.XSHG",  # 科技
-    ]
-    
-    LOOKBACK_DAYS = 25
-    HOLDINGS_NUM = 1
-    STOP_LOSS_RATIO = 0.95   # 固定比例止损 (7star默认0.95)
-    LOSS_3DAY_THRESHOLD = 0.97 # 近3日跌幅限制 (7star默认0.97)
-    DEFENSIVE_ETF = "511880.XSHG"
-    MIN_SCORE_THRESHOLD = 0.0
-    MAX_SCORE_THRESHOLD = 6.0
-    MIN_MONEY = 5000
-    
-    # R2 筛选
-    ENABLE_R2_FILTER = True
-    R2_MIN_THRESHOLD = 0.3    # R²最低阈值
-    
-    # 短期动量过滤
-    ENABLE_SHORT_MOMENTUM_FILTER = False # 7star默认关闭
-    SHORT_LOOKBACK_DAYS = 10
-    SHORT_MOMENTUM_THRESHOLD = 0.0
-    
-    # ATR 动态止损
-    ENABLE_ATR_STOP_LOSS = False # 7star默认关闭
-    ATR_PERIOD = 14
-    ATR_MULTIPLIER = 2
-    ATR_TRAILING_STOP = False
-    ATR_EXCLUDE_DEFENSIVE = True
-    
-    # MA 过滤
-    ENABLE_MA_FILTER = False # 7star默认关闭
-    MA_SHORT_PERIOD = 5
-    MA_LONG_PERIOD = 20
-    MA_FILTER_CONDITION = "above" # "above" or "below"
-    
-    # RSI 过滤
-    ENABLE_RSI_FILTER = False # 7star默认关闭
-    RSI_PERIOD = 6
-    RSI_LOOKBACK_DAYS = 1
-    RSI_THRESHOLD = 98
-    
-    # MACD 过滤
-    ENABLE_MACD_FILTER = False
-    MACD_FAST_PERIOD = 12
-    MACD_SLOW_PERIOD = 26
-    MACD_SIGNAL_PERIOD = 9
-    MACD_FILTER_CONDITION = "bullish" # "bullish" or "bearish"
-    
-    # 成交量过滤 (7star核心升级)
-    ENABLE_VOLUME_FILTER = True
-    VOLUME_LOOKBACK_DAYS = 5
-    VOLUME_THRESHOLD = 2.5
-    VOLUME_RETURN_LIMIT = 1.0 # 年化收益率过滤阈值 (7star特有)
-    VOLUME_EXCLUDE_DEFENSIVE = True
-    
-    # 布林带过滤
-    ENABLE_BOLLINGER_FILTER = False
-    BOLLINGER_PERIOD = 20
-    BOLLINGER_STD = 2.0
-    BOLLINGER_LOOKBACK_DAYS = 3
-
-# ==================== 初始化 ====================
-def initialize(context):
-    set_option("avoid_future_data", Config.AVOID_FUTURE_DATA)
-    set_option("use_real_price", Config.USE_REAL_PRICE)
-    
-    set_slippage(FixedSlippage(Config.SLIPPAGE_FUND), type="fund")
-    set_slippage(FixedSlippage(Config.SLIPPAGE_STOCK), type="stock")
-    
-    set_order_cost(OrderCost(open_tax=0, close_tax=0, open_commission=Config.COMMISSION_FUND, close_commission=Config.COMMISSION_FUND, close_today_commission=0, min_commission=Config.MIN_COMMISSION_FUND), type="fund")
-    set_order_cost(OrderCost(open_tax=0, close_tax=0, open_commission=0, close_commission=0, close_today_commission=0, min_commission=0), type="mmf")
-    
-    log.set_level('order', 'error')
-    log.set_level('system', 'error')
-    
-    set_benchmark(Config.BENCHMARK)
-    
-    # 状态存储
-    g.etf_pool = Config.ETF_POOL
-    g.positions = {}
-    g.position_highs = {}
-    g.position_stop_prices = {}
-    
-    # 任务调度
-    run_daily(etf_trade, time='14:00')
-    run_daily(check_positions, time='09:30')
-    run_daily(check_atr_stop_loss, time='09:30')
-
-# ==================== 数据获取模块 ====================
-def get_ref_price(security, context):
-    """获取前一分钟价格，避免未来函数"""
-    try:
-        end_time = context.current_dt
-        start_time = end_time - timedelta(minutes=2)
-        minute_data = get_price(security, start_date=start_time, end_date=end_time, frequency='1m', fields=['close'], skip_paused=False, fq='pre', panel=False)
+    def __init__(self):
+        # 基础参数
+        self.holdings_num = 1                  # 持仓数量
+        self.defensive_etf = "511880.XSHG"     # 防御型ETF (银华日利)
+        self.safe_haven_etf = '511660.XSHG'    # 冷却期避险ETF (建信添益)
+        self.min_money = 5000                  # 最小交易金额
         
-        if minute_data is None or len(minute_data) < 2:
-            hist_data = attribute_history(security, 1, '1d', ['close'], skip_paused=True)
-            return hist_data['close'].iloc[-1] if not hist_data.empty else 0
+        # 动量因子参数
+        self.lookback_days = 25                # 核心动量回看天数
+        self.min_score_threshold = 0           # 动量得分下限
+        self.max_score_threshold = 5           # 动量得分上限
         
-        return minute_data['close'].iloc[-2] if len(minute_data) >= 2 else minute_data['close'].iloc[-1]
-    except:
-        return 0
-
-def get_ref_volume(security, context):
-    """获取前一分钟成交量"""
-    try:
-        end_time = context.current_dt
-        start_time = end_time - timedelta(minutes=2)
-        minute_data = get_price(security, start_date=start_time, end_date=end_time, frequency='1m', fields=['volume'], skip_paused=False, fq='pre', panel=False)
+        # 过滤器开关与阈值
+        self.use_short_momentum_filter = False # 短期动量过滤
+        self.short_lookback_days = 10
+        self.short_momentum_threshold = 0.0
         
-        if minute_data is None or len(minute_data) < 2:
-            hist_data = attribute_history(security, 1, '1d', ['volume'], skip_paused=True)
-            return hist_data['volume'].iloc[-1] if not hist_data.empty else 0
+        self.enable_r2_filter = True           # R²过滤
+        self.r2_threshold = 0.4
         
-        return minute_data['volume'].iloc[-2] if len(minute_data) >= 2 else minute_data['volume'].iloc[-1]
-    except:
-        return 0
-
-# ==================== 指标计算模块 ====================
-def calculate_atr(security, period=14):
-    try:
-        hist_data = attribute_history(security, period + 20, '1d', ['high', 'low', 'close'], skip_paused=True)
-        if len(hist_data) < period + 1: return 0, False
+        self.enable_annualized_return_filter = False # 年化收益过滤
+        self.min_annualized_return = 1.0
         
-        h, l, cp = hist_data['high'].values, hist_data['low'].values, hist_data['close'].values
-        tr_values = np.zeros(len(h))
-        for i in range(1, len(h)):
-            tr1 = h[i] - l[i]
-            tr2 = abs(h[i] - cp[i-1])
-            tr3 = abs(l[i] - cp[i-1])
-            tr_values[i] = max(tr1, tr2, tr3)
-        atr = np.mean(tr_values[-period:])
-        return atr, True
-    except:
-        return 0, False
-
-def calculate_bollinger(prices, period=20, std_dev=2.0):
-    if len(prices) < period: return None, None, None
-    mid = np.mean(prices[-period:])
-    std = np.std(prices[-period:])
-    return mid, mid + std_dev * std, mid - std_dev * std
-
-def calculate_rsi(prices, period=6):
-    if len(prices) < period + 1: return []
-    deltas = np.diff(prices)
-    gains = np.where(deltas > 0, deltas, 0)
-    losses = np.where(deltas < 0, -deltas, 0)
-    
-    avg_gains = np.zeros(len(prices))
-    avg_losses = np.zeros(len(prices))
-    avg_gains[period] = np.mean(gains[:period])
-    avg_losses[period] = np.mean(losses[:period])
-    
-    rsi_values = np.zeros(len(prices))
-    for i in range(period + 1, len(prices)):
-        avg_gains[i] = (avg_gains[i-1] * (period - 1) + gains[i-1]) / period
-        avg_losses[i] = (avg_losses[i-1] * (period - 1) + losses[i-1]) / period
-        if avg_losses[i] == 0: rsi_values[i] = 100
-        else:
-            rs = avg_gains[i] / avg_losses[i]
-            rsi_values[i] = 100 - (100 / (1 + rs))
-    return rsi_values[period:]
-
-def calculate_macd(prices, fast=12, slow=26, signal=9):
-    if len(prices) < slow + signal: return 0, 0, 0
-    def ema(data, p):
-        res = np.zeros_like(data)
-        res[0], alpha = data[0], 2 / (p + 1)
-        for i in range(1, len(data)): res[i] = alpha * data[i] + (1 - alpha) * res[i-1]
-        return res
-    ema_f = ema(prices, fast)
-    ema_s = ema(prices, slow)
-    dif = ema_f - ema_s
-    dea = ema(dif, signal)
-    return dif[-1], dea[-1], (dif - dea)[-1]
-
-# ==================== 过滤逻辑模块 ====================
-def check_filters(etf, context, price_series, current_price, data_cache):
-    # 1. MA 过滤
-    ma5 = np.mean(price_series[-5:])
-    if Config.ENABLE_MA_FILTER:
-        ma_l = np.mean(price_series[-Config.MA_LONG_PERIOD:])
-        met = (ma5 >= ma_l) if Config.MA_FILTER_CONDITION == "above" else (ma5 <= ma_l)
-        if not met: 
-            log.info(f"📊 {etf} MA过滤未通过")
-            return False
-
-    # 2. RSI 过滤
-    if Config.ENABLE_RSI_FILTER:
-        rsi_vals = calculate_rsi(price_series, Config.RSI_PERIOD)
-        if len(rsi_vals) >= Config.RSI_LOOKBACK_DAYS:
-            recent_rsi = rsi_vals[-Config.RSI_LOOKBACK_DAYS:]
-            if np.any(recent_rsi > Config.RSI_THRESHOLD) and current_price < ma5:
-                log.info(f"⛔ {etf} RSI过滤未通过")
-                return False
-
-    # 3. MACD 过滤
-    if Config.ENABLE_MACD_FILTER:
-        dif, dea, bar = calculate_macd(price_series, Config.MACD_FAST_PERIOD, Config.MACD_SLOW_PERIOD, Config.MACD_SIGNAL_PERIOD)
-        met = (dif > dea) if Config.MACD_FILTER_CONDITION == "bullish" else (dif < dea)
-        if not met: 
-            log.info(f"📉 {etf} MACD过滤未通过")
-            return False
-
-    # 4. 成交量过滤 (7star增强版: 放量且高位才过滤)
-    if Config.ENABLE_VOLUME_FILTER and not (Config.VOLUME_EXCLUDE_DEFENSIVE and etf == Config.DEFENSIVE_ETF):
-        hist = data_cache.get('daily', {}).get(etf)
-        if hist is not None and not hist.empty:
-            # 使用缓存中的 1d 数据计算均值
-            avg_vol = hist['volume'].iloc[-(Config.VOLUME_LOOKBACK_DAYS+1):-1].mean()
-            # 获取当日实时成交量 (从data_cache中获取的是累积成交量)
-            cur_vol = data_cache.get('volume', {}).get(etf, 0)
-            
-            if avg_vol > 0:
-                vol_ratio = cur_vol / avg_vol
-                if vol_ratio > Config.VOLUME_THRESHOLD:
-                    # 只有放量且年化收益率过高时才过滤 (避免底部启动被过滤)
-                    # 计算 lookback_days 的年化收益
-                    # data_cache['daily'][etf]['close'] 是 Series
-                    prices = hist['close'].iloc[-(Config.LOOKBACK_DAYS+1):]
-                    # 需要加上当前价格来计算最新的年化收益? 
-                    # get_etf_score 里传进来的 price_series 包含了当前价格
-                    
-                    # 计算加权线性回归年化收益
-                    try:
-                        p_series = price_series[-(Config.LOOKBACK_DAYS+1):]
-                        y = np.log(p_series)
-                        x = np.arange(len(y))
-                        w = np.linspace(1, 2, len(y))
-                        slope, _ = np.polyfit(x, y, 1, w=w)
-                        ann_ret = math.exp(slope * 250) - 1
-                        
-                        if ann_ret > Config.VOLUME_RETURN_LIMIT:
-                            log.info(f"📊 {etf} 高位放量被过滤: 量比{vol_ratio:.2f} > {Config.VOLUME_THRESHOLD}, 年化{ann_ret:.2f} > {Config.VOLUME_RETURN_LIMIT}")
-                            return False
-                        else:
-                            log.debug(f"{etf} 放量但涨幅未超标: 量比{vol_ratio:.2f}, 年化{ann_ret:.2f}")
-                    except Exception as e:
-                        log.warn(f"计算年化收益出错: {e}")
-                        pass
-
-    # 5. 布林带过滤
-    if Config.ENABLE_BOLLINGER_FILTER:
-        # 获取多日数据以计算布林带序列
-        lookback = Config.BOLLINGER_LOOKBACK_DAYS
-        passed = True
-        for i in range(lookback):
-            idx = len(price_series) - lookback + i
-            sub_series = price_series[:idx]
-            if len(sub_series) < Config.BOLLINGER_PERIOD: continue
-            mid, up, low = calculate_bollinger(sub_series, Config.BOLLINGER_PERIOD, Config.BOLLINGER_STD)
-            if price_series[idx-1] > up:
-                if current_price < ma5:
-                    passed = False
-                    break
-        if not passed:
-            log.info(f"📈 {etf} 布林带过滤未通过")
-            return False
-                 
-    return True
-
-# ==================== 核心评分模块 ====================
-def get_etf_score(etf, context, data_cache):
-    try:
-        # 从缓存读取数据
-        hist = data_cache.get('daily', {}).get(etf)
-        if hist is None or len(hist) < Config.LOOKBACK_DAYS: return None
+        self.enable_ma_filter = False          # 均线过滤
+        self.ma_filter_days = 20
         
-        # 显式检查停牌 (7star逻辑: 停牌标的直接跳过排名)
-        curr_data = get_current_data()
-        if curr_data[etf].paused:
-            log.debug(f"{etf} 今日停牌，跳过计算")
-            return None
-
-        cur_p = data_cache.get('minute', {}).get(etf, 0)
-        if cur_p <= 0: return None
+        self.enable_volume_check = True        # 成交量比过滤
+        self.volume_lookback = 5
+        self.volume_threshold = 1.0
         
-        price_series = np.append(hist['close'].values, cur_p)
+        self.enable_loss_filter = True         # 短期风控跌幅过滤
+        self.loss_limit = 0.97                 # 3日最大允许跌幅
         
-        # 短期动量过滤
-        if Config.ENABLE_SHORT_MOMENTUM_FILTER:
-            short_ret = price_series[-1] / price_series[-(Config.SHORT_LOOKBACK_DAYS + 1)] - 1
-            if short_ret < Config.SHORT_MOMENTUM_THRESHOLD:
-                log.info(f"📉 {etf} 短期动量不足: {short_ret:.4f}")
-                return None
-            
-        # 3日跌幅限制
-        if len(price_series) >= 4:
-            if min(price_series[-1]/price_series[-2], price_series[-2]/price_series[-3], price_series[-3]/price_series[-4]) < Config.LOSS_3DAY_THRESHOLD:
-                log.info(f"⚠️ {etf} 近3日跌幅过大")
-                return None
-
-        # 核心动量得分 (7star逻辑: WLS R2 * Annualized Return)
-        # 用 log 价格做线性回归
-        # 7star: weights = np.linspace(1, 2, len(y))
-        y = np.log(price_series[-Config.LOOKBACK_DAYS:])
-        x = np.arange(len(y))
-        w = np.linspace(1, 2, len(y))
+        self.use_rsi_filter = False            # RSI过滤
+        self.rsi_period = 6
+        self.rsi_lookback_days = 1
+        self.rsi_threshold = 98
         
-        slope, intercept = np.polyfit(x, y, 1, w=w)
+        # 止损逻辑
+        self.use_fixed_stop_loss = True        # 固定比例止损
+        self.fixed_stop_loss_threshold = 0.95
         
-        # 年化收益率 (基于回归斜率)
-        ann_ret = math.exp(slope * 250) - 1
+        self.use_pct_stop_loss = False         # 当日跌幅止损
+        self.pct_stop_loss_threshold = 0.95
         
-        # R2 计算
-        # predicted = slope * x + intercept
-        # ss_res = sum(w * (y - predicted)^2)
-        # ss_tot = sum(w * (y - mean(y))^2)
-        y_pred = slope * x + intercept
-        ss_res = np.sum(w * (y - y_pred) ** 2)
-        ss_tot = np.sum(w * (y - np.mean(y)) ** 2)
-        r2 = 1 - ss_res / ss_tot if ss_tot != 0 else 0
+        self.use_atr_stop_loss = False         # ATR动态止损
+        self.atr_period = 14
+        self.atr_multiplier = 2
+        self.atr_trailing_stop = True
+        self.atr_exclude_defensive = True
         
-        # R2 过滤
-        if Config.ENABLE_R2_FILTER and r2 < Config.R2_MIN_THRESHOLD:
-            log.info(f"📉 {etf} R²过滤未通过: {r2:.4f} < {Config.R2_MIN_THRESHOLD}")
-            return None
-            
-        score = ann_ret * r2
+        # 冷却期机制
+        self.sell_cooldown_enabled = False     # 卖出冷却期机制
+        self.sell_cooldown_days = 3
         
-        # 检查其它过滤器
-        if not check_filters(etf, context, price_series, cur_p, data_cache):
-            return None
+        # 预设ETF池
+        self.fixed_etf_pool = [
+#大宗商品ETF：
+        '518880.XSHG',  # (黄金ETF)
+        '161226.XSHE',  # (国投白银LOF)
+        '159980.XSHE',  # (有色ETF大成)
+        '501018.XSHG',  # (南方原油ETF)
+        '159985.XSHE',  # (豆粕ETF)
+
+#海外ETF：       
+        '513100.XSHG',  # (纳指ETF)
+        '159509.XSHE',  # (纳指科技ETF景顺)
+        '513290.XSHG',  # (纳指生物)        
+        '513500.XSHG',  # (标普500)
+        '159518.XSHE',  # (标普油气ETF嘉实)
+        '159502.XSHE',  # (标普生物科技ETF嘉实)        
+        '159529.XSHE',  # (标普消费ETF)
+        '513400.XSHG',  # (道琼斯)
+        '520830.XSHG',  # (沙特ETF)
+        '513520.XSHG',  # (日经ETF)
+        '513030.XSHG',  # (德国ETF)
+
+#港股ETF：
+        '513090.XSHG',  # (香港证券)
+        '513180.XSHG',  # (恒指科技)
+        '513120.XSHG',  # (HK创新药)
+        '513330.XSHG',  # (恒生互联)
+        '513750.XSHG',  # (港股非银)
+        '159892.XSHE',  # (恒生医药ETF)
+        '159605.XSHE',  # (中概互联ETF)
+        '513190.XSHG',  # (H股金融)
+        '510900.XSHG',  # (恒生中国)
+        '513630.XSHG',  # (香港红利)
+        '513920.XSHG',  # (港股通央企红利)
+        '159323.XSHE',  # (港股通汽车ETF)
+        '513970.XSHG',  # (恒生消费)
         
-        if Config.MIN_SCORE_THRESHOLD <= score < Config.MAX_SCORE_THRESHOLD:
-            return {'etf': etf, 'score': score, 'price': cur_p, 'ann_ret': ann_ret, 'r2': r2}
+#指数ETF：        
+        '510500.XSHG',  # (中证500ETF)
+        '512100.XSHG',  # (中证1000ETF)
+        '563300.XSHG',  # (中证2000)        
+        '510300.XSHG',  # (沪深300ETF)
+        '512050.XSHG',  # (A500E)        
+        '510760.XSHG',  # (上证ETF)        
+        '159915.XSHE',  # (创业板ETF易方达)
+        '159949.XSHE',  # (创业板50ETF)
+        '159967.XSHE',  # (创业板成长ETF)        
+        '588080.XSHG',  # (科创板50)
+        '588220.XSHG',  # (科创100)
+        '511380.XSHG',  # (可转债ETF)
         
-        log.info(f"排除异常值ETF: {etf}，得分: {score:.4f}")
-        return None
-    except Exception as e:
-        log.warn(f"计算{etf}得分出错: {e}")
-        return None
+#行业ETF：
+        '513310.XSHG',  # (中韩芯片)
+        '588200.XSHG',  # (科创芯片)
+        '159852.XSHE',  # (软件ETF)
+        '512880.XSHG',  # (证券ETF)
+        '159206.XSHE',  # (卫星ETF)
+        '512400.XSHG',  # (有色金属ETF)
+        '512980.XSHG',  # (传媒ETF)
+        '159516.XSHE',  # (半导体设备ETF)
+        '512480.XSHG',  # (半导体)
+        '515880.XSHG',  # (通信ETF)
+        '562500.XSHG',  # (机器人)
+        '159218.XSHE',  # (卫星产业ETF)
+        '159869.XSHE',  # (游戏ETF)
+        '159870.XSHE',  # (化工ETF)
+        '159326.XSHE',  # (电网设备ETF)
+        '159851.XSHE',  # (金融科技ETF)
+        '560860.XSHG',  # (工业有色)
+        '159363.XSHE',  # (创业板人工智能ETF华宝)
+        '588170.XSHG',  # (科创半导)
+        '159755.XSHE',  # (电池ETF)
+        '512170.XSHG',  # (医疗ETF)
+        '512800.XSHG',  # (银行ETF)
+        '159819.XSHE',  # (人工智能ETF易方达)
+        '512710.XSHG',  # (军工龙头)
+        '159638.XSHE',  # (高端装备ETF嘉实)
+        '517520.XSHG',  # (黄金股)
+        '515980.XSHG',  # (人工智能)
+        '159995.XSHE',  # (芯片ETF)
+        '159227.XSHE',  # (航空航天ETF)
+        '512660.XSHG',  # (军工ETF)
+        '512690.XSHG',  # (酒ETF)
+        '516150.XSHG',  # (稀土基金)
+        '512890.XSHG',  # (红利低波)
+        '588790.XSHG',  # (科创智能)
+        '159992.XSHE',  # (创新药ETF)
+        '512070.XSHG',  # (证券保险)
+        '562800.XSHG',  # (稀有金属)
+        '512010.XSHG',  # (医药ETF)
+        '515790.XSHG',  # (光伏ETF)
+        '510880.XSHG',  # (红利ETF)
+        '159928.XSHE',  # (消费ETF)
+        '159883.XSHE',  # (医疗器械ETF)
+        '159998.XSHE',  # (计算机ETF)
+        '515220.XSHG',  # (煤炭ETF)
+        '561980.XSHG',  # (芯片设备)
+        '515400.XSHG',  # (大数据)
+        '515120.XSHG',  # (创新药)
+        '159967.XSHE',  # (创业板成长ETF)
+        '159566.XSHE',  # (储能电池ETF易方达)
+        '515050.XSHG',  # (5GETF)
+        '516510.XSHG',  # (云计算ETF)
+        '159256.XSHE',  # (创业板软件ETF华夏)
+        '159766.XSHE',  # (旅游ETF)
+        '512200.XSHG',  # (地产ETF)
+        '513350.XSHG',  # (油气ETF)
+        '159583.XSHE',  # (通信设备ETF)
+        '159732.XSHE',  # (消费电子ETF)
+        '516160.XSHG',  # (新能源)
+        '516520.XSHG',  # (智能驾驶)
+        '562590.XSHG',  # (半导材料)
+        '515030.XSHG',  # (新汽车)
+        '512670.XSHG',  # (国防ETF)
+        '561330.XSHG',  # (矿业ETF)
+        '516190.XSHG',  # (文娱ETF)
+        '159840.XSHE',  # (锂电池ETF工银)
+        '159611.XSHE',  # (电力ETF)
+        '159981.XSHE',  # (能源化工ETF)
+        '159865.XSHE',  # (养殖ETF)
+        '561360.XSHG',  # (石油ETF)
+        '159667.XSHE',  # (工业母机ETF)
+        '515170.XSHG',  # (食品饮料ETF)
+        '513360.XSHG',  # (教育ETF)
+        '159825.XSHE',  # (农业ETF)
+        '515210.XSHG',  # (钢铁ETF)
+        ]
 
-# ==================== 交易执行模块 ====================
-def smart_order(security, target_value, context, data_cache=None):
-    # 如果有缓存优先使用缓存价格
-    cur_p = data_cache.get('minute', {}).get(security, 0) if data_cache else get_ref_price(security, context)
-    if cur_p <= 0: return False
-    
-    data = get_current_data()
-    if data[security].paused or cur_p >= data[security].high_limit or cur_p <= data[security].low_limit:
-        return False
+# ==============================================================================
+# 2. DataManager (数据管理与缓存模块)
+# ==============================================================================
+class DataManager:
+    def __init__(self, config):
+        self.config = config
+        self.security_info_cache = {}    # 标的信息缓存
+        self.batch_history = None        # 批量历史数据缓存 (Panel/MultiIndex DF)
+        self.yesterday_money = None      # 昨日成交额缓存
+        self.dynamic_pool = []           # 动态筛选出来的行业池
         
-    # 计算目标数量 (向下取整到100)
-    target_amount = int(target_value / cur_p)
-    target_amount = (target_amount // 100) * 100
-    if target_amount <= 0 and target_value > 0:
-        target_amount = 100 # 如果目标价值大于0但算出来是0股，至少买1手? 或者保持0? 7star里是这样的
-    
-    pos = context.portfolio.positions.get(security)
-    cur_amount = pos.total_amount if pos else 0
-    diff = target_amount - cur_amount
-    
-    # 调仓阈值检查 (7star逻辑: 偏差<5%不调仓)
-    current_val = cur_amount * cur_p
-    # 如果是空仓买入(current_val=0)或者清仓卖出(target_value=0)，则必须执行
-    # 只有在持仓调整时才检查阈值
-    if current_val > 0 and target_value > 0:
-        if abs(current_val - target_value) < target_value * 0.05:
-            log.info(f"跳过调仓 {security}: 市值偏差<5% (现{current_val:.0f}/目{target_value:.0f})")
-            return False
+    def get_info(self, security):
+        """获取并缓存证券基本信息"""
+        if security not in self.security_info_cache:
+            try:
+                info = get_security_info(security)
+                self.security_info_cache[security] = {
+                    'name': info.display_name,
+                    'start_date': info.start_date.date() if isinstance(info.start_date, (datetime, date)) else None
+                }
+            except:
+                self.security_info_cache[security] = {'name': security, 'start_date': None}
+        return self.security_info_cache[security]
 
-    # 最小交易额检查 (仅针对有变动的交易)
-    if diff != 0:
-        trade_val = abs(diff * cur_p)
-        if trade_val < Config.MIN_MONEY:
-            log.info(f"跳过交易 {security}: 金额 {trade_val:.2f} < 最小限制 {Config.MIN_MONEY}")
-            return False
-
-    # 卖出检查 T+1
-    if diff < 0:
-        closeable = pos.closeable_amount if pos else 0
-        if closeable == 0:
-            log.info(f"无法卖出 {security}: T+1限制 (可卖数=0)")
-            return False
-        # 如果要卖出的量超过可卖量，只卖可卖的
-        if abs(diff) > closeable:
-            diff = -closeable
-            log.info(f"修正卖出量 {security}: 调整为可卖量 {diff}")
-
-    if diff != 0:
-        if order(security, diff):
-            if diff > 0 and security in g.etf_pool:
-                g.position_highs[security] = cur_p
-                # 初始化 ATR 止损 (如果启用)
-                if Config.ENABLE_ATR_STOP_LOSS:
-                    atr, ok = calculate_atr(security, Config.ATR_PERIOD)
-                    if ok:
-                        if Config.ATR_TRAILING_STOP:
-                            g.position_stop_prices[security] = cur_p - Config.ATR_MULTIPLIER * atr
-                        else:
-                            # 固定 ATR 止损基于成本价? 7star里似乎比较复杂，这里简化为由 check_atr_stop_loss 统一处理
-                            pass
-            action = "买入" if diff > 0 else "卖出"
-            log.info(f"📦 {action} {security}: {diff}股, 价格 {cur_p:.3f}")
-            return True
-        else:
-            log.warn(f"下单失败 {security}: {diff}股")
-            return False
-
-def etf_trade(context):
-    """ETF轮动交易主函数 - 性能优化版 (数据缓存)"""
-    # 0. 数据预分析与批量获取
-    fetch_len = max(Config.LOOKBACK_DAYS, Config.MA_LONG_PERIOD, Config.BOLLINGER_PERIOD) + 10
-    
-    # 批量获取日线数据
-    daily_data = {etf: attribute_history(etf, fetch_len, '1d', ['close', 'high', 'low', 'volume'], skip_paused=True) for etf in g.etf_pool}
-    
-    # 获取前一分钟价格 (批量处理)
-    end_time = context.current_dt
-    start_time = end_time - timedelta(minutes=2)
-    minute_prices = {}
-    minute_volumes = {}
-    
-    for etf in g.etf_pool:
-        prices = get_price(etf, start_date=start_time, end_date=end_time, frequency='1m', fields=['close', 'volume'], skip_paused=False, fq='pre', panel=False)
-        if prices is not None and len(prices) >= 2:
-            minute_prices[etf] = prices['close'].iloc[-2]
-            minute_volumes[etf] = prices['volume'].iloc[-2]
-        elif prices is not None and len(prices) == 1:
-            minute_prices[etf] = prices['close'].iloc[-1]
-            minute_volumes[etf] = prices['volume'].iloc[-1]
-        else:
-            # 降级到昨收
-            hist = daily_data.get(etf) if isinstance(daily_data, dict) else (daily_data[etf] if etf in daily_data else None)
-            minute_prices[etf] = hist['close'].iloc[-1] if hist is not None else 0
-            minute_volumes[etf] = hist['volume'].iloc[-1] if hist is not None else 0
-
-    data_cache = {
-        'daily': daily_data if isinstance(daily_data, dict) else {etf: daily_data[etf] for etf in g.etf_pool if etf in daily_data},
-        'minute': minute_prices,
-        'volume': minute_volumes
-    }
-
-    # 1. 计算得分
-    scores = []
-    for etf in g.etf_pool:
-        res = get_etf_score(etf, context, data_cache)
-        if res: scores.append(res)
-    
-    scores.sort(key=lambda x: x['score'], reverse=True)
-    
-    log.info("=== ETF趋势指标分析 ===")
-    for m in scores:
-        log.info(f"{m['etf']}: 年化={m['ann_ret']:.4f}, R²={m['r2']:.4f}, 得分={m['score']:.4f}, 当前价={m['price']:.3f}")
-    
-    target_etfs = []
-    if scores and scores[0]['score'] >= Config.MIN_SCORE_THRESHOLD:
-        target_etfs = [x['etf'] for x in scores[:Config.HOLDINGS_NUM]]
-        log.info(f"🎯 正常模式，选择目标ETF: {target_etfs}")
-    else:
-        if is_defensive_ready(context):
-            target_etfs = [Config.DEFENSIVE_ETF]
-            log.info(f"🛡️ 进入防御模式: {Config.DEFENSIVE_ETF}")
-        else:
-            log.info("💤 进入空仓模式")
-    
-    target_set = set(target_etfs)
-    total_val = context.portfolio.total_value
-    target_val_per = total_val / len(target_etfs) if target_etfs else 0
-    
-    # 2. 卖出不在目标列表中的
-    # 7star 逻辑: 先卖出非目标持仓，如果有持仓未卖出 (例如停牌)，则不进行买入
-    # 这里我们先执行卖出
-    has_sell_failed = False
-    
-    for sec in list(context.portfolio.positions.keys()):
-        if sec in g.etf_pool and sec not in target_set:
-            if not smart_order(sec, 0, context, data_cache):
-                # 如果卖出失败 (例如停牌 or 跌停)，标记
-                # 需再次确认是否真的持仓还在
-                pos = context.portfolio.positions[sec]
-                if pos.total_amount > 0:
-                    log.warn(f"⚠️ {sec} 卖出失败或未完全卖出，可能影响后续买入")
-                    has_sell_failed = True
-            else:
-                log.info(f"📤 卖出: {sec} (不在目标列表中)")
-            
-    # 3. 买入/调仓
-    # 7star 核心风控: 如果有非目标持仓未卖出，则暂停买入，防止资金占用或风险敞口
-    if has_sell_failed:
-        log.warn("⛔ 存在未卖出的非目标持仓，暂停买入操作")
-        return
-
-    for etf in target_etfs:
-        smart_order(etf, target_val_per, context, data_cache)
-
-def is_defensive_ready(context):
-    d = get_current_data()[Config.DEFENSIVE_ETF]
-    return not d.paused and get_ref_price(Config.DEFENSIVE_ETF, context) < d.high_limit
-
-# ==================== 风控模块 ====================
-def check_positions(context):
-    for sec, pos in context.portfolio.positions.items():
-        if pos.total_amount > 0:
-            log.info(f"持仓: {sec}, 价格: {pos.price}, 成本: {pos.avg_cost}")
-
-def check_atr_stop_loss(context):
-    if not Config.ENABLE_ATR_STOP_LOSS: return
-    for sec in list(context.portfolio.positions.keys()):
-        if Config.ATR_EXCLUDE_DEFENSIVE and sec == Config.DEFENSIVE_ETF: continue
-        pos = context.portfolio.positions[sec]
-        if pos.total_amount <= 0: continue
+    def update_dynamic_pool(self, context):
+        """每日更新热点行业池 (高成交额 + 行业去重)"""
+        all_etfs = get_all_securities(['etf']).index.tolist()
+        exclude = ['300', '500', '1000', '50', '上证', '创业板', '科创', '恒生', 'H股', '货币', '纳指', '标普', '债']
         
-        cur_p = get_ref_price(sec, context)
-        atr, ok = calculate_atr(sec, Config.ATR_PERIOD)
-        if not ok: continue
-        
-        g.position_highs[sec] = max(g.position_highs.get(sec, cur_p), cur_p)
-        ref_p = g.position_highs[sec] if Config.ATR_TRAILING_STOP else pos.avg_cost
-        stop_p = ref_p - Config.ATR_MULTIPLIER * atr
-        
-        if cur_p <= stop_p or cur_p <= pos.avg_cost * Config.STOP_LOSS_RATIO:
-            # 兼容 7star 的智能卖出
-            # 这里调用 smart_order(sec, 0, ...) 会执行清仓
-            if smart_order(sec, 0, context):
-                loss_pct = (cur_p / pos.avg_cost - 1) * 100
-                log.info(f"🚨 止损卖出: {sec}, 现价: {cur_p}, 成本: {pos.avg_cost}, 亏损: {loss_pct:.2f}%")
+        # 1. 基础关键字过滤
+        candidates = []
+        for code in all_etfs:
+            name = self.get_info(code)['name']
+            if not any(k in name for k in exclude):
+                candidates.append(code)
                 
-                # 清理状态
-                g.position_highs.pop(sec, None)
-                g.position_stop_prices.pop(sec, None)
+        # 2. 批量成交额过滤 (避免单只获取)
+        end_dt = context.previous_date
+        h = get_price(candidates, count=1, end_date=end_dt, frequency='daily', fields=['money'])
+        money_series = h['money'].iloc[0]
+        
+        # 3. 成交额 > 5000万，且行业去重 (取前2个字符匹配)
+        qualified = money_series[money_series > 5e7].sort_values(ascending=False)
+        self.yesterday_money = money_series
+        
+        final_pool = []
+        seen = set()
+        for code in qualified.index:
+            name = self.get_info(code)['name']
+            industry = name[:2]
+            if industry not in seen:
+                final_pool.append(code)
+                seen.add(industry)
+            if len(final_pool) >= 100: break
+            
+        self.dynamic_pool = final_pool
+        return final_pool
+
+    def prepare_batch_data(self, context, security_list):
+        """一次性拉取所有标的历史行情"""
+        lookback = max(self.config.lookback_days, self.config.ma_filter_days, 60) + 5
+        # 聚宽 get_price 支持多标的返回 DataFrame/Panel
+        self.batch_history = get_price(
+            security_list, 
+            count=lookback, 
+            end_date=context.previous_date, 
+            frequency='daily', 
+            fields=['close', 'high', 'low', 'volume', 'money']
+        )
+        return self.batch_history
+
+# ==============================================================================
+# 3. FilterEngine (多因子过滤与计算模块)
+# ==============================================================================
+class FilterEngine:
+    def __init__(self, config, data_manager):
+        self.config = config
+        self.dm = data_manager
+
+    def calculate_metrics_batch(self, context, security_list):
+        """核心：向量化/批量计算所有标的的因子"""
+        # 获取基础数据
+        hist = self.dm.batch_history # MultiIndex DataFrame: (Time, Security) -> Field
+        current_data = get_current_data()
+        
+        results = []
+        for code in security_list:
+            try:
+                # 获取该标的序列
+                df = hist.xs(code, axis=0, level=1) if isinstance(hist.index, pd.MultiIndex) else hist[:, :, code]
+                if len(df) < self.config.lookback_days: continue
+                
+                # 拼接今日最新价 (分钟级数据)
+                curr_price = current_data[code].last_price
+                closes = np.append(df['close'].values, curr_price)
+                
+                # --- 1. 动量得分计算 (线性拟合) ---
+                y = np.log(closes[- (self.config.lookback_days + 1):])
+                x = np.arange(len(y))
+                w = np.linspace(1, 2, len(y))
+                slope, intercept = np.polyfit(x, y, 1, w=w)
+                
+                ann_ret = math.exp(slope * 250) - 1
+                res = np.sum(w * (y - (slope * x + intercept))**2)
+                tot = np.sum(w * (y - np.mean(y))**2)
+                r2 = 1 - res/tot if tot else 0
+                score = ann_ret * r2
+
+                # 短期动量
+                if len(closes) >= self.config.short_lookback_days + 1:
+                    short_ret = closes[-1] / closes[-(self.config.short_lookback_days + 1)] - 1
+                    short_ann = (1 + short_ret) ** (250 / self.config.short_lookback_days) - 1
+                else:
+                    short_ann = -np.inf
+                
+                # --- 2. 其他指标 ---
+                ma = np.mean(closes[-self.config.ma_filter_days:])
+                
+                # 成交量比 (当日累计成交额 / 近5日均值)
+                avg_vol = df['volume'][-self.config.volume_lookback:].mean()
+                curr_vol = current_data[code].volume # 当日到目前的累计成交量
+                vol_ratio = curr_vol / avg_vol if avg_vol > 0 else 0
+                
+                # RSI计算与过滤逻辑
+                rsi_values = self._calc_rsi_series(closes, self.config.rsi_period)
+                passed_rsi = True
+                curr_rsi = 0
+                if self.config.use_rsi_filter and len(rsi_values) >= self.config.rsi_lookback_days:
+                    recent_rsi = rsi_values[-self.config.rsi_lookback_days:]
+                    curr_rsi = recent_rsi[-1]
+                    if np.any(recent_rsi > self.config.rsi_threshold):
+                        ma5 = np.mean(closes[-5:]) if len(closes) >= 5 else curr_price
+                        if curr_price < ma5:
+                            passed_rsi = False
+                
+                # 跌幅过滤
+                passed_loss = True
+                if len(closes) >= 4:
+                    rets = closes[-3:] / closes[-4:-1]
+                    if np.min(rets) < self.config.loss_limit: passed_loss = False
+                
+                # 打包结果
+                results.append({
+                    'code': code,
+                    'name': self.dm.get_info(code)['name'],
+                    'score': score,
+                    'ann_ret': ann_ret,
+                    'r2': r2,
+                    'short_ann': short_ann,
+                    'is_ma_ok': curr_price >= ma,
+                    'vol_ratio': vol_ratio,
+                    'passed_loss': passed_loss,
+                    'passed_rsi': passed_rsi,
+                    'rsi': curr_rsi
+                })
+            except Exception as e:
+                continue
+                
+        return results
+
+    def _calc_rsi_series(self, prices, period=6):
+        if len(prices) < period + 1:
+            return np.array([])
+        deltas = np.diff(prices)
+        gains = np.where(deltas > 0, deltas, 0)
+        losses = np.where(deltas < 0, -deltas, 0)
+        alpha = 2.0 / (period + 1)
+        avg_gains = np.zeros(len(deltas))
+        avg_losses = np.zeros(len(deltas))
+        avg_gains[period - 1] = np.mean(gains[:period])
+        avg_losses[period - 1] = np.mean(losses[:period])
+        for i in range(period, len(deltas)):
+            avg_gains[i] = (gains[i] * alpha) + (avg_gains[i - 1] * (1 - alpha))
+            avg_losses[i] = (losses[i] * alpha) + (avg_losses[i - 1] * (1 - alpha))
+        rs = avg_gains / avg_losses
+        rsi = 100 - (100 / (1 + rs))
+        full_rsi = np.full(len(prices), np.nan)
+        full_rsi[1:] = rsi
+        return full_rsi[period:]
+
+    def apply_filters(self, metrics_list):
+        """执行级联过滤"""
+        res = []
+        for m in metrics_list:
+            # 动量范围
+            if not (self.config.min_score_threshold <= m['score'] <= self.config.max_score_threshold): continue
+            # R2
+            if self.config.enable_r2_filter and m['r2'] <= self.config.r2_threshold: continue
+            # MA
+            if self.config.enable_ma_filter and not m['is_ma_ok']: continue
+            # Volume
+            if self.config.enable_volume_check and m['vol_ratio'] >= self.config.volume_threshold: continue
+            # Loss
+            if self.config.enable_loss_filter and not m['passed_loss']: continue
+            
+            res.append(m)
+        
+        # 按得分排序
+        res.sort(key=lambda x: x['score'], reverse=True)
+        return res
+
+# ==============================================================================
+# 4. RiskManager (风控止损模块)
+# ==============================================================================
+class RiskManager:
+    def __init__(self, config, data_manager):
+        self.config = config
+        self.dm = data_manager
+        self.cooldown_end_date = None
+        self.position_highs = {} # ATR跟踪最高价
+
+    def _calculate_atr(self, security, period):
+        hist_data = attribute_history(security, period + 20, '1d', ['high', 'low', 'close'])
+        if len(hist_data) < period + 1: return 0, False
+        high = hist_data['high'].values
+        low = hist_data['low'].values
+        close = hist_data['close'].values
+        tr_values = np.zeros(len(high))
+        for i in range(1, len(high)):
+            tr1 = high[i] - low[i]
+            tr2 = abs(high[i] - close[i-1])
+            tr3 = abs(low[i] - close[i-1])
+            tr_values[i] = max(tr1, tr2, tr3)
+        atr_values = np.zeros(len(tr_values))
+        for i in range(period, len(tr_values)):
+            atr_values[i] = np.mean(tr_values[i-period+1:i+1])
+        return atr_values[-1] if len(atr_values) > 0 else 0, True
+
+    def check_stop_loss(self, context, trader):
+        """分钟级止损轮询"""
+        if self.is_in_cooldown(context): return
+        
+        current_data = get_current_data()
+        for security in list(context.portfolio.positions.keys()):
+            pos = context.portfolio.positions[security]
+            if pos.total_amount <= 0: continue
+            
+            price = current_data[security].last_price
+            reason = None
+            cost = pos.avg_cost
+            
+            # 1. 固定比例止损
+            if self.config.use_fixed_stop_loss and not reason:
+                if price <= cost * self.config.fixed_stop_loss_threshold:
+                    reason = "固定比例止损"
+                    
+            # 2. 当日跌幅止损
+            if self.config.use_pct_stop_loss and not reason:
+                today_open = current_data[security].day_open
+                if today_open and price <= today_open * self.config.pct_stop_loss_threshold:
+                    reason = "当日跌幅止损"
+            
+            # 3. ATR动态止损
+            if self.config.use_atr_stop_loss and not reason:
+                if not (self.config.atr_exclude_defensive and security == self.config.defensive_etf):
+                    current_atr, success = self._calculate_atr(security, self.config.atr_period)
+                    if success and current_atr > 0:
+                        if security not in self.position_highs:
+                            self.position_highs[security] = price
+                        else:
+                            self.position_highs[security] = max(self.position_highs[security], price)
+                        
+                        if self.config.atr_trailing_stop:
+                            stop_price = self.position_highs[security] - self.config.atr_multiplier * current_atr
+                        else:
+                            stop_price = cost - self.config.atr_multiplier * current_atr
+                            
+                        if price <= stop_price:
+                            reason = f"ATR动态止损({'跟踪' if self.config.atr_trailing_stop else '固定'})"
+
+            if reason:
+                log.info(f"🚨 [{reason}] 触发卖出: {security}, 当前价: {price:.3f}, 成本价: {cost:.3f}")
+                if trader.execute_trade(security, 0, context):
+                    self.position_highs.pop(security, None)
+                    self.enter_cooldown(context, trader, reason)
+
+    def is_in_cooldown(self, context):
+        if not self.config.sell_cooldown_enabled or not self.cooldown_end_date:
+            return False
+        return context.current_dt.date() <= self.cooldown_end_date
+
+    def enter_cooldown(self, context, trader, reason):
+        if not self.config.sell_cooldown_enabled: return
+        self.cooldown_end_date = context.current_dt.date() + pd.Timedelta(days=self.config.sell_cooldown_days)
+        # 冷却期切换到避险标的
+        trader.clear_all(context, exclude=[self.config.safe_haven_etf])
+        trader.execute_trade(self.config.safe_haven_etf, context.portfolio.total_value * 0.99, context)
+        log.info(f"🔒 进入冷却期，原因: {reason}，结束日期: {self.cooldown_end_date}")
+
+    def check_exit_cooldown(self, context, trader):
+        if self.cooldown_end_date and context.current_dt.date() > self.cooldown_end_date:
+            log.info("🔓 冷却期结束，清理避险头寸")
+            trader.execute_trade(self.config.safe_haven_etf, 0, context)
+            self.cooldown_end_date = None
+
+# ==============================================================================
+# 5. StrategyTrader (交易执行模块)
+# ==============================================================================
+class StrategyTrader:
+    def __init__(self, config, data_manager):
+        self.config = config
+        self.dm = data_manager
+
+    def execute_trade(self, security, target_value, context):
+        """智能下单抽象层"""
+        curr = get_current_data()[security]
+        if curr.paused: return False
+        
+        # 价格与限价检查
+        price = curr.last_price
+        if price <= 0: return False
+        if price >= curr.high_limit or price <= curr.low_limit: return False
+        
+        # 计算目标股数 (取整100)
+        target_amount = (int(target_value / price) // 100) * 100
+        current_amount = context.portfolio.positions[security].total_amount
+        diff = target_amount - current_amount
+        
+        # 最小交易额校验
+        if 0 < abs(diff) * price < self.config.min_money: return False
+        
+        # T+1 可卖股数校验
+        if diff < 0:
+            diff = -min(abs(diff), context.portfolio.positions[security].closeable_amount)
+            
+        if diff != 0:
+            order(security, diff)
+            log.info(f"{'买入' if diff > 0 else '卖出'} {security}，数量 {abs(diff)}")
+            return True
+        return False
+
+    def clear_all(self, context, exclude=[]):
+        for s in list(context.portfolio.positions.keys()):
+            if s not in exclude:
+                self.execute_trade(s, 0, context)
+
+    def rebalance(self, context, target_list):
+        """每日轮动核心逻辑"""
+        log.info(f"== 调仓开始，目标列表: {target_list} ==")
+        
+        # 1. 卖出非目标
+        target_set = set(target_list)
+        for s in list(context.portfolio.positions.keys()):
+            if s not in target_set:
+                self.execute_trade(s, 0, context)
+                
+        # 2. 买入目标
+        curr_holds = set(context.portfolio.positions.keys())
+        to_buy = [s for s in target_list if s not in curr_holds]
+        if not to_buy: return
+        
+        cash_per = context.portfolio.available_cash / len(to_buy)
+        for s in to_buy:
+            self.execute_trade(s, cash_per, context)
+
+# ==============================================================================
+# 6. Main Orchestration (主控流程)
+# ==============================================================================
+
+def initialize(context):
+    set_option("avoid_future_data", True)
+    set_option("use_real_price", True)
+    set_benchmark("510300.XSHG")
+    
+    # 初始化模块
+    g.cfg = Config()
+    g.dm = DataManager(g.cfg)
+    g.fe = FilterEngine(g.cfg, g.dm)
+    g.trader = StrategyTrader(g.cfg, g.dm)
+    g.rm = RiskManager(g.cfg, g.dm)
+    
+    # 定时任务
+    run_daily(prepare_day, time='09:05')
+    run_daily(trade_rotation, time='13:10')
+    
+    # 分钟级风控
+    for h in range(9, 15):
+        for m in range(0, 60):
+            t = "%02d:%02d" % (h, m)
+            if ('09:30' < t < '11:30') or ('13:00' < t < '14:55'):
+                run_daily(minute_check, time=t)
+
+def prepare_day(context):
+    """盘前数据准备"""
+    # 1. 更新动态池
+    dynamic = g.dm.update_dynamic_pool(context)
+    # 2. 批量拉取行情
+    full_list = list(set(g.cfg.fixed_etf_pool + dynamic))
+    g.dm.prepare_batch_data(context, full_list)
+    # 3. 检查冷却期退出
+    g.rm.check_exit_cooldown(context, g.trader)
+    log.info(f"盘前准备完成，当前池子大小: {len(full_list)}")
+
+def trade_rotation(context):
+    """每日调仓轮动"""
+    if g.rm.is_in_cooldown(context): return
+    
+    # 1. 计算因子
+    pool = list(set(g.cfg.fixed_etf_pool + g.dm.dynamic_pool))
+    metrics = g.fe.calculate_metrics_batch(context, pool)
+    
+    # 2. 执行过滤
+    ranked = g.fe.apply_filters(metrics)
+    
+    # 3. 确定最终目标
+    targets = [m['code'] for m in ranked[:g.cfg.holdings_num]]
+    if not targets:
+        # 触发防御模式
+        targets = [g.cfg.defensive_etf]
+        
+    g.trader.rebalance(context, targets)
+
+def minute_check(context):
+    """分钟级风控"""
+    g.rm.check_stop_loss(context, g.trader)

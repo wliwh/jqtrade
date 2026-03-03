@@ -33,7 +33,7 @@ class Config:
     
     # 评分筛选参数
     MIN_SCORE = 0.0
-    MAX_SCORE = 5.0
+    MAX_SCORE = 6.0
     DROP_3DAY_LIMIT = 0.97  # 3日跌幅限制
     
     # 均线过滤
@@ -43,11 +43,11 @@ class Config:
     # 成交量检测
     ENABLE_VOLUME_CHECK = True
     VOLUME_LOOKBACK = 5
-    VOLUME_THRESHOLD = 1.0
+    VOLUME_THRESHOLD = 0.6
     
-    # 评分方式: 'wls' (原版), 'er' (效率系数), 'frama' (分形维数), 'quad' (二次拟合), 'trendflex'
-    SCORING_METHOD = 'wls' 
-
+    # 评分方式: 'wls' (原版), 'er' (效率系数), 'frama' (分形维数), 'quad' (二次拟合)
+    SCORING_METHOD = 'wls'   # er 2.5 23; wls 6.0 25；frama 6.0 25
+    
     # ==================== 策略核心参数 ====================
     ETF_POOL = [
         # 境外
@@ -263,7 +263,7 @@ class ScoringMethods:
         score = ann_ret * (2 - d)
         
         return score, {"d": d, "ret": ann_ret}
-
+        
     @staticmethod
     def calc_super_smoother(prices, length):
         """Ehlers SuperSmoother Filter"""
@@ -285,7 +285,7 @@ class ScoringMethods:
             filt[i] = c1 * (prices[i] + prices[i-1]) / 2 + c2 * filt[i-1] + c3 * filt[i-2]
             
         return filt
-
+        
     @staticmethod
     def trendflex_score(prices):
         """Trendflex 评分"""
@@ -296,10 +296,6 @@ class ScoringMethods:
         filt = ScoringMethods.calc_super_smoother(prices, length)
         
         # 2. 计算 Trendflex
-        # Trendflex = Sum(Filt[i] - Filt[i-k]) for k in 1..Length
-        # 然后进行归一化 (MS)
-        
-        # 我们只计算最后一个点的 Trendflex 值
         i = len(prices) - 1
         sum_trendflex = 0.0
         
@@ -307,22 +303,7 @@ class ScoringMethods:
             sum_trendflex += filt[i] - filt[i-count]
             
         sum_trendflex /= length
-        
-        # 虽然 Ehlers 原版会进行 MS (Mean Square) 归一化，
-        # 但我们这里直接用 sum_trendflex 作为动量分值即可，
-        # 因为我们是在不同 ETF 间横向对比，且 Sum 已经除以 Length 类似于平均差
-        
-        # 为了与 score 维度 (0~5) 匹配:
-        # Trendflex 本质是价格差的平均值。如果价格是 1.0, 涨了 10% -> 1.1
-        # filt ~ 1.1, filt_old ~ 1.0
-        # sum_diff ~ 0.1
-        # 我们通常的 score 是 ann_ret (e.g. 0.5) * r2 (e.g. 0.9) = 0.45
-        # 所以 Trendflex 值可能偏小（如果是绝对价格差）。
-        # !重要!: Trendflex 原版是应用于 Price，这里 Input Prices 是绝对价格。
-        # 不同 ETF 价格不同 (e.g. 1.0 vs 5.0)，直接减会导致高价 ETF 分数高。
-        # 必须使用 Log Price 或者 归一化 Price (Change)。
-        
-        # 修正: 使用 Log Prices 计算 SuperSmoother
+
         log_prices = np.log(prices)
         filt_log = ScoringMethods.calc_super_smoother(log_prices, length)
         
@@ -331,19 +312,6 @@ class ScoringMethods:
             sum_tf_log += filt_log[i] - filt_log[i-count]
             
         sum_tf_log /= length
-        
-        # sum_tf_log 代表了 "平均对数收益偏离"，类似于平均涨幅
-        # 乘以一个系数放大到 0~3 左右，或者直接用
-        # 尝试还原为年化收益率量级? 
-        # 简单起见，乘以 250 (年化) ? 
-        # sum_tf_log 是 20天内的平均由于趋势带来的LogPrice增量
-        # 乘 20 还原为总增量? -> 20 * sum_tf_log
-        # 再年化? roughly: sum_tf_log * 250 is huge.
-        
-        # 让我们直接用 sum_tf_log * 100 作为分数，或者 * 50
-        # 经验值: 一个强趋势，20天涨10%，log_diff sum avg approx 0.05?
-        # 0.05 * 50 = 2.5 (符合 Score 范围)
-        
         score = sum_tf_log * 50
         
         return score, {"trendflex": sum_tf_log}
