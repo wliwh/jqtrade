@@ -8,6 +8,62 @@ import pandas as pd
 from datetime import datetime, timedelta
 from jqdata import *
 
+# # 境外
+# "513100.XSHG",  # 纳指ETF
+# "159509.XSHE",  # 纳指科技ETF
+# "513520.XSHG",  # 日经ETF
+# "513030.XSHG",  # 德国ETF
+# # 商品
+# "518880.XSHG",  # 黄金ETF
+# "159980.XSHE",  # 有色ETF
+# "159985.XSHE",  # 豆粕ETF
+# "159981.XSHE",  # 能源化工ETF
+# # "159870.XSHE", # 化工
+# "501018.XSHG",  # 南方原油
+# # 债券
+# "511090.XSHG",  # 30年国债ETF
+# # 国内
+# "513130.XSHG",  # 恒生科技
+# "513690.XSHG",  # 港股红利
+# "510180.XSHG",   #上证180
+# "159915.XSHE",   #创业板ETF
+# # 赛道
+# "510410.XSHG",   #资源
+# "515650.XSHG",   #消费50
+# "512290.XSHG",   #生物医药
+# "588120.XSHG",   #科创100
+# "515070.XSHG",   #人工智能ETF
+
+# "159851.XSHE",   #金融科技
+# "159637.XSHE",   #新能源车
+# "516160.XSHG",   #新能源
+
+# "159550.XSHE",   #互联网ETF
+# "512710.XSHG",   #军工ETF
+# "159692.XSHE",   #证券
+# "512480.XSHG",   #半导体
+# "515250.XSHG",   #智能汽车
+# "159378.XSHE",   #通用航空
+# "516510.XSHG",   #云计算
+# "515050.XSHG",   #5G通信
+# "159995.XSHE",   #芯片 
+# "515790.XSHG",   #光伏
+# "515000.XSHG"    #科技
+
+EXECUTION_ETF_POOLS_PLACEHOLDER = ["513100.XSHG","159509.XSHE","513520.XSHG","513030.XSHG","518880.XSHG","159980.XSHE","159985.XSHE","159981.XSHE","501018.XSHG","511090.XSHG","513130.XSHG","513690.XSHG","510180.XSHG","159915.XSHE","510410.XSHG","515650.XSHG","512290.XSHG","588120.XSHG","515070.XSHG","159851.XSHE","159637.XSHE","516160.XSHG","159550.XSHE","512710.XSHG","159692.XSHE","512480.XSHG","515250.XSHG","159378.XSHE","516510.XSHG","515050.XSHG","159995.XSHE","515790.XSHG","515000.XSHG"]
+EXECUTION_BEG_TIME_PLACEHOLDER = '10:29'
+EXECUTION_END_TIME_PLACEHOLDER = '10:30'
+
+EXECUTION_SCORE_RANGE = (0.0, 6.0)
+EXECUTION_LOSE_PARAM = (True, 0.97)
+EXECUTION_MA_PARAM = (False, 20)
+EXECUTION_VOLUME_PARAM = (True, 5, 0.6)
+EXECUTION_R2_PARAM = (False, 0.4)
+EXECUTION_SHORT_MOMENTUM_PARAM = (False, 10, 0.0)
+EXECUTION_ANNUAL_RETURN_PARAM = (False, 1.0)
+EXECUTION_RSI_PARAM = (False, 6, 1, 98)
+EXECUTION_DAY_LIMIT_PARAM = (True, 0.95)
+
 class Config:
     # ==================== 交易环境设置 ====================
     AVOID_FUTURE_DATA = True
@@ -27,94 +83,47 @@ class Config:
     MIN_MONEY = 500         # 最小交易额
     
     # 评分筛选参数
-    MIN_SCORE = 0.0
-    MAX_SCORE = 6.0
+    MIN_SCORE = EXECUTION_SCORE_RANGE[0]
+    MAX_SCORE = EXECUTION_SCORE_RANGE[1]
 
     # 短期风控（3日跌幅限制）
-    ENABLE_LOSS_FILTER = True
-    DROP_3DAY_LIMIT = 0.97  # 3日跌幅限制
+    ENABLE_LOSS_FILTER = EXECUTION_LOSE_PARAM[0]
+    DROP_3DAY_LIMIT = EXECUTION_LOSE_PARAM[1]  # 3日跌幅限制
     
     # 均线过滤
-    ENABLE_MA_FILTER = False # 原代码默认False，若需启用改为True
-    MA_FILTER_DAYS = 20
+    ENABLE_MA_FILTER = EXECUTION_MA_PARAM[0]
+    MA_FILTER_DAYS = EXECUTION_MA_PARAM[1]
     
     # 成交量检测
-    ENABLE_VOLUME_CHECK = True
-    VOLUME_LOOKBACK = 5
-    VOLUME_THRESHOLD = 0.6
+    ENABLE_VOLUME_CHECK = EXECUTION_VOLUME_PARAM[0]
+    VOLUME_LOOKBACK = EXECUTION_VOLUME_PARAM[1]
+    VOLUME_THRESHOLD = EXECUTION_VOLUME_PARAM[2]
     
     # R² 独立过滤
-    ENABLE_R2_FILTER = False
-    R2_THRESHOLD = 0.4
+    ENABLE_R2_FILTER = EXECUTION_R2_PARAM[0]
+    R2_THRESHOLD = EXECUTION_R2_PARAM[1]
     
     # 短期动量过滤
-    ENABLE_SHORT_MOMENTUM = False
-    SHORT_LOOKBACK_DAYS = 10
-    SHORT_MOMENTUM_THRESHOLD = 0.0
+    ENABLE_SHORT_MOMENTUM = EXECUTION_SHORT_MOMENTUM_PARAM[0]
+    SHORT_LOOKBACK_DAYS = EXECUTION_SHORT_MOMENTUM_PARAM[1]
+    SHORT_MOMENTUM_THRESHOLD = EXECUTION_SHORT_MOMENTUM_PARAM[2]
     
     # 年化收益过滤
-    ENABLE_ANNUAL_RETURN_FILTER = False
-    MIN_ANNUALIZED_RETURN = 1.0
+    ENABLE_ANNUAL_RETURN_FILTER = EXECUTION_ANNUAL_RETURN_PARAM[0]
+    MIN_ANNUALIZED_RETURN = EXECUTION_ANNUAL_RETURN_PARAM[1]
     
     # RSI 过滤
-    ENABLE_RSI_FILTER = False
-    RSI_PERIOD = 6
-    RSI_LOOKBACK_DAYS = 1
-    RSI_THRESHOLD = 98
+    ENABLE_RSI_FILTER = EXECUTION_RSI_PARAM[0]
+    RSI_PERIOD = EXECUTION_RSI_PARAM[1]
+    RSI_LOOKBACK_DAYS = EXECUTION_RSI_PARAM[2]
+    RSI_THRESHOLD = EXECUTION_RSI_PARAM[3]
     
     # 简易日内止损
-    ENABLE_INTRADAY_STOP_LOSS = True
-    STOP_LOSS_PCT = 0.95        # 破持仓成本5%止损
+    ENABLE_INTRADAY_STOP_LOSS = EXECUTION_DAY_LIMIT_PARAM[0]
+    STOP_LOSS_PCT = EXECUTION_DAY_LIMIT_PARAM[1]
     
-    # 防御 ETF：当无标的符合条件时切入
+    # 防御ETF
     DEFENSIVE_ETF = "511880.XSHG"   # 银华日利（货币ETF）
-    
-    ETF_POOL = [
-        # 境外
-        "513100.XSHG",  # 纳指ETF
-        "159509.XSHE",  # 纳指科技ETF
-        "513520.XSHG",  # 日经ETF
-        "513030.XSHG",  # 德国ETF
-        # 商品
-        "518880.XSHG",  # 黄金ETF
-        "159980.XSHE",  # 有色ETF
-        "159985.XSHE",  # 豆粕ETF
-        "159981.XSHE",  # 能源化工ETF
-        # "159870.XSHE", # 化工
-        
-        "501018.XSHG",  # 南方原油
-        # 债券
-        "511090.XSHG",  # 30年国债ETF
-        # 国内
-        "513130.XSHG",  # 恒生科技
-        "513690.XSHG",  # 港股红利
-        
-        "510180.XSHG",   #上证180
-        "159915.XSHE",   #创业板ETF
-        
-        "510410.XSHG",   #资源
-        "515650.XSHG",   #消费50
-        "512290.XSHG",   #生物医药
-        "588120.XSHG",   #科创100
-        "515070.XSHG",   #人工智能ETF
-        
-        "159851.XSHE",   #金融科技
-        "159637.XSHE",   #新能源车
-        "516160.XSHG",   #新能源
-        
-        "159550.XSHE",   #互联网ETF
-        "512710.XSHG",   #军工ETF
-        "159692.XSHE",   #证券
-        "512480.XSHG",   #半导体
-        "515250.XSHG",   #智能汽车
-        "159378.XSHE",   #通用航空
-        "516510.XSHG",   #云计算
-        "515050.XSHG",   #5G通信
-        "159995.XSHE",   #芯片 
-        "515790.XSHG",   #光伏
-        "515000.XSHG"    #科技
-    ]
-
 
 # ==================== 初始化 ====================
 def initialize(context):
@@ -149,12 +158,12 @@ def initialize(context):
     ), type="mmf")
     
     # 全局变量
-    g.etf_pool = Config.ETF_POOL
+    g.etf_pool = EXECUTION_ETF_POOLS_PLACEHOLDER
     g.target_list = [] # 存储每日计算出的目标列表
     
     # 定时任务 (与原逻辑一致)
-    run_daily(etf_trade_sell, "10:29") # 卖出
-    run_daily(etf_trade_buy, "10:30")  # 买入
+    run_daily(etf_trade_sell, EXECUTION_BEG_TIME_PLACEHOLDER) # 卖出
+    run_daily(etf_trade_buy, EXECUTION_END_TIME_PLACEHOLDER)  # 买入
     
     # 简单的定时止损监控（避免每分钟高频耗时）
     run_daily(simple_stop_loss, "09:31")

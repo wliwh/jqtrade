@@ -10,28 +10,24 @@ from datetime import datetime
 plt.style.use('ggplot') # 用来设置作图风格
 plt.rcParams['axes.unicode_minus'] = False # 用来正常显示负号
 
-STRATEGY_FILES = {
-    'wy03': './ETFs/ETF_wy03_opt.py',
-    'long': './ETFs/ETF_long_opt.py',
-    'yj15': './ETFs/ETF_yj15_modular.py'
-}
 ID_Save_Path = './ETFs/saved_name_id_mapper.json'
 Base_Back_Id = '6e21bbaee8cc3f8423def84436a2bf49'
 
-def get_name_id_mapper(update = {}):
-    if not os.path.exists(ID_Save_Path):
-        with open(ID_Save_Path, 'w') as f:
+def get_name_id_mapper(update = {}, save_path = ID_Save_Path):
+    if not os.path.exists(save_path):
+        print('No Saved json file.')
+        with open(save_path, 'w') as f:
             json.dump(update, f)
             print('Saved Name-ID json file.')
-    with open(default_save_path, 'r') as f:
+    with open(save_path, 'r') as f:
         res = json.load(f)
     res.update(update)
-    with open(default_save_path, 'w') as f:
-        json.dump(update, f)
+    with open(save_path, 'w') as f:
+        json.dump(res, f)
         print('Saved Name-ID json file.')
     return res
 
-def generate_strategy_code(strategy_file_path, params=dict()):
+def generate_strategy_code(strategy_file_path, params=dict(), print_para_line = False):
     """
     读取策略文件并替换占位符参数
     params: dict, 例如 {'EXECUTION_TIME_PLACEHOLDER': "'14:30'"}
@@ -44,6 +40,7 @@ def generate_strategy_code(strategy_file_path, params=dict()):
                 # 检查当前行是否是我们要替换的参数定义行
                 replaced = False
                 if stripped.startswith('EXECUTION_') and '=' in stripped:
+                    if print_para_line: print(stripped)
                     key = stripped.split('=', 1)[0].strip()
                     if key in params:
                         # 替换为新值
@@ -61,24 +58,25 @@ def wrapped_create_backtest(name, code,
                             initial_cash=100000,
                             start_day='2018-01-01',
                             end_day='2026-01-10',
-                            frequency='day'):
-    if name in S_Name_Id:
-        pass
+                            frequency='day',
+                            saved_names = dict()):
+    if name in saved_names:
+        return {'status': 'saved'}, saved_names[name]
     else:
         backtest_id = create_backtest(Base_Back_Id, start_day, end_day, frequency=frequency,
                                       initial_cash=initial_cash, initial_positions=None, extras=None, name=name,
                                       code=code, benchmark=None, python_version=3, use_credit=False)
-        S_Name_Id[name] = backtest_id
-        print(f"Create {name} backtest.")
+        saved_names[name] = backtest_id
+        print(f"Create {name}-{backtest_id} backtest.")
         while True:
             gt = get_backtest(backtest_id)
             status = gt.get_status()
             if status == 'done':
                 print(f"Backtest {name} Done.")
-                return {'status': 'done'}
+                return {'status': 'done'}, backtest_id
             elif status in ['failed', 'canceled', 'deleted']:
                 print(f"\n[CRITICAL] Backtest {name} ({backtest_id}) FAILED with status: {status}")
-                return {'status': 'failed'}
+                return {'status': 'failed'}, None
             time.sleep(5)
 
 class PoolEvaluator:
@@ -491,7 +489,7 @@ class BacktestAnalyzer:
         """
         self.registry = registry
 
-    def compare_results(self, strategy_names=None,print_df=False):
+    def compare_results(self, strategy_names=None, print_df=False):
         """
         对比回测结果 (实时获取指标)
         strategy_names: list, 要对比的策略名称列表 (e.g. ['wy03']). None=全部
