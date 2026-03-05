@@ -58,7 +58,7 @@ EXECUTION_SCORE_RANGE = (0.0, 6.0)
 EXECUTION_LOSE_PARAM = (True, 0.97)
 EXECUTION_MA_PARAM = (False, 20)
 EXECUTION_VOLUME_PARAM = (True, 5, 0.6)
-EXECUTION_R2_PARAM = (False, 0.4)
+EXECUTION_R2_PARAM = (False, 0.5)
 EXECUTION_SHORT_MOMENTUM_PARAM = (False, 10, 0.0)
 EXECUTION_ANNUAL_RETURN_PARAM = (False, 1.0)
 EXECUTION_RSI_PARAM = (False, 6, 1, 98)
@@ -202,25 +202,6 @@ def get_current_vol_sum(security, context):
         return 0
 
 # ==================== 逻辑计算模块 ====================
-def calculate_ma_filter(stocks, days=20):
-    if not stocks: return []
-    filtered = []
-    
-    # 批量获取数据优化
-    hists = attribute_history(stocks, days, '1d', ['close'], skip_paused=True)
-    
-    # 获取当前快照
-    current_data = get_current_data()
-    
-    for stock in stocks:
-        if stock not in hists or len(hists[stock]) < days: continue
-        ma_price = hists[stock]['close'].mean()
-        cur_price = current_data[stock].last_price
-        
-        if cur_price >= ma_price:
-            filtered.append(stock)
-            
-    return filtered
 
 def check_volume_anomaly(etf, context, lookback=5, threshold=1.0):
     """检测成交量是否异常放量"""
