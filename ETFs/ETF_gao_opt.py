@@ -51,14 +51,14 @@ from jqdata import *
 # "515000.XSHG"    #科技
 
 EXECUTION_ETF_POOLS_PLACEHOLDER = ["513100.XSHG","159509.XSHE","513520.XSHG","513030.XSHG","518880.XSHG","159980.XSHE","159985.XSHE","159981.XSHE","501018.XSHG","511090.XSHG","513130.XSHG","513690.XSHG","510180.XSHG","159915.XSHE","510410.XSHG","515650.XSHG","512290.XSHG","588120.XSHG","515070.XSHG","159851.XSHE","159637.XSHE","516160.XSHG","159550.XSHE","512710.XSHG","159692.XSHE","512480.XSHG","515250.XSHG","159378.XSHE","516510.XSHG","515050.XSHG","159995.XSHE","515790.XSHG","515000.XSHG"]
-EXECUTION_BEG_TIME_PLACEHOLDER = '10:29'
-EXECUTION_END_TIME_PLACEHOLDER = '10:30'
+EXECUTION_BEG_TIME_PLACEHOLDER = '10:31'
+EXECUTION_END_TIME_PLACEHOLDER = '10:32'
 
 EXECUTION_SCORE_RANGE = (0.0, 6.0)
-EXECUTION_LOSE_PARAM = (True, 0.97)
+EXECUTION_LOSE_PARAM = (False, 0.95)
 EXECUTION_MA_PARAM = (False, 20)
-EXECUTION_VOLUME_PARAM = (True, 5, 0.6)
-EXECUTION_R2_PARAM = (False, 0.5)
+EXECUTION_VOLUME_PARAM = (False, 5, 0.6)
+EXECUTION_R2_PARAM = (False, 0.4)
 EXECUTION_SHORT_MOMENTUM_PARAM = (False, 10, 0.0)
 EXECUTION_ANNUAL_RETURN_PARAM = (False, 1.0)
 EXECUTION_RSI_PARAM = (False, 6, 1, 98)
@@ -202,6 +202,25 @@ def get_current_vol_sum(security, context):
         return 0
 
 # ==================== 逻辑计算模块 ====================
+def calculate_ma_filter(stocks, days=20):
+    if not stocks: return []
+    filtered = []
+    
+    # 批量获取数据优化
+    hists = attribute_history(stocks, days, '1d', ['close'], skip_paused=True)
+    
+    # 获取当前快照
+    current_data = get_current_data()
+    
+    for stock in stocks:
+        if stock not in hists or len(hists[stock]) < days: continue
+        ma_price = hists[stock]['close'].mean()
+        cur_price = current_data[stock].last_price
+        
+        if cur_price >= ma_price:
+            filtered.append(stock)
+            
+    return filtered
 
 def check_volume_anomaly(etf, context, lookback=5, threshold=1.0):
     """检测成交量是否异常放量"""
