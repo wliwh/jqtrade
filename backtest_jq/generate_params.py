@@ -148,15 +148,23 @@ def generate_stage_2(enabled_switches=None, fixed_params=None):
         
     return combinations
 
+def config_to_execution_params(config):
+    """将短名参数字典转换为 EXECUTION_ 格式字典。
+    
+    输入: {'S': (0.0, 6.0), 'ls': (True, 0.95), ...}
+    输出: {'EXECUTION_SCORE_RANGE': (0.0, 6.0), 'EXECUTION_LOSE_PARAM': (True, 0.95), ...}
+    """
+    mapped = {}
+    for short_name, value in config.items():
+        full_name = next(r[1] for r in Rules if r[0] == short_name)
+        mapped[full_name] = value
+    return mapped
+
 def print_params(params):
     print(f"{'ID':<40} | {'Parameters'}")
     print("-" * 100)
     for name, p in params:
-        # 将短名映射回 EXECUTION_xxx 名
-        mapped = {}
-        for short_name, value in p.items():
-            full_name = next(r[1] for r in Rules if r[0] == short_name)
-            mapped[full_name] = value
+        mapped = config_to_execution_params(p)
         print(f"{name:<40} | {mapped}")
 
 if __name__ == "__main__":
