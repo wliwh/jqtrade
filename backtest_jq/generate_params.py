@@ -27,11 +27,11 @@ Baseline = {
     'dl': (True, 0.95)
 }
 
-def get_name(short_name, value):
+def get_name(short_name, value, Rules=Rules):
     rule = next(r for r in Rules if r[0] == short_name)
     return rule[3](value)
 
-def make_id_name(config):
+def make_id_name(config, Rules=Rules, Baseline=Baseline):
     """根据配置生成 ID 名称，按 Baseline 中的参数顺序排列"""
     # 自动识别带开关的参数（候选值的第一个元素是 bool 类型的参数）
     toggleable = {r[0] for r in Rules if isinstance(r[2][0][0], bool)}
@@ -46,7 +46,7 @@ def make_id_name(config):
             if n: tokens.append(n)
     return "_".join(tokens)
 
-def generate_stage_1(mode='cartesian', exclude=None):
+def generate_stage_1(mode='cartesian', exclude=None, Rules=Rules, Baseline=Baseline):
     """第一阶段：确定开关项 (ls, ma, st, ar, dl) 的最优组合。
     
     mode: 
@@ -92,7 +92,7 @@ def generate_stage_1(mode='cartesian', exclude=None):
     
     return params_list
 
-def generate_stage_2(enabled_switches=None, fixed_params=None):
+def generate_stage_2(enabled_switches=None, fixed_params=None, Rules=Rules, Baseline=Baseline):
     """第二阶段：核心寻优 (Core Optimization)
     针对范围项 S, v, r 进行组合搜索。
     enabled_switches: list, 需要开启的开关项短名列表，例如 ['ma', 'ls']
@@ -148,7 +148,7 @@ def generate_stage_2(enabled_switches=None, fixed_params=None):
         
     return combinations
 
-def config_to_execution_params(config):
+def config_to_execution_params(config, Rules=Rules):
     """将短名参数字典转换为 EXECUTION_ 格式字典。
     
     输入: {'S': (0.0, 6.0), 'ls': (True, 0.95), ...}
