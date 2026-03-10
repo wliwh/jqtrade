@@ -1,21 +1,36 @@
-# 策略参数优化工具改进方案 (修订版)
+# 策略参数优化工具改进方案
 
 为了进一步提升工具在 JQ 平台环境下的易用性与稳定性，在充分考虑平台限制（如无 `extras` 支持、并发限制等）的基础上，提出以下改进方案。
 
 ## 1. 架构与工作流整合 (Workflow)
 
 *   **建立统一入口 (Orchestrator)**
-    *   **核心理念**：将流程自动化。用户执行 `python optimize.py --config config/strategy_A.yaml` 即可完成全链路。
-    *   **职责解析**：解析策略配置 -> 生成参数组合 -> 调度串行回测 -> 监控进度并追加记录 -> 触发分析汇总。
+    *   **职责定义**：创建一个 `optimize.py` 作为全局主控中心。
+    *   **具体步骤**：
+        1.  **加载配置**：解析用户提供的 `strategy_config.yaml`。
+        2.  **生成空间**：调用寻优算法引擎（网格、阶段寻优等）生成参数全集。
+        3.  **串行调度**：循环调用 `BacktestExecutorV3` 提交并监测回测。
+        4.  **自动报表**：回测全部结束后，自动调用 `analyze_simple` 生成对比表格并存盘。
 *   **基于“Experiment”的持久化管理**
-    *   每次运行创建 `results/策略名_时间戳/` 目录。
-    *   存储该批次的搜索空间快照、增量更新的 `mapper.json` 以及中间结果，确保实验过程可追溯、可复现。
+    *   **目录结构规范**：
+        ```text
+        results/
+        └── {strategy_name}_{timestamp}/
+            ├── config_snapshot.yaml  # 本次运行的配置备份
+            ├── mapper.json           # 存储 MD5 -> BacktestID 的持久化表
+            ├── optimization_report.csv # 最终性能报表
+            └── logs/                 # 详细运行日志
+        ```
+    *   **优势**：支持多次实验并行不干扰，且任意一次实验都可根据目录下的 `config_snapshot.yaml` 完全复现。
 *   **添加更灵活的参数寻优方法 (Flexible Optimization Methods)**
     *   **方案**：支持多种寻优算法组件化，包括：
         1.  **Grid Search (网格搜索)**：全量覆盖搜索空间。
         2.  **Random Search (随机搜索)**：对大空间进行高效采样，快速定位可行域。
         3.  **Coordinate Descent (多轮迭代/坐标下降)**：支持多阶段优化。例如：第一轮寻优 A, B 参数并固定；第二轮在 A, B 最优的基础上寻优 C, D。
-    *   **实现**：通过 `SearchEngine` 接口进行抽象。用户在配置文件中指定 `engine: random` 或 `engine: coordinate`，并定义各阶段的寻优逻辑。
+    *   **结果驱动与交互式寻优 (Interactive & Results-Driven)**：
+        1.  **阶段暂停 (Stage Pause)**：支持在每轮寻优任务结束后自动暂停，生成中间分析报表。用户审查表现最好的若干组参数后，通过修改配置决定下一阶段的搜索路径。
+        2.  **自动最优传递 (Auto-Passdown)**：支持配置自动从上一轮选取 `sort_by` 排名第一的参数值作为下一轮的 `fixed_params`。
+    *   **实现**：通过 `SearchEngine` 接口进行抽象。用户在配置文件中指定 `engine: coordinate`，并利用 `steps` 数组定义每个阶段的策略。
 
 ## 2. 参数生命周期管理 (Parameter Management)
 
