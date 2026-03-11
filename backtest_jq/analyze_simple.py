@@ -6,10 +6,10 @@
 from jqdata import *
 import numpy as np
 import pandas as pd
-from generate_params import Rules, Baseline
+from generate_params import Rules
 
 
-def _parse_param_columns(config):
+def _parse_param_columns(config, Rules=Rules):
     """将参数字典解析为表格用的参数列值。
     
     开关类参数: 开启显示 ✓, 关闭显示 -
@@ -55,12 +55,14 @@ def _fetch_risk_metrics(backtest_id):
             return None
         
         ann_ret = metrics.get('annual_algo_return', 0)
+        algo_return = metrics.get('algorithm_return', 0)
         max_dd = metrics.get('max_drawdown', 0)
         
         # 计算 Calmar (避免除零)
         calmar = ann_ret / max_dd if max_dd > 0.001 else 0.0
         
         return {
+            'Return': algo_return,
             'Ann.Ret': ann_ret,
             'MaxDD': -max_dd,       # 显示为负数更直观
             'Calmar': calmar,
@@ -69,7 +71,7 @@ def _fetch_risk_metrics(backtest_id):
             'WinRate': metrics.get('win_ratio', 0),
             'Trades': metrics.get('win_count', 0) + metrics.get('lose_count', 0),
             'AvgHoldDays': metrics.get('avg_position_days', 0),
-            'Turnover': metrics.get('turnover', 0),
+            'Turnover': metrics.get('turnover_rate', 0),
         }
     except Exception as e:
         print(f"  获取指标失败 ({backtest_id}): {e}")
@@ -145,6 +147,23 @@ def compare_params(tasks, sort_by='Calmar', ascending=False, yearly=False):
     # 设置 ID 为索引
     df.set_index('ID', inplace=True)
     
+    # --- 显式排列列顺序 ---
+    # 1. 参数列: Rules 中的短名
+    param_keys = [r[0] for r in Rules if r[0] in df.columns]
+    
+    # 2. 指标列: _fetch_risk_metrics 返回的顺序
+    indicator_order = ['Return', 'Ann.Ret', 'MaxDD', 'Calmar', 'Sharpe', 'Volatility', 'WinRate', 'Trades', 'Turnover']
+    indicator_keys = [k for k in indicator_order if k in df.columns]
+    
+    # 3. 年收益列: Y20XX 格式，按年份排序
+    year_keys = sorted([c for c in df.columns if c.startswith('Y') and c[1:].isdigit()])
+    
+    # 合并所有排好序的列
+    new_columns = param_keys + indicator_keys + year_keys
+    # 确保没有遗漏其他可能的列
+    remaining_cols = [c for c in df.columns if c not in new_columns]
+    df = df[new_columns + remaining_cols]
+    
     # 排序
     if sort_by in df.columns:
         df.sort_values(sort_by, ascending=ascending, inplace=True)
@@ -155,8 +174,8 @@ def compare_params(tasks, sort_by='Calmar', ascending=False, yearly=False):
 def format_table(df):
     """格式化 DataFrame 用于打印，百分比和数值对齐。"""
     fmt = df.copy()
-    pct_cols = ['Ann.Ret', 'MaxDD', 'Volatility', 'WinRate']
-    float_cols = ['Calmar', 'Sharpe', 'AvgHoldDays', 'Turnover']
+    pct_cols = ['Return','Ann.Ret', 'MaxDD', 'Volatility', 'WinRate']
+    float_cols = ['Calmar', 'Sharpe', 'Turnover']
     
     # 年收益列也用百分比格式
     year_cols = [c for c in fmt.columns if c.startswith('Y') and c[1:].isdigit()]
@@ -164,14 +183,18 @@ def format_table(df):
     
     for col in pct_cols:
         if col in fmt.columns:
-            fmt[col] = fmt[col].apply(lambda x: f"{x:.2%}" if isinstance(x, (int, float)) else x)
+            fmt[col] = fmt[col].apply(lambda x: f"{x:.1%}" if isinstance(x, (int, float)) else x)
     
     for col in float_cols:
         if col in fmt.columns:
             fmt[col] = fmt[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else x)
     
+    # 其他列处理
     if 'Trades' in fmt.columns:
         fmt['Trades'] = fmt['Trades'].apply(lambda x: f"{int(x)}" if isinstance(x, (int, float)) else x)
+    
+    if 'AvgHoldDays' in fmt.columns:
+        fmt['AvgHoldDays'] = fmt['AvgHoldDays'].apply(lambda x: f"{x:.1f}" if isinstance(x, (int, float)) else x)
     
     return fmt
 
@@ -183,12 +206,21 @@ def print_compare(tasks, sort_by='Calmar', ascending=False, yearly=False):
         return df
     
     fmt = format_table(df)
-    print("\n" + "=" * 120)
-    print(f"参数优化对比表 (按 {sort_by} {'升序' if ascending else '降序'} 排列)")
-    print("=" * 120)
-    print(fmt.to_string())
-    print("=" * 120)
-    print(f"共 {len(df)} 组参数")
+    
+    # 使用 option_context 确保打印时不换行，且显示所有列
+    with pd.option_context('display.max_columns', None, 
+                           'display.width', 1000, 
+                           'display.expand_frame_repr', False):
+        output = fmt.to_string(line_width=1000)
+        line_len = max(len(line) for line in output.split('\n'))
+        sep = "=" * max(120, line_len)
+        
+        print("\n" + sep)
+        print(f"参数优化对比表 (按 {sort_by} {'升序' if ascending else '降序'} 排列)")
+        print(sep)
+        print(output)
+        print(sep)
+        print(f"共 {len(df)} 组参数")
     
     return df
 
