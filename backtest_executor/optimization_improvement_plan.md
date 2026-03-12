@@ -14,19 +14,18 @@
 ```text
 backtest_executor/
 ├── config/
-│   └── etf_gao.yaml          # 策略配置文件
+│   └── etf_gao.yaml          # 策略配置文件（已创建示例）
 ├── results/                   # 自动生成
 │   └── etf_gao/
-│       ├── mapper.json        # 策略级全局 MD5→BacktestID 表（所有轮次共享）
-│       └── round1_switches_report.csv  # 每轮独立报表
-├── executor.py                # 代码注入 + 单任务执行（已完成）
-├── analyzer.py                # 结果分析（从旧系统复制并解耦）
-└── optimize.py                # 主控入口
+│       └── mapper.json        # 策略级全局 MD5→BacktestID 表（含逻辑哈希校验）
+├── executor.py                # 执行引擎：代码注入 + 安全校验 (已完成，兼容 Py3.6)
+├── analyzer.py                # 结果分析：报表生成 (待办)
+└── optimize.py                # 主控调度：多模式参数生成 (已完成)
 ```
 
-## 1. YAML 配置格式
+## 1. YAML 配置格式 (已扩展)
 
-每个策略对应一个 YAML 文件。用户通过修改 `rounds` 来驱动多轮迭代寻优。
+每个策略对应一个 YAML 文件。支持多种搜索方法：
 
 ```yaml
 strategy:
@@ -78,83 +77,72 @@ params:
 
 # 多轮搜索计划：YAML 定义所有轮次，每次运行指定一轮
 rounds:
-  - name: "round1_switches"
-    search: [ls, ma, st, ar]     # 笛卡尔积搜索
-    fixed:                        # 只写需要覆盖 default 的参数
-      S: [0.0, 5.0]              # 其余未列出的参数自动用 default
-
-  - name: "round2_core"
+  - name: "round1_grid"
+    method: "grid"           # 网格搜索（笛卡尔积）
+    search: [ls, ma]
+    fixed:
+      S: [0.0, 5.0]
+  - name: "round2_random"
+    method: "random"         # 随机搜索
+    count: 20
     search: [S, v]
     fixed:
-      ls: [true, 0.95]           # ← 来自 round1 最优结果（用户回填）
+      ls: [true, 0.95]
       ma: [false, 20]
+      st: [true, 10, 0.0]
+  - name: "round3_sens"
+    method: "sensitivity"    # 灵敏度分析（控制变量）
+    search: [r]
+    base: { S: [0, 5], ls: [true, 0.95] }
+  - name: "round4_list"
+    method: "list"           # 手动列表
+    combinations:
+      - { S: [0, 6], v: [true, 5, 0.4] }
 ```
 
-### 参数合并优先级
+## 2. 主控逻辑 (`optimize.py` 已完成)
 
-对于每一轮中不在 `search` 里的参数：`fixed 覆盖值 > params.default`
+支持多级参数合并：`params.default` < `round.fixed` < `generator.combo`。
+自动生成简短的任务 ID 用于 JQ 后台识别（如 `S05_lsT.95`）。
 
-## 2. 主控逻辑 (`optimize.py`)
+## 3. 代码注入与安全校验 (`executor.py` 已完成)
 
-用户在 Notebook Cell 中调用 `run_round(config_path, round_index)` 执行单轮寻优。
-
-```python
-def run_round(config_path, round_index):
-    # 1. 加载 YAML 配置
-    cfg = yaml.safe_load(open(config_path))
-    round_cfg = cfg['rounds'][round_index]
-
-    # 2. 构建固定参数（default + fixed 覆盖）
-    all_fixed = {}
-    for key, param_def in cfg['params'].items():
-        if key not in round_cfg['search']:
-            all_fixed[key] = round_cfg.get('fixed', {}).get(key, param_def['default'])
-
-    # 3. 笛卡尔积生成搜索组合
-    search_values = [cfg['params'][k]['values'] for k in round_cfg['search']]
-    combos = itertools.product(*search_values)
-
-    # 4. 为每个组合构建完整参数 → 转换为 EXECUTION_ 全名
-    for combo in combos:
-        config = dict(all_fixed)
-        for i, key in enumerate(round_cfg['search']):
-            config[key] = combo[i]
-        exec_params = {cfg['params'][k]['var']: v for k, v in config.items()}
-
-    # 5. 串行执行回测（executor.py 的 BacktestExecutorV3）
-    # 6. 输出报表（analyzer.py）
-```
-
-### 工作流
-
-1. 编写 `config/strategy.yaml`，定义所有轮次框架
-2. 在 Notebook 中运行 `run_round("config/strategy.yaml", 0)`
-3. 查看报表，选择种子参数
-4. 修改 YAML 中后续轮次的 `fixed` 字段
-5. 运行 `run_round("config/strategy.yaml", 1)`
-6. 重复直到满意
-
-## 3. 代码注入 (`executor.py`，已完成)
-
-- 使用 AST 解析源码，精确定位并删除所有 `EXECUTION_` 顶层赋值（支持多行）
-- 在代码头部注入带标记的参数定义块
-- `BacktestExecutorV3` 提供串行执行、状态轮询、即时存盘、断点续跑
+- **Python 3.6 兼容性**：
+  - 使用 `ast.dump(tree, include_attributes=False)` 替代 `ast.unparse` 计算逻辑哈希。
+  - 通过节点 `lineno` 差值估算删除范围，支持多行参数定义剔除。
+- **逻辑哈希校验 (Logical Hash)**：
+  - 自动忽略注释、空行、缩进及 `EXECUTION_` 参数初值的变动。
+  - 仅在策略核心逻辑改变时触发报警，确保历史回测结果的可比性。
+- **自动指标抓取**：
+  - 回测完成后自动获取 `annual_return`, `max_drawdown`, `sharpe`, `calmar` 并存入 `mapper.json`。
 
 ### 跨轮次去重机制（方案 X）
 
-`mapper.json` 为**策略级全局文件**，以参数字典的 **MD5 哈希**为主键。同一策略中，只要参数完全相同，无论在哪一轮，都不会重复提交回测。`round` 字段记录该次回测属于哪一轮，供分析时筛选使用。
+`mapper.json` 为**策略级全局文件**，以任务名称（包含参数缩写）为主键。通过 `metadata` 中的逻辑哈希确保策略身份唯一。
 
 ```json
 {
-  "metadata": { "strategy": "ETF_gao", "last_updated": "2026-03-11" },
+  "metadata": {
+    "strategy_path": "ETFs/ETF_gao_opt.py",
+    "strategy_logic_hash": "d0cfdab3f0b5c82ca1daa9e07f04c2a6",
+    "python_version": "3.6_compat",
+    "last_updated": "2026-03-12 15:30:00"
+  },
   "runs": {
-    "a3f8c2...": {
-      "id_name": "S60_ls95",
+    "round1_S05_lsT.95": {
       "bt_id": "6e21bb...",
       "status": "done",
-      "round": "round1_switches",
-      "config": { "S": [0.0, 6.0], "ls": [true, 0.95] },
-      "metrics": { "Calmar": 2.1, "MaxDD": -0.15 }
+      "params": {
+        "EXECUTION_SCORE_RANGE": [0.0, 5.0],
+        "EXECUTION_LOSE_PARAM": [true, 0.95]
+      },
+      "metrics": {
+        "annual_return": 0.25,
+        "max_drawdown": -0.12,
+        "sharpe": 1.8,
+        "calmar": 2.08
+      },
+      "timestamp": "2026-03-12 15:35:00"
     }
   }
 }

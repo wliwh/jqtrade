@@ -5,6 +5,8 @@ import os
 import itertools
 import pandas as pd
 import numpy as np
+from IPython.display import display, HTML
+from tabulate import tabulate
 
 ID_Save_Path = './ETFs/saved_name_id_mapper.json'
 Base_Back_Id = '6e21bbaee8cc3f8423def84436a2bf49'
@@ -183,8 +185,8 @@ def wrapped_create_backtest(name, code,
 def batch_run(strategy_file, params_list, Rules,
              prefix_name = None, save_path=ID_Save_Path,
              start_day='2018-01-01', end_day='2026-01-10',
-             initial_cash=100000, use_credit=False, sleep_between=2):
-    """批量提交回测并收集结果"""
+             initial_cash=100000, use_credit=True, sleep_between=2):
+    """批量提交回测并收集结果，注意开启 use_credit 会消耗积分"""
     saved_names = get_name_id_mapper(save_path=save_path)
     results = []
     total = len(params_list)
@@ -206,7 +208,8 @@ def batch_run(strategy_file, params_list, Rules,
             start_day=start_day,
             end_day=end_day,
             saved_names=saved_names,
-            use_credit=use_credit
+            use_credit=use_credit,
+            verbose = True
         )
         
         if status_info['status'] in ('done', 'saved'):
@@ -224,6 +227,7 @@ def batch_run(strategy_file, params_list, Rules,
 def _parse_param_columns(config, Rules):
     """将参数字典解析为表格用的参数列值"""
     toggleable = {r[0] for r in Rules if len(r[2]) == 2}
+    rangeable = {r[0] for r in Rules if len(r[2]) > 2}
     row = {}
     
     for rule in Rules:
@@ -231,21 +235,12 @@ def _parse_param_columns(config, Rules):
         if short_name not in config:
             row[short_name] = '-'
             continue
-            
         val = config[short_name]
-        
-        if short_name == 'S':
-            # 评分上限，始终显示数值
-            row['S'] = f"{val[1]:.1f}"
-        elif short_name == 'v':
-            # 成交量阈值
-            row['v'] = f"{val[2]:.1f}" if val[0] else '-'
-        elif short_name == 'r':
-            # R² 阈值
-            row['r'] = f"{val[1]:.1f}" if val[0] else '-'
-        elif short_name in toggleable:
+        if short_name in toggleable:
             # 普通开关
             row[short_name] = '✓' if val[0] else '-'
+        elif short_name in rangeable:
+            row[short_name] = f"{val[-1]:.1f}" if (not isinstance(val[0], bool) or val[0]==True) else '-'
         else:
             row[short_name] = str(val)
     
@@ -263,14 +258,14 @@ def _fetch_risk_metrics(backtest_id):
             return None
         
         ann_ret = metrics.get('annual_algo_return', 0)
+        algo_return = metrics.get('algorithm_return', 0)
         max_dd = metrics.get('max_drawdown', 0)
-        
-        # 计算 Calmar (避免除零)
         calmar = ann_ret / max_dd if max_dd > 0.001 else 0.0
         
         return {
+            'Return': algo_return,
             'Ann.Ret': ann_ret,
-            'MaxDD': -max_dd,       # 显示为负数更直观
+            'MaxDD': -max_dd,
             'Calmar': calmar,
             'Sharpe': metrics.get('sharpe', 0),
             'Volatility': metrics.get('algorithm_volatility', 0),
@@ -285,7 +280,7 @@ def _fetch_risk_metrics(backtest_id):
 
 
 def _fetch_yearly_returns(backtest_id):
-    """从 JQ 平台获取每年收益率"""
+    """从 JQ 平台获取每年收益率，返回 {2018: 0.12, 2019: -0.05, ...} 或 None。"""
     try:
         bt = get_backtest(backtest_id)
         if not bt or bt.get_status() != 'done':
@@ -310,34 +305,51 @@ def compare_params(tasks, Rules, sort_by='Calmar', ascending=False, yearly=False
     """多参数回测结果对比表"""
     rows = []
     param_keys = [r[0] for r in Rules]
-    
     print(f"正在获取 {len(tasks)} 组回测指标...")
+    saved_names = set()
     
     for name, config, bt_id in tasks:
         risk = _fetch_risk_metrics(bt_id)
         if risk is None:
             print(f"  跳过 {name} (无有效指标)")
             continue
+        if name in saved_names:
+            continue
+        # 参数列
+        param_cols = _parse_param_columns(config)
         
-        param_cols = _parse_param_columns(config, Rules)
+        # 年收益列
         year_cols = {}
         if yearly:
             yr = _fetch_yearly_returns(bt_id)
             if yr:
                 year_cols = yr
+        
+        # 合并
         row = {'ID': name}
         row.update(param_cols)
         row.update(risk)
         row.update(year_cols)
         rows.append(row)
+        saved_names.add(name)
     
     if not rows:
         print("没有有效的回测结果。")
         return pd.DataFrame()
     
     df = pd.DataFrame(rows)
+    
     df.set_index('ID', inplace=True)
-    # 排序
+    
+    # --- 显式排列列顺序 ---
+    param_keys = [r[0] for r in Rules if r[0] in df.columns]
+    indicator_order = ['Return', 'Ann.Ret', 'MaxDD', 'Calmar', 'Sharpe', 'Volatility', 'WinRate', 'Trades', 'Turnover']
+    indicator_keys = [k for k in indicator_order if k in df.columns]
+    year_keys = sorted([c for c in df.columns if c.startswith('Y') and c[1:].isdigit()])
+    new_columns = param_keys + indicator_keys + year_keys
+    # remaining_cols = [c for c in df.columns if c not in new_columns]
+    df = df[new_columns] # remaining_cols
+    
     if sort_by in df.columns:
         df.sort_values(sort_by, ascending=ascending, inplace=True)
     
@@ -347,21 +359,17 @@ def compare_params(tasks, Rules, sort_by='Calmar', ascending=False, yearly=False
 def format_table(df):
     """格式化 DataFrame 用于打印，百分比和数值对齐。"""
     fmt = df.copy()
-    pct_cols = ['Ann.Ret', 'MaxDD', 'Volatility', 'WinRate']
-    float_cols = ['Calmar', 'Sharpe', 'AvgHoldDays', 'Turnover']
-    
-    # 年收益列也用百分比格式
+    pct_cols = ['Return','Ann.Ret', 'MaxDD', 'Volatility', 'WinRate']
+    float_cols = ['Calmar', 'Sharpe', 'Turnover']
     year_cols = [c for c in fmt.columns if c.startswith('Y') and c[1:].isdigit()]
     pct_cols = pct_cols + year_cols
     
     for col in pct_cols:
         if col in fmt.columns:
-            fmt[col] = fmt[col].apply(lambda x: f"{x:.2%}" if isinstance(x, (int, float)) else x)
-    
+            fmt[col] = fmt[col].apply(lambda x: f"{x:.1%}" if isinstance(x, (int, float)) else x)
     for col in float_cols:
         if col in fmt.columns:
             fmt[col] = fmt[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else x)
-    
     if 'Trades' in fmt.columns:
         fmt['Trades'] = fmt['Trades'].apply(lambda x: f"{int(x)}" if isinstance(x, (int, float)) else x)
     
@@ -371,23 +379,56 @@ def format_table(df):
 def print_compare(tasks, Rules, sort_by='Calmar', ascending=False, yearly=False):
     """一键对比并打印格式化表格。"""
     df = compare_params(tasks, Rules, sort_by=sort_by, ascending=ascending, yearly=yearly)
-    if df.empty:
-        return df
+    if df.empty: return df
     
     fmt = format_table(df)
-    print("\n" + "=" * 120)
-    print(f"参数优化对比表 (按 {sort_by} {'升序' if ascending else '降序'} 排列)")
-    print("=" * 120)
-    print(fmt.to_string())
-    print("=" * 120)
-    print(f"共 {len(df)} 组参数")
+    with pd.option_context('display.max_columns', None, 
+                           'display.width', 1000, 
+                           'display.expand_frame_repr', False):
+        output = fmt.to_string(line_width=1000)
+        line_len = max(len(line) for line in output.split('\n'))
+        sep = "=" * max(120, line_len)
+        
+        print("\n" + sep)
+        print(f"参数优化对比表 (按 {sort_by} {'升序' if ascending else '降序'} 排列)")
+        print(sep)
+        print(output)
+        print(sep)
+        print(f"共 {len(df)} 组参数")
     
     return df
 
+def jupyter_display_compare(tasks, Rules, sort_by='Calmar', ascending=False, yearly=False):
+    """一键对比并打印格式化表格，符合 Jupyter Notebook 输出格式"""
+    df = compare_params(tasks, Rules, sort_by=sort_by, ascending=ascending, yearly=yearly)
+    if df.empty: return df
+    
+    fmt = format_table(df)
+    order_str = '升序' if ascending else '降序'
+    display(HTML(f"<b>参数优化对比表 (按 {sort_by} {order_str} 排列)</b>"))
+    with pd.option_context('display.max_columns', None):
+        display(fmt)
+        
+    display(HTML(f"<i>共 {len(df)} 组参数</i>"))
 
-def get_best_config(tasks, Rules, sort_by='Calmar'):
-    """从 tasks 中找到指标最优的配置并返回其 config 字典。"""
-    df = compare_params(tasks, Rules, sort_by=sort_by, ascending=False)
+def markdown_table_print(tasks, Rules, sort_by='Calmar', ascending=False, yearly=False):
+    """一键对比并输出可供直接复制的纯文本 Markdown 表格。"""
+    df = compare_params(tasks, Rules, sort_by=sort_by, ascending=ascending, yearly=yearly)
+    if df.empty: return df
+
+    fmt = format_table(df)    
+    order_str = '升序' if ascending else '降序'
+    md_title = f"### 参数优化对比表 (按 {sort_by} {order_str} 排列)\n"
+    md_table = tabulate(fmt, headers='keys', tablefmt='pipe', showindex=True)
+    md_footer = f"\n\n*共 {len(df)} 组参数*"
+    print(md_title)
+    print(md_table)
+    print(md_footer)
+
+
+def get_best_config(tasks, sort_by='Calmar'):
+    """从 tasks 中找到指标最优的配置并返回其 config 字典"""
+    df = compare_params(tasks, sort_by=sort_by, ascending=False)
     if df.empty:
         return None, None
     

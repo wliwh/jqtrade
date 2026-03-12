@@ -1,0 +1,80 @@
+# 策略优化配置文件：ETF 高收益策略 (Gao Strategy)
+# 路径：backtest_executor/config/etf_gao.yaml
+
+strategy:
+  file: "ETFs/ETF_gao_opt.py"
+  # base_id 仅作记录参考，实际回测由 executor.py 动态创建
+  base_id: "6e21bbaee8cc3f8423def84436a2bf49"
+
+backtest:
+  start_day: "2018-01-01"
+  end_day: "2026-03-01"
+  initial_cash: 100000
+
+# 全局参数库定义
+# 每个参数包含：var (代码中的变量名), default (默认值), values (可选值列表)
+params:
+  S:
+    var: EXECUTION_SCORE_RANGE
+    default: [0.0, 6.0]
+    values: [[0.0, 4.0], [0.0, 5.0], [0.0, 6.0], [0.0, 7.0], [0.0, 8.0]]
+  ls:
+    var: EXECUTION_LOSE_PARAM
+    default: [false, 0.95]
+    values: [[false, 0.95], [true, 0.95]]
+  v:
+    var: EXECUTION_VOLUME_PARAM
+    default: [false, 5, 0.6]
+    values: [[false, 5, 0.6], [true, 5, 0.4], [true, 5, 0.6], [true, 5, 0.8]]
+  ma:
+    var: EXECUTION_MA_PARAM
+    default: [false, 20]
+    values: [[false, 20], [true, 20]]
+  r:
+    var: EXECUTION_R2_PARAM
+    default: [false, 0.4]
+    values: [[false, 0.4], [true, 0.4], [true, 0.5], [true, 0.6]]
+  st:
+    var: EXECUTION_SHORT_MOMENTUM_PARAM
+    default: [false, 10, 0.0]
+    values: [[false, 10, 0.0], [true, 10, 0.0]]
+
+# 寻优轮次定义
+rounds:
+  # 第一轮：开关测试 (Grid Search)
+  # 探索止损、均线过滤、短线动量、年度收益过滤等开关的排列组合
+  - name: "round1_switches"
+    method: "grid"
+    search: [ls, ma, st]
+    fixed:
+      S: [0.0, 5.0]  # 本轮统一使用 [0, 5] 作为基础分值范围
+
+  # 第二轮：核心参数精细化 (Random Search)
+  # 在确定开关后，随机探索分值范围和成交量参数的配合
+  - name: "round2_core_random"
+    method: "random"
+    count: 15
+    search: [S, v, r]
+    fixed:
+      ls: [true, 0.95]
+      ma: [false, 20]
+      st: [true, 10, 0.0]
+
+  # 第三轮：灵敏度分析 (Sensitivity Analysis)
+  # 观察 R2 过滤参数在不同阈值下的表现
+  - name: "round3_r2_sensitivity"
+    method: "sensitivity"
+    search: [r]
+    base:
+      S: [0.0, 6.0]
+      ls: [true, 0.95]
+      v: [true, 5, 0.6]
+      ma: [false, 20]
+      st: [true, 10, 0.0]
+
+  # 第四轮：手动验证 (List)
+  - name: "round4_final_check"
+    method: "list"
+    combinations:
+      - { S: [0.0, 5.5], v: [true, 5, 0.5], r: [true, 0.45] }
+      - { S: [0.0, 6.5], v: [true, 5, 0.7], r: [true, 0.55] }

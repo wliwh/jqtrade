@@ -7,15 +7,14 @@ from jqdata import *
 import numpy as np
 import pandas as pd
 from generate_params import Rules
+from IPython.display import display, HTML
+from tabulate import tabulate
 
 
 def _parse_param_columns(config, Rules=Rules):
-    """将参数字典解析为表格用的参数列值。
-    
-    开关类参数: 开启显示 ✓, 关闭显示 -
-    范围类参数 (S/v/r): 显示核心数值
-    """
+    """将参数字典解析为表格用的参数列值"""
     toggleable = {r[0] for r in Rules if len(r[2]) == 2}
+    rangeable = {r[0] for r in Rules if len(r[2]) > 2}
     row = {}
     
     for rule in Rules:
@@ -23,21 +22,12 @@ def _parse_param_columns(config, Rules=Rules):
         if short_name not in config:
             row[short_name] = '-'
             continue
-            
         val = config[short_name]
-        
-        if short_name == 'S':
-            # 评分上限，始终显示数值
-            row['S'] = f"{val[1]:.1f}"
-        elif short_name == 'v':
-            # 成交量阈值
-            row['v'] = f"{val[2]:.1f}" if val[0] else '-'
-        elif short_name == 'r':
-            # R² 阈值
-            row['r'] = f"{val[1]:.1f}" if val[0] else '-'
-        elif short_name in toggleable:
+        if short_name in toggleable:
             # 普通开关
             row[short_name] = '✓' if val[0] else '-'
+        elif short_name in rangeable:
+            row[short_name] = f"{val[-1]:.1f}" if (not isinstance(val[0], bool) or val[0]==True) else '-'
         else:
             row[short_name] = str(val)
     
@@ -112,6 +102,7 @@ def compare_params(tasks, sort_by='Calmar', ascending=False, yearly=False):
     """
     rows = []
     param_keys = [r[0] for r in Rules]
+    saved_names = set()
     
     print(f"正在获取 {len(tasks)} 组回测指标...")
     
@@ -120,7 +111,8 @@ def compare_params(tasks, sort_by='Calmar', ascending=False, yearly=False):
         if risk is None:
             print(f"  跳过 {name} (无有效指标)")
             continue
-        
+        if name in saved_names:
+            continue
         # 参数列
         param_cols = _parse_param_columns(config)
         
@@ -137,6 +129,7 @@ def compare_params(tasks, sort_by='Calmar', ascending=False, yearly=False):
         row.update(risk)
         row.update(year_cols)
         rows.append(row)
+        saved_names.add(name)
     
     if not rows:
         print("没有有效的回测结果。")
@@ -224,6 +217,32 @@ def print_compare(tasks, sort_by='Calmar', ascending=False, yearly=False):
     
     return df
 
+def jupyter_display_compare(tasks, sort_by='Calmar', ascending=False, yearly=False):
+    """一键对比并打印格式化表格，符合 Jupyter Notebook 输出格式"""
+    df = compare_params(tasks, sort_by=sort_by, ascending=ascending, yearly=yearly)
+    if df.empty: return df
+    
+    fmt = format_table(df)
+    order_str = '升序' if ascending else '降序'
+    display(HTML(f"<b>参数优化对比表 (按 {sort_by} {order_str} 排列)</b>"))
+    with pd.option_context('display.max_columns', None):
+        display(fmt)
+        
+    display(HTML(f"<i>共 {len(df)} 组参数</i>"))
+
+def markdown_table_print(tasks, sort_by='Calmar', ascending=False, yearly=False):
+    """一键对比并输出可供直接复制的纯文本 Markdown 表格。"""
+    df = compare_params(tasks, sort_by=sort_by, ascending=ascending, yearly=yearly)
+    if df.empty: return df
+
+    fmt = format_table(df)    
+    order_str = '升序' if ascending else '降序'
+    md_title = f"### 参数优化对比表 (按 {sort_by} {order_str} 排列)\n"
+    md_table = tabulate(fmt, headers='keys', tablefmt='pipe', showindex=True)
+    md_footer = f"\n\n*共 {len(df)} 组参数*"
+    print(md_title)
+    print(md_table)
+    print(md_footer)
 
 def get_best_config(tasks, sort_by='Calmar'):
     """从 tasks 中找到指标最优的配置并返回其 config 字典。
