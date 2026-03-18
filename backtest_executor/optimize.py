@@ -1,11 +1,26 @@
 import os
+import sys
+import argparse
 import yaml
 import json
 import itertools
 import random
 import time
 import hashlib
-from .executor import BacktestExecutorV3
+import logging
+from .logger import logger
+
+try:
+    from jqdata import create_backtest, get_backtest
+    JQ_AVAILABLE = True
+except ImportError:
+    JQ_AVAILABLE = False
+
+# 兼容包导入 (from backtest_executor import ...) 和直接运行 (python optimize.py) 两种方式
+try:
+    from .executor import BacktestExecutorV3
+except ImportError:
+    from executor import BacktestExecutorV3
 
 class ParameterGenerator:
     def __init__(self, params_def):
@@ -76,7 +91,7 @@ def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
     # 1. 查找指定的 Round
     round_cfg = next((r for r in cfg['rounds'] if r['name'] == round_name), None)
     if not round_cfg:
-        print(f"[ERROR] Round '{round_name}' not found in {config_path}")
+        logger.error("Round '%s' not found in %s", round_name, config_path)
         return
 
     # 2. 初始化执行器
@@ -93,7 +108,7 @@ def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
     # 3. 生成参数组合
     gen = ParameterGenerator(cfg['params'])
     combos = list(gen.generate(round_cfg))
-    print(f"[INFO] Round '{round_name}' generated {len(combos)} combinations.")
+    logger.info("Round '%s' generated %s combinations.", round_name, len(combos))
 
     # 4. 准备基础参数 (Defaults + Round Fixed)
     base_params = {k: v.get('default') for k, v in cfg['params'].items()}
@@ -116,7 +131,7 @@ def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
         param_id = get_param_id(short_combo) if short_combo else "BASE"
         task_name = f"{round_name}_{param_id}"
 
-        print(f"\n[PROGRESS] {i+1}/{len(combos)}: {task_name}")
+        logger.info("[PROGRESS] %s/%s: %s", i+1, len(combos), task_name)
         
         # 执行（executor 自带去重和状态检查）
         executor.run_single_task(
@@ -129,4 +144,56 @@ def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
             initial_cash=cfg['backtest'].get('initial_cash', 100000)
         )
 
-    print(f"\n[FINISH] Round '{round_name}' completed. Results in {mapper_path}")
+    logger.info("Round '%s' completed. Results in %s", round_name, mapper_path)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='策略参数优化工具')
+    parser.add_argument('--config', '-c', required=True, help='YAML 配置文件路径')
+    parser.add_argument('--round', '-r', required=True, help='要执行的轮次名称')
+    parser.add_argument('--base-id', '-b', help='JoinQuant base_id (可选)')
+    
+    args = parser.parse_args()
+    
+    if not JQ_AVAILABLE:
+        logger.error("jqdata not available. Please run in JQ environment.")
+        sys.exit(1)
+    
+    run_optimization(args.config, args.round, create_backtest, get_backtest)
+
+
+def nb_run(config_path, round_name):
+    """
+    Jupyter Notebook 友好的入口函数。
+
+    自动从 JQ 全局命名空间获取 create_backtest / get_backtest，
+    无需手动传入。在 JQ 研究环境的 Notebook Cell 中直接调用即可:
+
+        from backtest_executor import nb_run
+        nb_run('backtest_executor/config/etf_gao.yaml', 'round1_grid')
+
+    Args:
+        config_path (str): YAML 配置文件路径。
+        round_name (str): 要执行的轮次名称（对应 YAML 中 rounds[].name）。
+    """
+    # 在 JQ Notebook 中，create_backtest / get_backtest 由平台注入全局命名空间
+    # 通过 __builtins__ 或直接 import 均可获取
+    import builtins
+    _create_bt = getattr(builtins, 'create_backtest', None)
+    _get_bt = getattr(builtins, 'get_backtest', None)
+
+    # 如果全局没有，尝试从 jqdata 导入（兼容本地测试）
+    if _create_bt is None or _get_bt is None:
+        try:
+            from jqdata import create_backtest as _create_bt, get_backtest as _get_bt
+        except ImportError:
+            raise RuntimeError(
+                "[ERROR] 无法获取 create_backtest / get_backtest。"
+                "请确认在 JQ 研究环境中运行，或已安装 jqdata。"
+            )
+
+    run_optimization(config_path, round_name, _create_bt, _get_bt)
+
+
+if __name__ == '__main__':
+    main()
