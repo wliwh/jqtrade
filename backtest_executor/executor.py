@@ -81,7 +81,33 @@ def inject_params_to_code(strategy_code: str, params: dict) -> str:
     通过头部注入方式将参数字典注入策略源码 (兼容 Python 3.6)。
     """
     lines = strategy_code.splitlines()
+    
+    # 剥离已存在的 [Optimizer Generated Parameters] 注释块及其分隔符
+    for i in range(len(lines)):
+        if lines[i] is None:
+            continue
+        if "[Optimizer Generated Parameters]" in lines[i]:
+            lines[i] = None
+            # 向上找起始分隔符
+            if i > 0 and lines[i-1].strip().startswith("#"):
+                lines[i-1] = None
+            # 向下找结束分隔符
+            curr = i + 1
+            while curr < len(lines):
+                l_strip = lines[curr].strip()
+                if l_strip.startswith("#"):
+                    lines[curr] = None
+                    if "===" in l_strip:
+                        break
+                elif l_strip.startswith("EXECUTION_"):
+                    lines[curr] = None
+                else:
+                    break
+                curr += 1
+
     try:
+        # 重新解析（此时已部分标记为 None 的 lines 仅用于最后过滤）
+        # AST 解析仍然使用原始代码获取正确的行号
         tree = ast.parse(strategy_code)
         # Python 3.6 没有 end_lineno，我们通过获取下一个节点的 lineno 来推算范围
         nodes = sorted(tree.body, key=lambda x: x.lineno)
@@ -104,16 +130,17 @@ def inject_params_to_code(strategy_code: str, params: dict) -> str:
                 end_line = nodes[i+1].lineno - 1 if i+1 < len(nodes) else len(lines)
                 ranges_to_remove.append((start_line, end_line))
         
-        # 从后往前标记，避免行号偏移（虽然这里用 None 标记不用担心偏移）
+        # 标记 AST 识别出的参数定义行
         for start, end in ranges_to_remove:
-            for i in range(start - 1, end):
-                if i < len(lines):
-                    lines[i] = None
+            for idx in range(start - 1, end):
+                if idx < len(lines):
+                    lines[idx] = None
         
         filtered_lines = [line for line in lines if line is not None]
     except Exception as e:
         logger.warning("AST Injection failed: %s. Falling back to simple filtering.", e)
-        filtered_lines = [l for l in lines if not l.strip().startswith('EXECUTION_')]
+        # 兜底方案：过滤掉所有 EXECUTION 开头的行，以及我们已经标为 None 的行
+        filtered_lines = [l for l in lines if l is not None and not l.strip().startswith('EXECUTION_')]
 
     header_block = [
         "# " + "="*50,

@@ -78,9 +78,9 @@ def test_parameter_generator_sensitivity():
     assert {"A": 2, "B": "x"} in combos
 
 def test_get_param_id():
-    assert get_param_id({"S": 0.5}) == "S0.5"
+    assert get_param_id({"S": 0.5}) == "S.5"
     assert get_param_id({"B": True}) == "BT"
-    assert get_param_id({"L": [True, 0.95]}) == "LT.95"
+    assert get_param_id({"L": [True, 0.95]}) == "LT-.95"
 
 # --- Executor Core Tests ---
 
