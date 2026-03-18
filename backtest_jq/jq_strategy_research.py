@@ -29,8 +29,7 @@ def make_id_name(config, Rules, Baseline):
     return "_".join(tokens)
 
 def generate_stage_1(Rules, Baseline, mode='cartesian', exclude=None):
-    """第一阶段：确定开关项的最优组合。
-    """
+    """第一阶段：确定开关项的最优组合"""
     if exclude is None:
         exclude = []
     
@@ -64,8 +63,7 @@ def generate_stage_1(Rules, Baseline, mode='cartesian', exclude=None):
     return params_list
 
 def generate_stage_2(Rules, Baseline, enabled_switches, fixed_params):
-    """第二阶段：核心寻优
-    """
+    """第二阶段：核心寻优"""
     toggleable = {r[0] for r in Rules if len(r[2])==2}
     range_items = [r[0] for r in Rules if len(r[2])>2]
     
@@ -108,8 +106,7 @@ def generate_stage_2(Rules, Baseline, enabled_switches, fixed_params):
     return combinations
 
 def config_to_execution_params(config, Rules):
-    """将短名参数字典转换为 EXECUTION_ 格式字典。
-    """
+    """将短名参数字典转换为 EXECUTION_ 格式字典"""
     mapped = {}
     for short_name, value in config.items():
         full_name = next(r[1] for r in Rules if r[0] == short_name)
@@ -248,7 +245,7 @@ def _parse_param_columns(config, Rules):
 
 
 def _fetch_risk_metrics(backtest_id):
-    """从 JQ 平台获取回测风险指标。"""
+    """从 JQ 平台获取回测风险指标"""
     try:
         bt = get_backtest(backtest_id)
         if not bt or bt.get_status() != 'done':
@@ -412,7 +409,7 @@ def jupyter_display_compare(tasks, Rules, sort_by='Calmar', ascending=False, yea
     display(HTML(f"<i>共 {len(df)} 组参数</i>"))
 
 def markdown_table_print(tasks, Rules, sort_by='Calmar', ascending=False, yearly=False):
-    """一键对比并输出可供直接复制的纯文本 Markdown 表格。"""
+    """一键对比，并输出可供直接复制的纯文本 Markdown 表格"""
     df = compare_params(tasks, Rules, sort_by=sort_by, ascending=ascending, yearly=yearly)
     if df.empty: return df
 
