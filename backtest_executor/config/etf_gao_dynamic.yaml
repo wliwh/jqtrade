@@ -1,0 +1,38 @@
+# 策略优化配置文件：ETF 高收益策略 (动态池版)
+# 路径：backtest_executor/config/etf_gao_dynamic.yaml
+
+strategy:
+  file: "ETFs/ETF_gao_dynamic.py"
+  # 动态池版本不需要在这里填固定池子，策略内部会自动刷新
+
+backtest:
+  start_day: "2018-01-01"
+  end_day: "2026-03-01"
+  initial_cash: 100000
+
+# 全局参数库定义
+params:
+  S:
+    var: EXECUTION_SCORE_RANGE
+    default: [0.0, 6.0]
+    values: [[0.0, 5.0], [0.0, 6.0], [0.0, 7.0]]
+  ls:
+    var: EXECUTION_LOSE_PARAM
+    default: [false, 0.95]
+    values: [[false, 0.95], [true, 0.95]]
+  ma:
+    var: EXECUTION_MA_PARAM
+    default: [false, 20]
+    values: [[false, 20], [true, 20]]
+  st:
+    var: EXECUTION_SHORT_MOMENTUM_PARAM
+    default: [false, 10, 0.0]
+    values: [[false, 10, 0.0], [true, 10, 0.0]]
+
+# 寻优轮次定义
+rounds:
+  - name: "round1_switches"
+    method: "grid"
+    search: [ls, ma, st]
+    fixed:
+      S: [0.0, 6.0]

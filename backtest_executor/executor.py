@@ -178,7 +178,7 @@ class BacktestExecutorV3:
     def run_single_task(self, name: str, params: dict, 
                         create_bt_func, get_bt_func, 
                         start_day='2018-01-01', end_day='2026-01-10', 
-                        initial_cash=100000, frequency='day', verbose=True):
+                        initial_cash=100000, frequency='day', use_credit=True):
         # 读取源码
         with open(self.strategy_file, 'r', encoding='utf-8') as f:
             original_code = f.read()
@@ -224,7 +224,10 @@ class BacktestExecutorV3:
             frequency=frequency,
             initial_cash=initial_cash,
             code=injected_code,
-            name=name
+            name=name,
+            benchmark=None,
+            python_version=3,
+            use_credit=use_credit
         )
         
         if not bt_id:
