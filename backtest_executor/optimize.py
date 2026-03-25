@@ -67,19 +67,47 @@ class ParameterGenerator:
                     new_combo[k] = val
                     yield new_combo
 
-def get_param_id(short_params):
-    """生成一个简短且唯一的标识符用于回测名称"""
+def get_param_id(short_params, max_total_len=64):
+    """
+    生成一个简短且具有人类可读性的标识符作为回测名称。
+    支持多种类型（None, bool, float, list, dict 等）并进行递归处理。
+    同时控制总长度不超限。
+    """
+    def format_val(v):
+        if v is None:
+            return "N"
+        if isinstance(v, bool):
+            return "T" if v else "F"
+        if isinstance(v, (int, float)):
+            s = str(v)
+            if "." in s:
+                s = s.rstrip("0").rstrip(".")  # 移除末尾无意义的 0
+            if s.startswith("0."):
+                s = s[1:]  # 0.95 -> .95
+            return s
+        if isinstance(v, (list, tuple, set)):
+            return "-".join(format_val(x) for x in v)
+        if isinstance(v, dict):
+            # 字典递归：k1v1-k2v2，键截断取前 3 位
+            return "-".join(f"{str(k)[:3]}{format_val(v[k])}" for k in sorted(v.keys()))
+        # 字符串或其他类型：只保留字母数字，且截断取前 6 位
+        s_v = "".join(c for c in str(v) if c.isalnum())
+        return s_v[:6]
+
     parts = []
     for k, v in sorted(short_params.items()):
-        if isinstance(v, (list, tuple)):
-            # 处理像 [True, 0.95] 这样的参数 -> T95
-            val_str = "".join([str(x)[0] if isinstance(x, bool) else str(x).replace("0.", ".") for x in v])
-        elif isinstance(v, bool):
-            val_str = "T" if v else "F"
-        else:
-            val_str = str(v)
-        parts.append(f"{k}{val_str}")
-    return "_".join(parts)
+        # 键名截断（通常 YAML 里的参数 ID 较短，为保险取前 6 位）
+        k_short = str(k)[:6]
+        parts.append(f"{k_short}{format_val(v)}")
+    
+    res = "_".join(parts)
+    
+    # 长度控制：如果超过阈值，截断并追加哈希后缀以保证唯一性
+    if len(res) > max_total_len:
+        h_suffix = hashlib.md5(res.encode('utf-8')).hexdigest()[:6]
+        res = res[:max_total_len - 7] + "_" + h_suffix
+        
+    return res
 
 def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
     """
