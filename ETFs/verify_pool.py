@@ -111,7 +111,7 @@ def test_pool_generation():
                 close_pivot = prices_ap.pivot(index='time', columns='code', values='close').fillna(method='ffill').dropna(axis=1, how='any')
                 returns = close_pivot.pct_change().dropna()
                 if len(returns.columns) >= 2:
-                    ap = AffinityPropagation(damping=AP_DAMPING, preference=AP_PREFERENCE, affinity='precomputed', random_state=42)
+                    ap = AffinityPropagation(damping=AP_DAMPING, preference=AP_PREFERENCE, affinity='precomputed')
                     ap.fit(returns.corr())
                     cluster_dict = defaultdict(list)
                     for etf, label in zip(returns.columns, ap.labels_):

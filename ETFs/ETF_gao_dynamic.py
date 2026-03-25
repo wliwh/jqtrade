@@ -136,15 +136,6 @@ def initialize(context):
     run_daily(print_positions, "09:30")
     run_daily(print_positions, "15:00")
 
-# ==================== 数据获取模块 ====================
-def get_safe_price(security, context):
-    """获取防回测未来函数的当前价 (优化版：直接使用实时快照)"""
-    return get_current_data()[security].last_price
-
-def get_current_vol_sum(security, context):
-    """获取当日截止当前的累计成交量 (优化版：直接使用实时快照)"""
-    return get_current_data()[security].volume
-
 # ==================== 逻辑检查模块 ====================
 def check_volume_anomaly_optimized(filtered_metrics, context, lookback=5, threshold=1.0):
     """批量检测成交量是否异常放量 (避免循环调用 API)"""
@@ -154,19 +145,30 @@ def check_volume_anomaly_optimized(filtered_metrics, context, lookback=5, thresh
     try:
         # 获取上一个交易日
         last_trading_day = get_trade_days(end_date=context.current_dt, count=2)[0]
-        # 批量获取历史成交量
+        # 批量获取历史成交量 (不含今日)
         hist = get_price(codes, count=lookback, end_date=last_trading_day, 
                         frequency='1d', fields=['volume'], panel=False)
         if hist is None or hist.empty: return filtered_metrics
-        
         avg_vols = hist.groupby('code')['volume'].mean()
-        curr_data = get_current_data()
+        
+        # 获取当日最新累计成交量 (处理回测环境下 get_current_data 或 daily 获取 volume 的限制)
+        try:
+            # 优先尝试快捷方式
+            cur_vols_df = get_price(codes, count=1, end_date=context.current_dt, 
+                                   frequency='daily', fields=['volume'], panel=False)
+            cur_vols = cur_vols_df.set_index('code')['volume'] if not cur_vols_df.empty else pd.Series()
+        except:
+            # 触发 avoid_future_data=True 回测安全保护时的降级方案
+            # 通过叠加当日分钟线 (1m) 来安全获得截止目前的累计成交量
+            today_str = context.current_dt.strftime('%Y-%m-%d')
+            cur_vols_df = get_price(codes, start_date=today_str, end_date=context.current_dt, frequency='1m', fields=['volume'], panel=False)
+            cur_vols = cur_vols_df.groupby('code')['volume'].sum() if not cur_vols_df.empty else pd.Series()
         
         passed = []
         for m in filtered_metrics:
             etf = m['etf']
             avg_vom = avg_vols.get(etf, 0)
-            cur_vom = curr_data[etf].volume
+            cur_vom = cur_vols.get(etf, 0)
             
             ratio = cur_vom / avg_vom if avg_vom > 0 else 0
             m['volume_ratio'] = ratio
@@ -312,8 +314,7 @@ def _dedup_by_ap_clustering(candidate_etfs, avg_money, last_trading_day):
         ap = AffinityPropagation(
             damping=Config.AP_DAMPING,
             preference=Config.AP_PREFERENCE,
-            affinity='precomputed',
-            random_state=42
+            affinity='precomputed'
         )
         ap.fit(corr_matrix)
 
