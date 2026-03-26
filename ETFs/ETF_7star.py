@@ -210,13 +210,17 @@ def initialize(context):                # 初始化策略
     run_daily(etf_buy_trade, time='13:11')          # 买入交易
     run_daily(update_sector_pool, time='09:00')     # 更新动态ETF池
 
-    for hour in range(9, 15):           # 分钟级止损任务注册
-        for minute in range(0, 60):
-            current_time = "%02d:%02d" % (hour, minute)
-            if ('09:27' < current_time < '11:30') or ('13:00' < current_time < '14:57'):
-                run_daily(minute_level_stop_loss, time=current_time)          # 固定比例止损
-                run_daily(minute_level_pct_stop_loss, time=current_time)      # 当日跌幅止损
-                run_daily(minute_level_atr_stop_loss, time=current_time)      # ATR动态止损
+    # for hour in range(9, 15):           # 分钟级止损任务注册
+    #     for minute in range(0, 60):
+    #         current_time = "%02d:%02d" % (hour, minute)
+    #         if ('09:27' < current_time < '11:30') or ('13:00' < current_time < '14:57'):
+    #             run_daily(minute_level_stop_loss, time=current_time)          # 固定比例止损
+    #             run_daily(minute_level_pct_stop_loss, time=current_time)      # 当日跌幅止损
+    #             run_daily(minute_level_atr_stop_loss, time=current_time)      # ATR动态止损
+    for tm in ('09:35','10:00','11:00','13:30','14:30'):
+        run_daily(minute_level_stop_loss, time=tm)          # 固定比例止损
+        run_daily(minute_level_pct_stop_loss, time=tm)      # 当日跌幅止损
+        run_daily(minute_level_atr_stop_loss, time=tm)      # ATR动态止损
 
     log.info(f"""策略参数初始化完成:
 === 过滤条件 ===
