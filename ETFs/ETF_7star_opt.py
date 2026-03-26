@@ -49,8 +49,10 @@ EXECUTION_RSI_PARAM = (False, 6, 1, 98)                # (启用, 周期, 回看
 EXECUTION_FIXED_STOPLOSS = (True, 0.95)               # (启用, 阈值)
 EXECUTION_PCT_STOPLOSS = (False, 0.95)                # (启用, 阈值)
 EXECUTION_ATR_STOPLOSS = (False, 14, 2, True, True)   # (启用, 周期, 倍数, 跟踪, 排除防御)
-
 EXECUTION_SELL_COOLDOWN = (True, 3)                  # (启用, 天数)
+
+USE_ETF_NAME_MEMORY = True
+USE_BULK_FETCHING = True
 
 class Config:
     # 策略全局配置类
@@ -110,6 +112,9 @@ def initialize(context):                # 初始化策略
     g.position_stop_prices = {}         # 记录ATR止损价
     g.target_etfs_list = []             # 今日目标ETF列表
     g.cooldown_end_date = None          # 冷却期结束日期
+    g.etf_name_memory = {}              # ETF名称缓存
+    g.etf_info_cache = {}               # ETF基本信息缓存 (上市日期等)
+    g.atr_daily_cache = {}              # ATR每日缓存 (避免分时重复计算)
 
     run_daily(check_positions, time='09:10')        # 盘前检查持仓
     run_daily(etf_sell_trade, time='13:10')         # 卖出交易
@@ -139,94 +144,99 @@ def initialize(context):                # 初始化策略
 """)
 
 # --- 指标计算与筛选 ---
-def calculate_all_metrics_for_etf(context, etf):  # 计算单个ETF的所有指标
+def get_security_name(security):
+    try:
+        if USE_ETF_NAME_MEMORY and security in g.etf_name_memory:
+            return g.etf_name_memory[security]
+        name = get_current_data()[security].name
+        g.etf_name_memory[security] = name
+        return name
+    except:
+        return security
+
+def calculate_all_metrics_for_etf(context, etf, pre_prices=None, pre_current_data=None, pre_today_vol=None):  # 计算单个ETF的所有指标
     try:
         etf_name = get_security_name(etf)         # 获取ETF名称
         
-        lookback = max(                           # 确定所需历史数据长度
-            Config.LOOKBACK_DAYS,
-            Config.SHORT_LOOKBACK_DAYS,
-            Config.RSI_PERIOD + Config.RSI_LOOKBACK_DAYS,
-            Config.MA_FILTER_DAYS,
-            Config.VOLUME_LOOKBACK
-        ) + 20
+        current_data = pre_current_data if pre_current_data is not None else get_current_data()
         
-        prices = attribute_history(etf, lookback, '1d', ['close', 'high', 'low'])  # 获取历史价格
-        current_data = get_current_data()
+        if pre_prices is not None:
+            prices_df = pre_prices
+        else:
+            lookback = max(                           # 确定所需历史数据长度
+                Config.LOOKBACK_DAYS,
+                Config.SHORT_LOOKBACK_DAYS,
+                Config.RSI_PERIOD + Config.RSI_LOOKBACK_DAYS,
+                Config.MA_FILTER_DAYS,
+                Config.VOLUME_LOOKBACK
+            ) + 20
+            prices_df = attribute_history(etf, lookback, '1d', ['close', 'high', 'low', 'volume'])  # 获取历史价格
         
-        if len(prices) < max(Config.LOOKBACK_DAYS, Config.MA_FILTER_DAYS):
+        if len(prices_df) < max(Config.LOOKBACK_DAYS, Config.MA_FILTER_DAYS):
             return None
             
         current_price = current_data[etf].last_price
-        price_series = np.append(prices["close"].values, current_price)  # 拼接当前价格
-
-        recent_price_series = price_series[-(Config.LOOKBACK_DAYS + 1):]      # 动量计算序列
+        price_series = np.append(prices_df["close"].values, current_price)  # 拼接当前价格
+        
+        # --- 动量指标计算 ---
+        recent_price_series = price_series[-(Config.LOOKBACK_DAYS + 1):]
         y = np.log(recent_price_series)
         x = np.arange(len(y))
-        weights = np.linspace(1, 2, len(y))                              # 加权拟合
+        weights = np.linspace(1, 2, len(y))
         slope, intercept = np.polyfit(x, y, 1, w=weights)
-        annualized_returns = math.exp(slope * 250) - 1                   # 年化收益率
+        annualized_returns = math.exp(slope * 250) - 1
         ss_res = np.sum(weights * (y - (slope * x + intercept)) ** 2)
         ss_tot = np.sum(weights * (y - np.mean(y)) ** 2)
-        r_squared = 1 - ss_res / ss_tot if ss_tot else 0                 # R²
-        momentum_score = annualized_returns * r_squared                  # 动量得分
+        r_squared = 1 - ss_res / ss_tot if ss_tot else 0
+        momentum_score = annualized_returns * r_squared
 
-        if len(price_series) >= Config.SHORT_LOOKBACK_DAYS + 1:              # 短期动量
+        # --- 短期动量和均线 ---
+        if len(price_series) >= Config.SHORT_LOOKBACK_DAYS + 1:
             short_return = price_series[-1] / price_series[-(Config.SHORT_LOOKBACK_DAYS + 1)] - 1
             short_annualized = (1 + short_return) ** (250 / Config.SHORT_LOOKBACK_DAYS) - 1
         else:
             short_annualized = -np.inf
 
-        ma_price = np.mean(price_series[-Config.MA_FILTER_DAYS:])            # 均线价格
-        current_above_ma = current_price >= ma_price                    # 是否站上均线
+        ma_price = np.mean(price_series[-Config.MA_FILTER_DAYS:])
+        current_above_ma = current_price >= ma_price
 
-        volume_ratio = get_volume_ratio(context, etf, show_detail_log=False)  # 成交量比
+        # --- 成交量比指标 ---
+        if pre_prices is not None and pre_today_vol is not None:
+            # 批量模式优化：直接计算，不调用 API
+            hist_v = prices_df["volume"].iloc[-Config.VOLUME_LOOKBACK:]
+            avg_v = hist_v.mean()
+            volume_ratio = pre_today_vol / avg_v if avg_v > 0 else 0
+        else:
+            volume_ratio = get_volume_ratio(context, etf, show_detail_log=False)
 
-        day_ratios = []                                                 # 短期风控（近3日跌幅）
+        # --- 其他过滤指标 ---
+        day_ratios = []
         passed_loss_filter = True
         if len(price_series) >= 4:
-            day1 = price_series[-1] / price_series[-2]
-            day2 = price_series[-2] / price_series[-3]
-            day3 = price_series[-3] / price_series[-4]
+            day1, day2, day3 = price_series[-1]/price_series[-2], price_series[-2]/price_series[-3], price_series[-3]/price_series[-4]
             day_ratios = [day1, day2, day3]
-            if min(day_ratios) < Config.LOSS:
-                passed_loss_filter = False
+            if min(day_ratios) < Config.LOSS: passed_loss_filter = False
 
-        current_rsi = 0                                                 # RSI指标
-        max_recent_rsi = 0
-        passed_rsi_filter = True
+        current_rsi = 0; passed_rsi_filter = True
         if Config.USE_RSI_FILTER and len(price_series) >= Config.RSI_PERIOD + Config.RSI_LOOKBACK_DAYS:
             rsi_values = calculate_rsi(price_series, Config.RSI_PERIOD)
             if len(rsi_values) >= Config.RSI_LOOKBACK_DAYS:
                 recent_rsi = rsi_values[-Config.RSI_LOOKBACK_DAYS:]
-                max_recent_rsi = np.max(recent_rsi)
                 current_rsi = recent_rsi[-1]
                 if np.any(recent_rsi > Config.RSI_THRESHOLD):
                     ma5 = np.mean(price_series[-5:]) if len(price_series) >= 5 else current_price
-                    if current_price < ma5:
-                        passed_rsi_filter = False
+                    if current_price < ma5: passed_rsi_filter = False
 
         return {
-            'etf': etf,
-            'etf_name': etf_name,
-            'momentum_score': momentum_score,
-            'annualized_returns': annualized_returns,
-            'r_squared': r_squared,
-            'short_annualized': short_annualized,
-            'current_price': current_price,
-            'ma_price': ma_price,
-            'volume_ratio': volume_ratio,
-            'day_ratios': day_ratios,
-            'current_rsi': current_rsi,
-            'max_recent_rsi': max_recent_rsi,
-            'passed_momentum': Config.MIN_SCORE_THRESHOLD <= momentum_score <= Config.MAX_SCORE_THRESHOLD,
+            'etf': etf, 'etf_name': etf_name, 'momentum_score': momentum_score,
+            'annualized_returns': annualized_returns, 'r_squared': r_squared,
+            'short_annualized': short_annualized, 'current_price': current_price,
+            'ma_price': ma_price, 'volume_ratio': volume_ratio, 'day_ratios': day_ratios,
+            'current_rsi': current_rsi, 'passed_momentum': Config.MIN_SCORE_THRESHOLD <= momentum_score <= Config.MAX_SCORE_THRESHOLD,
             'passed_short_mom': short_annualized >= Config.SHORT_MOMENTUM_THRESHOLD,
-            'passed_r2': r_squared > Config.R2_THRESHOLD,
-            'passed_annual_ret': annualized_returns >= Config.MIN_ANNUAL_RETURN,
-            'passed_ma': current_above_ma,
-            'passed_volume': volume_ratio is not None and volume_ratio < Config.VOLUME_THRESHOLD,
-            'passed_loss': passed_loss_filter,
-            'passed_rsi': passed_rsi_filter,
+            'passed_r2': r_squared > Config.R2_THRESHOLD, 'passed_annual_ret': annualized_returns >= Config.MIN_ANNUAL_RETURN,
+            'passed_ma': current_above_ma, 'passed_volume': volume_ratio is not None and volume_ratio < Config.VOLUME_THRESHOLD,
+            'passed_loss': passed_loss_filter, 'passed_rsi': passed_rsi_filter,
         }
     except Exception as e:
         log.warning(f"计算 {etf} 指标出错: {e}")
@@ -265,8 +275,12 @@ def get_final_ranked_etfs(context):     # 主筛选函数：合并池、分类�
 
     for etf in etf_set:                 # 遍历池子计算指标
         try:
-            info = get_security_info(etf)
-            start_date_raw = info.start_date if info else None
+            if etf in g.etf_info_cache:
+                start_date_raw = g.etf_info_cache[etf]
+            else:
+                info = get_security_info(etf)
+                start_date_raw = info.start_date if info else None
+                g.etf_info_cache[etf] = start_date_raw
         except Exception:
             start_date_raw = None
 
@@ -289,9 +303,67 @@ def get_final_ranked_etfs(context):     # 主筛选函数：合并池、分类�
         if current_data[etf].paused:                     # 跳过停牌
             continue
 
-        metrics = calculate_all_metrics_for_etf(context, etf)
-        if metrics:
-            all_metrics.append(metrics)
+        if USE_BULK_FETCHING:
+            # 批量模式：由外部统一获取数据
+            pass 
+        else:
+            metrics = calculate_all_metrics_for_etf(context, etf)
+            if metrics:
+                all_metrics.append(metrics)
+                
+    if USE_BULK_FETCHING:
+        lookback = max(
+            Config.LOOKBACK_DAYS,
+            Config.SHORT_LOOKBACK_DAYS,
+            Config.RSI_PERIOD + Config.RSI_LOOKBACK_DAYS,
+            Config.MA_FILTER_DAYS,
+            Config.VOLUME_LOOKBACK
+        ) + 20
+        # 1. 批量日线 OHLCV
+        # 注意: 指定 fields 时，返回的通常是 [Time, Ticker] 的 MultiIndex DataFrame 或者 pd.Panel
+        bulk_prices = get_price(etf_set, count=lookback, end_date=end_date, frequency='daily', fields=['close', 'high', 'low', 'volume'])
+        
+        # 2. 批量 1m 成交量（计算今日至今累计量）
+        today_v_stats = get_price(etf_set, start_date=context.current_dt.date(), end_date=context.current_dt, frequency='1m', fields=['volume'])
+        
+        # 兼容性处理：Panel vs DataFrame
+        if hasattr(today_v_stats, 'major_axis') and hasattr(today_v_stats, 'items'):
+            # 这是 Panel: items=fields, major=time, minor=tickers
+            if 'volume' in today_v_stats.items:
+                today_v_sums = today_v_stats['volume'].sum() # 沿 major_axis 自动求和，结果是 Series(tickers)
+            else:
+                today_v_sums = pd.Series()
+        elif isinstance(getattr(today_v_stats, 'index', None), pd.MultiIndex):
+            # (Time, Ticker) 结构下按 Ticker 聚合
+            today_v_sums = today_v_stats['volume'].groupby(level=1).sum()
+        else:
+            # 单标的情况或简单 DF 结构
+            try:
+                today_v_sums = today_v_stats['volume'].sum() if 'volume' in today_v_stats else pd.Series()
+            except:
+                today_v_sums = pd.Series()
+            
+        # 3. 获取现价对象
+        curr_data_obj = get_current_data()
+        
+        for etf in etf_set:
+            if etf not in yesterday_money or pd.isna(yesterday_money[etf]) or curr_data_obj[etf].paused:
+                continue
+            
+            # 从批量数据提取单个标的的 DF
+            if hasattr(bulk_prices, 'major_axis') and hasattr(bulk_prices, 'items'):
+                # 兼容 Panel: [fields, time, stickers]
+                ticker_prices = bulk_prices.loc[:, :, etf]
+            elif isinstance(getattr(bulk_prices, 'index', None), pd.MultiIndex):
+                ticker_prices = bulk_prices.xs(etf, axis=0, level=1)
+            else:
+                ticker_prices = bulk_prices[etf] if etf in bulk_prices else None
+            
+            t_today_v = today_v_sums.get(etf, 0)
+            
+            metrics = calculate_all_metrics_for_etf(context, etf, pre_prices=ticker_prices, pre_current_data=curr_data_obj, pre_today_vol=t_today_v)
+            if metrics:
+                all_metrics.append(metrics)
 
     for item in all_metrics:            # 处理无效动量得分
         score = item.get('momentum_score')
@@ -330,8 +402,12 @@ def minute_level_stop_loss(context):    # 分钟级固定比例止损
             log.info(f"[DEBUG-固定止损] {security} 持仓量=0，skip")
             continue
         if security not in current_data:
-            log.info(f"[DEBUG-固定止损] {security} 不在current_data，skip")
-            continue
+            try:
+                # 尝试访问以触发数据拉取
+                _ = current_data[security]
+            except:
+                log.info(f"[DEBUG-固定止损] {security} 不在current_data且无法访问，skip")
+                continue
         current_price = current_data[security].last_price
         cost_price = position.avg_cost
         stop_line = cost_price * Config.FIXED_STOP_LOSS_THRESHOLD
@@ -355,7 +431,11 @@ def minute_level_pct_stop_loss(context):  # 分钟级当日跌幅止损
     for security in list(context.portfolio.positions.keys()):
         position = context.portfolio.positions[security]
         if position.total_amount <= 0: continue
-        if security not in current_data: continue
+        if security not in current_data:
+            try:
+                _ = current_data[security]
+            except:
+                continue
         today_open = current_data[security].day_open
         if not today_open or today_open <= 0: continue
         current_price = current_data[security].last_price
@@ -379,12 +459,16 @@ def minute_level_atr_stop_loss(context):  # 分钟级ATR动态止损
         if position.total_amount <= 0: continue
         if Config.ATR_EXCLUDE_DEFENSIVE and security == Config.DEFENSIVE_ETF: continue
         try:
-            if security not in current_data: continue
+            if security not in current_data:
+                try:
+                    _ = current_data[security]
+                except:
+                    continue
             current_price = current_data[security].last_price
             if current_price <= 0: continue
             cost_price = position.avg_cost
             if cost_price <= 0: continue
-            current_atr, _, success, _ = calculate_atr(security, Config.ATR_PERIOD)
+            current_atr, _, success, _ = calculate_atr(security, Config.ATR_PERIOD, context)
             if not success or current_atr <= 0: continue
             if security not in g.position_highs:
                 g.position_highs[security] = current_price
@@ -477,14 +561,15 @@ def etf_buy_trade(context):             # 买入交易主逻辑
 
 # --- 工具函数与底层支撑 ---
 def check_positions(context):
+    g.atr_daily_cache = {} # 每日清空 ATR 缓存
+    current_data = get_current_data()
     for security in context.portfolio.positions:
         pos = context.portfolio.positions[security]
         if pos.total_amount > 0:
+            # 显式访问一次 current_data[security]，确保在聚宽回测引擎中“订阅”或“激活”该代码数据
+            # 即使开启了 USE_ETF_NAME_MEMORY 缓存，也能保证后续分钟级止损逻辑能获取到数据
+            _ = current_data[security]
             log.info(f"📊 持仓检查: {get_security_name(security)}({security}), 数量: {pos.total_amount}")
-
-def get_security_name(security):
-    try: return get_current_data()[security].name
-    except: return security
 
 def check_defensive_etf_available(context):
     d = Config.DEFENSIVE_ETF
@@ -516,13 +601,24 @@ def calculate_rsi(prices, period=6):
     rsi = 100 - (100 / (1 + avg_g / (avg_l + 1e-9)))
     return np.append(np.full(period, np.nan), rsi)
 
-def calculate_atr(security, period=14):
+def calculate_atr(security, period=14, context=None):
+    # 尝试从今日缓存获取
+    if security in g.atr_daily_cache:
+        cached_date, cached_atr = g.atr_daily_cache[security]
+        if context and context.current_dt.date() == cached_date:
+            return cached_atr, [], True, "缓存成功"
+
     try:
         hist = attribute_history(security, period + 5, '1d', ['high', 'low', 'close'])
         if len(hist) < period + 1: return 0, [], False, "数据不足"
         h, l, c = hist['high'].values, hist['low'].values, hist['close'].values
         tr = np.maximum(h[1:]-l[1:], np.maximum(abs(h[1:]-c[:-1]), abs(l[1:]-c[:-1])))
         atr = np.mean(tr[-period:])
+        
+        # 存入缓存
+        if context:
+            g.atr_daily_cache[security] = (context.current_dt.date(), atr)
+            
         return atr, tr, True, "成功"
     except: return 0, [], False, "失败"
 
