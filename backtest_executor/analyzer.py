@@ -9,8 +9,22 @@ import argparse
 import numpy as np
 import pandas as pd
 import yaml
+import os
+import json
 import logging
 from .logger import logger
+
+try:
+    from IPython.display import display, HTML
+    IPYTHON_AVAILABLE = True
+except ImportError:
+    IPYTHON_AVAILABLE = False
+
+try:
+    from tabulate import tabulate
+    TABULATE_AVAILABLE = True
+except ImportError:
+    TABULATE_AVAILABLE = False
 
 try:
     from jqdata import get_backtest
@@ -58,16 +72,22 @@ def _parse_param_columns(config, params_def, toggleable, rangeable):
     row = {}
     
     for key, cfg in params_def.items():
-        if key not in config:
+        var_name = cfg.get('var')
+        if key in config:
+            val = config[key]
+        elif var_name and var_name in config:
+            val = config[var_name]
+        else:
             row[key] = '-'
             continue
+
+        if isinstance(val, tuple):
+            val = list(val)
         
-        val = config[key]
-        
-        if key in toggleable:
+        if key in toggleable and isinstance(val, list) and val:
             row[key] = '✓' if val[0] else '-'
         elif key in rangeable:
-            if isinstance(val[0], bool) and val[0]:
+            if isinstance(val, list) and val and isinstance(val[0], bool) and val[0]:
                 row[key] = f"{val[-1]}" if isinstance(val[-1], (int, float)) else str(val[-1])
             else:
                 row[key] = '-'
@@ -206,11 +226,16 @@ def compare_params(results, params_def, sort_by='Calmar', ascending=False, yearl
                 continue
         else:
             risk = {
-                'Return': metrics.get('annual_return', 0),
+                'Return': metrics.get('return', 0),
                 'Ann.Ret': metrics.get('annual_return', 0),
-                'MaxDD': metrics.get('max_drawdown', 0),
+                'MaxDD': abs(metrics.get('max_drawdown', 0)),
                 'Calmar': metrics.get('calmar', 0),
                 'Sharpe': metrics.get('sharpe', 0),
+                'Volatility': metrics.get('volatility', metrics.get('algorithm_volatility', 0)),
+                'WinRate': metrics.get('win_rate', metrics.get('win_ratio', 0)),
+                'Trades': metrics.get('trades', 0),
+                'AvgHoldDays': metrics.get('avg_hold_days', metrics.get('avg_position_days', 0)),
+                'Turnover': metrics.get('turnover', metrics.get('turnover_rate', 0)),
             }
         
         param_cols = _parse_param_columns(params, params_def, toggleable, rangeable)
@@ -237,7 +262,7 @@ def compare_params(results, params_def, sort_by='Calmar', ascending=False, yearl
     
     param_keys = list(params_def.keys())
     
-    indicator_order = ['Return', 'Ann.Ret', 'MaxDD', 'Calmar', 'Sharpe', 'Volatility', 'WinRate', 'Trades', 'Turnover']
+    indicator_order = ['Return', 'Ann.Ret', 'MaxDD', 'Calmar', 'Sharpe', 'Volatility', 'WinRate', 'Trades', 'AvgHoldDays', 'Turnover']
     indicator_keys = [k for k in indicator_order if k in df.columns]
     
     year_keys = sorted([c for c in df.columns if c.startswith('Y') and c[1:].isdigit()])
@@ -256,7 +281,7 @@ def format_table(df):
     """格式化 DataFrame 用于打印。"""
     fmt = df.copy()
     pct_cols = ['Return', 'Ann.Ret', 'MaxDD', 'Volatility', 'WinRate']
-    float_cols = ['Calmar', 'Sharpe', 'Turnover', 'AvgHoldDays']
+    float_cols = ['Calmar', 'Sharpe', 'Turnover']
     
     year_cols = [c for c in fmt.columns if c.startswith('Y') and c[1:].isdigit()]
     pct_cols = pct_cols + year_cols
@@ -271,11 +296,16 @@ def format_table(df):
     
     if 'Trades' in fmt.columns:
         fmt['Trades'] = fmt['Trades'].apply(lambda x: f"{int(x)}" if isinstance(x, (int, float)) else x)
+
+    if 'AvgHoldDays' in fmt.columns:
+        fmt['AvgHoldDays'] = fmt['AvgHoldDays'].apply(
+            lambda x: f"{x:.1f}" if isinstance(x, (int, float)) and not isinstance(x, bool) else x
+        )
     
     return fmt
 
 
-def print_compare(df, sort_by='Calmar'):
+def print_compare(df, sort_by='Calmar', ascending=False):
     """打印格式化表格。"""
     if df.empty:
         return
@@ -290,14 +320,52 @@ def print_compare(df, sort_by='Calmar'):
         sep = "=" * max(120, line_len)
         
         print("\n" + sep)
-        print(f"参数优化对比表 (按 {sort_by} 降序排列)")
+        print(f"参数优化对比表 (按 {sort_by} {'升序' if ascending else '降序'} 排列)")
         print(sep)
         print(output)
         print(sep)
         print(f"共 {len(df)} 组参数")
 
 
-def analyze_results(mapper_path, config_path, sort_by='Calmar', ascending=False):
+def jupyter_display_compare(df, sort_by='Calmar', ascending=False):
+    """在 Jupyter Notebook 中展示格式化对比表。"""
+    if df.empty:
+        return df
+
+    if not IPYTHON_AVAILABLE:
+        print_compare(df, sort_by=sort_by, ascending=ascending)
+        return df
+
+    fmt = format_table(df)
+    order_str = '升序' if ascending else '降序'
+    display(HTML(f"<b>参数优化对比表 (按 {sort_by} {order_str} 排列)</b>"))
+    with pd.option_context('display.max_columns', None):
+        display(fmt)
+    display(HTML(f"<i>共 {len(df)} 组参数</i>"))
+    return df
+
+
+def markdown_table_print(df, sort_by='Calmar', ascending=False):
+    """输出可复制的 Markdown 表格。"""
+    if df.empty:
+        return df
+
+    if not TABULATE_AVAILABLE:
+        print_compare(df, sort_by=sort_by, ascending=ascending)
+        return df
+
+    fmt = format_table(df)
+    order_str = '升序' if ascending else '降序'
+    md_title = f"### 参数优化对比表 (按 {sort_by} {order_str} 排列)\n"
+    md_table = tabulate(fmt, headers='keys', tablefmt='pipe', showindex=True)
+    md_footer = f"\n\n*共 {len(df)} 组参数*"
+    print(md_title)
+    print(md_table)
+    print(md_footer)
+    return df
+
+
+def analyze_results(mapper_path, config_path, sort_by='Calmar', ascending=False, yearly=False, output='print'):
     """一站式分析函数。
     
     读取 mapper.json 和 YAML 配置，生成对比表格。
@@ -311,8 +379,14 @@ def analyze_results(mapper_path, config_path, sort_by='Calmar', ascending=False)
         return pd.DataFrame()
     
     params_def = cfg.get('params', {})
-    df = compare_params(results, params_def, sort_by=sort_by, ascending=ascending)
-    print_compare(df, sort_by=sort_by)
+    df = compare_params(results, params_def, sort_by=sort_by, ascending=ascending, yearly=yearly)
+
+    if output == 'jupyter':
+        jupyter_display_compare(df, sort_by=sort_by, ascending=ascending)
+    elif output == 'markdown':
+        markdown_table_print(df, sort_by=sort_by, ascending=ascending)
+    else:
+        print_compare(df, sort_by=sort_by, ascending=ascending)
     
     return df
 
@@ -327,12 +401,12 @@ def get_best_config(results, params_def, sort_by='Calmar'):
         return None, None
     
     best_name = df.index[0]
-    best_params = next((params for name, params, _ in results if name == best_name), None)
+    best_params = next((params for name, params, _, _ in results if name == best_name), None)
     return best_name, best_params
 
 
 
-def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False):
+def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False, yearly=False):
     """
     Jupyter Notebook 友好的分析入口函数。
 
@@ -349,11 +423,19 @@ def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False):
         config_path (str): YAML 配置文件路径。
         sort_by (str): 排序字段，默认 'Calmar'。
         ascending (bool): 是否升序，默认 False（降序）。
+        yearly (bool): 是否增加年度收益列。
 
     Returns:
         pd.DataFrame: 包含参数和指标的对比表格。
     """
-    return analyze_results(mapper_path, config_path, sort_by=sort_by, ascending=ascending)
+    return analyze_results(
+        mapper_path,
+        config_path,
+        sort_by=sort_by,
+        ascending=ascending,
+        yearly=yearly,
+        output='jupyter'
+    )
 
 
 if __name__ == "__main__":
@@ -364,15 +446,22 @@ if __name__ == "__main__":
     parser.add_argument('config', nargs='?', help='YAML 配置文件路径 (可选)')
     parser.add_argument('--sort', '-s', default='Calmar', help='排序字段 (默认: Calmar)')
     parser.add_argument('--ascending', '-a', action='store_true', help='升序排列')
+    parser.add_argument('--yearly', action='store_true', help='显示年度收益列')
+    parser.add_argument('--output', choices=['print', 'jupyter', 'markdown'], default='print', help='输出格式')
 
     args = parser.parse_args()
 
     if args.config:
-        df = analyze_results(args.mapper, args.config, sort_by=args.sort, ascending=args.ascending)
+        df = analyze_results(
+            args.mapper,
+            args.config,
+            sort_by=args.sort,
+            ascending=args.ascending,
+            yearly=args.yearly,
+            output=args.output
+        )
     else:
         results = load_results(args.mapper)
         logger.info("Loaded %s results", len(results))
         for name, params, metrics in results[:5]:
             logger.info("  %s: %s", name, params)
-
-

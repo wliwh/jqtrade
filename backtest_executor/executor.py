@@ -6,6 +6,8 @@ import ast
 import logging
 from .logger import logger
 
+Default_Back_Id = '6e21bbaee8cc3f8423def84436a2bf49'
+
 def get_logical_hash(strategy_code: str) -> str:
     """
     计算策略逻辑的哈希值 (兼容 Python 3.6)。
@@ -245,7 +247,7 @@ class BacktestExecutorV3:
         
         logger.info("Submitting task '%s'...", name)
         bt_id = create_bt_func(
-            algorithm_id=None, 
+            algorithm_id=Default_Back_Id, 
             start_date=start_day,
             end_date=end_day,
             frequency=frequency,
@@ -279,11 +281,21 @@ class BacktestExecutorV3:
             if status == 'done':
                 self.records["runs"][task_id]["status"] = "done"
                 risk = bt.get_risk() if hasattr(bt, 'get_risk') else {}
+                annual_return = risk.get("annual_algo_return", 0)
+                max_drawdown = risk.get("max_drawdown", 0)
+                win_count = risk.get("win_count", 0) or 0
+                lose_count = risk.get("lose_count", 0) or 0
                 self.records["runs"][task_id]["metrics"] = {
-                    "annual_return": risk.get("annual_return"),
-                    "max_drawdown": risk.get("max_drawdown"),
+                    "return": risk.get("algorithm_return", 0),
+                    "annual_return": annual_return,
+                    "max_drawdown": max_drawdown,
                     "sharpe": risk.get("sharpe"),
-                    "calmar": risk.get("annual_return") / abs(risk.get("max_drawdown")) if risk.get("max_drawdown") and risk.get("max_drawdown") != 0 else 0
+                    "calmar": annual_return / abs(max_drawdown) if max_drawdown and max_drawdown != 0 else 0,
+                    "volatility": risk.get("algorithm_volatility", 0),
+                    "win_rate": risk.get("win_ratio", 0),
+                    "trades": win_count + lose_count,
+                    "avg_hold_days": risk.get("avg_position_days", 0),
+                    "turnover": risk.get("turnover_rate", 0),
                 }
                 self._save_records()
                 logger.info("Task '%s' Done. (Success)", name)
