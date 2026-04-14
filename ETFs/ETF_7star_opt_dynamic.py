@@ -14,17 +14,17 @@ EXECUTION_END_TIME_PLACEHOLDER = '13:11'
 
 EXECUTION_SCORE_THRESHOLD = (0, 5)
 EXECUTION_SHORT_MOMENTUM_PARAM = (False, 10, 0.0)      # (启用, 天数, 阈值)
-EXECUTION_R2_PARAM = (True, 0.4)                      # (启用, 阈值)
+EXECUTION_R2_PARAM = (False, 0.4)                      # (启用, 阈值)
 EXECUTION_ANNUAL_RETURN_PARAM = (False, 1.0)           # (启用, 阈值)
 EXECUTION_MA_PARAM = (False, 20)                      # (启用, 天数)
-EXECUTION_VOLUME_PARAM = (True, 5, 1.0)               # (启用, 回看, 阈值)
+EXECUTION_VOLUME_PARAM = (False, 5, 1.0)               # (启用, 回看, 阈值)
 EXECUTION_LOSS_PARAM = (True, 0.97)                   # (启用, 阈值)
 EXECUTION_RSI_PARAM = (False, 6, 1, 98)                # (启用, 周期, 回看, 阈值)
 
-EXECUTION_FIXED_STOPLOSS = (True, 0.95)               # (启用, 阈值)
+EXECUTION_FIXED_STOPLOSS = (False, 0.95)               # (启用, 阈值)
 EXECUTION_PCT_STOPLOSS = (False, 0.95)                # (启用, 阈值)
 EXECUTION_ATR_STOPLOSS = (False, 14, 2, True, True)   # (启用, 周期, 倍数, 跟踪, 排除防御)
-EXECUTION_SELL_COOLDOWN = (True, 3)                  # (启用, 天数)
+EXECUTION_SELL_COOLDOWN = (False, 3)                  # (启用, 天数)
 
 # 动态ETF池配置
 EXECUTION_FLITER_MARKET = (False, False, True)        # (过滤A股, 过滤跨境/QDII, 过滤债基/货币)

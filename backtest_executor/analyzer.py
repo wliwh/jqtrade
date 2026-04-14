@@ -6,6 +6,8 @@
 在 JQ 研究环境中运行。
 """
 import argparse
+import builtins
+from collections import Counter
 import numpy as np
 import pandas as pd
 import yaml
@@ -28,9 +30,55 @@ except ImportError:
 
 try:
     from jqdata import get_backtest
-    JQ_AVAILABLE = True
 except ImportError:
-    JQ_AVAILABLE = False
+    get_backtest = None
+
+
+def _resolve_get_backtest():
+    """在运行时解析 get_backtest，兼容 JQ Notebook 的延迟注入。"""
+    if callable(get_backtest):
+        return get_backtest
+
+    builtins_get_backtest = getattr(builtins, 'get_backtest', None)
+    if callable(builtins_get_backtest):
+        return builtins_get_backtest
+
+    try:
+        from jqdata import get_backtest as jq_get_backtest
+        return jq_get_backtest
+    except ImportError:
+        return None
+
+
+def _compress_display_ids(index_values, max_len=40):
+    """压缩展示用 ID，优先去掉共有前缀，再对过长部分做中间省略。"""
+    labels = [str(v) for v in index_values]
+    if not labels:
+        return labels
+
+    prefix = os.path.commonprefix(labels)
+    shared_prefix = ''
+    if len(prefix) >= 8 and '_' in prefix:
+        shared_prefix = prefix[:prefix.rfind('_') + 1]
+
+    if shared_prefix:
+        trimmed = [label[len(shared_prefix):] or label for label in labels]
+        if len(set(trimmed)) == len(trimmed):
+            labels = trimmed
+
+    compressed = []
+    for label in labels:
+        if len(label) <= max_len:
+            compressed.append(label)
+            continue
+        head_len = max(10, max_len // 3)
+        tail_len = max(12, max_len - head_len - 1)
+        compressed.append(label[:head_len] + '…' + label[-tail_len:])
+
+    if len(set(compressed)) != len(compressed):
+        return labels
+
+    return compressed
 
 
 def _detect_param_types(params_def):
@@ -99,14 +147,16 @@ def _parse_param_columns(config, params_def, toggleable, rangeable):
 
 def _fetch_risk_metrics(backtest_id):
     """从 JQ 平台获取回测风险指标。"""
-    if not JQ_AVAILABLE:
+    get_bt = _resolve_get_backtest()
+    if not callable(get_bt):
         return _mock_risk_metrics()
     
     try:
-        bt = get_backtest(backtest_id)
-        if not bt or bt.get_status() != 'done':
+        bt = get_bt(backtest_id)
+        status = bt.get_status() if hasattr(bt, 'get_status') else bt.get('status') if isinstance(bt, dict) else None
+        if not bt or status != 'done':
             return None
-        metrics = bt.get_risk()
+        metrics = bt.get_risk() if hasattr(bt, 'get_risk') else bt.get('risk', {}) if isinstance(bt, dict) else None
         if not metrics:
             return None
         
@@ -150,28 +200,126 @@ def _mock_risk_metrics():
     }
 
 
-def _fetch_yearly_returns(backtest_id):
-    """从 JQ 平台获取每年收益率。"""
-    if not JQ_AVAILABLE:
-        return None
-    
-    try:
-        bt = get_backtest(backtest_id)
-        if not bt or bt.get_status() != 'done':
-            return None
-        risks = bt.get_period_risks()
-        if not risks or 'algorithm_return' not in risks:
-            return None
-        df_src = risks['algorithm_return']
-        if 'one_month' not in df_src.columns:
-            return None
-        monthly = df_src['one_month']
-        df_m = monthly.to_frame(name='ret')
-        df_m['Year'] = df_m.index.map(lambda x: int(x.split('-')[0]))
+def _fetch_yearly_returns_with_reason(backtest_id):
+    """从 JQ 平台获取每年收益率，并返回失败原因。"""
+    get_bt = _resolve_get_backtest()
+    if not callable(get_bt):
+        return None, 'jq_unavailable'
+
+    def _yearly_from_monthly(monthly, source_name):
+        if monthly is None:
+            return None, 'monthly_missing'
+
+        df_m = monthly.to_frame(name='ret').copy()
+        df_m = df_m[pd.notnull(df_m['ret'])]
+        if df_m.empty:
+            return None, 'monthly_empty'
+
+        years = pd.to_datetime(df_m.index, errors='coerce').year
+        if pd.isnull(years).all():
+            years = pd.Series(df_m.index.astype(str), index=df_m.index).str.extract(r'(\d{4})', expand=False)
+            years = pd.to_numeric(years, errors='coerce')
+
+        df_m['Year'] = years
+        df_m = df_m[pd.notnull(df_m['Year'])]
+        if df_m.empty:
+            logger.warning("年度收益提取失败 (%s): %s 的索引中无法解析年份。", backtest_id, source_name)
+            return None, 'year_parse_failed'
+
+        df_m['Year'] = df_m['Year'].astype(int)
         yearly = df_m.groupby('Year')['ret'].apply(lambda x: np.prod(1 + x) - 1)
-        return {f'Y{y}': r for y, r in yearly.items()}
+        return ({f'Y{y}': r for y, r in yearly.items()}, None) if not yearly.empty else (None, 'yearly_empty')
+
+    try:
+        bt = get_bt(backtest_id)
+        if not bt:
+            return None, 'backtest_missing'
     except Exception as e:
-        return None
+        logger.warning("获取年度收益失败 (%s): get_backtest() 异常: %s", backtest_id, e)
+        return None, 'get_backtest_error'
+
+    try:
+        if hasattr(bt, 'get_period_risks'):
+            risks = bt.get_period_risks()
+            if risks:
+                monthly = None
+                candidate_keys = ['algorithm_return', 'algo_return', 'returns', 'return']
+
+                for key in candidate_keys:
+                    if key not in risks:
+                        continue
+                    src = risks[key]
+
+                    if isinstance(src, pd.Series):
+                        monthly = src
+                        break
+
+                    if isinstance(src, pd.DataFrame):
+                        preferred_cols = ['one_month', 'monthly', 'month', 'return']
+                        for col in preferred_cols:
+                            if col in src.columns:
+                                monthly = src[col]
+                                break
+                        if monthly is None and len(src.columns) == 1:
+                            monthly = src.iloc[:, 0]
+                        if monthly is not None:
+                            break
+
+                yearly, reason = _yearly_from_monthly(monthly, 'get_period_risks()')
+                if yearly:
+                    return yearly, None
+
+                logger.warning(
+                    "年度收益提取失败 (%s): get_period_risks() 中未找到可用月收益列，可用键: %s；将尝试回退到 get_results()。",
+                    backtest_id,
+                    list(risks.keys()) if hasattr(risks, 'keys') else type(risks).__name__
+                )
+    except Exception as e:
+        logger.warning("年度收益提取失败 (%s): get_period_risks() 异常: %s；将尝试回退到 get_results()。", backtest_id, e)
+
+    try:
+        if not hasattr(bt, 'get_results'):
+            logger.warning("年度收益提取失败 (%s): backtest 对象不支持 get_results()。", backtest_id)
+            return None, 'get_results_unsupported'
+
+        results = bt.get_results()
+        if not results:
+            return None, 'results_empty'
+
+        df_res = pd.DataFrame(results)
+        if 'time' not in df_res.columns or 'returns' not in df_res.columns:
+            logger.warning(
+                "年度收益提取失败 (%s): get_results() 缺少 time/returns 列，实际列: %s",
+                backtest_id,
+                list(df_res.columns)
+            )
+            return None, 'results_missing_columns'
+
+        df_res['time'] = pd.to_datetime(df_res['time'], errors='coerce')
+        df_res = df_res[pd.notnull(df_res['time'])].copy()
+        if df_res.empty:
+            return None, 'results_time_empty'
+
+        df_res.sort_values('time', inplace=True)
+        total_ret = pd.to_numeric(df_res['returns'], errors='coerce').fillna(0.0)
+        daily_ret = (1 + total_ret).pct_change().fillna(0.0)
+        if len(daily_ret) > 0:
+            daily_ret.iloc[0] = total_ret.iloc[0]
+
+        monthly = daily_ret.groupby(df_res['time'].dt.to_period('M')).apply(lambda x: np.prod(1 + x) - 1)
+        monthly.index = monthly.index.astype(str)
+        yearly, reason = _yearly_from_monthly(monthly, 'get_results()')
+        if yearly:
+            return yearly, None
+        return None, reason or 'yearly_build_failed'
+    except Exception as e:
+        logger.warning("年度收益提取失败 (%s): get_results() 回退方案异常: %s", backtest_id, e)
+        return None, 'get_results_error'
+
+
+def _fetch_yearly_returns(backtest_id):
+    yearly, _ = _fetch_yearly_returns_with_reason(backtest_id)
+    return yearly
 
 
 def load_results(mapper_path):
@@ -217,6 +365,9 @@ def compare_params(results, params_def, sort_by='Calmar', ascending=False, yearl
     toggleable, rangeable = _detect_param_types(params_def)
     
     rows = []
+    yearly_cols_found = False
+    missing_bt_id_count = 0
+    yearly_failure_reasons = Counter()
     
     for name, params, metrics, bt_id in results:
         if not metrics:
@@ -243,9 +394,14 @@ def compare_params(results, params_def, sort_by='Calmar', ascending=False, yearl
         year_cols = {}
         year_cols = {}
         if yearly and bt_id:
-            yr = _fetch_yearly_returns(bt_id)
+            yr, reason = _fetch_yearly_returns_with_reason(bt_id)
             if yr:
                 year_cols = yr
+                yearly_cols_found = True
+            elif reason:
+                yearly_failure_reasons[reason] += 1
+        elif yearly:
+            missing_bt_id_count += 1
         
         row = {'ID': name}
         row.update(param_cols)
@@ -256,6 +412,16 @@ def compare_params(results, params_def, sort_by='Calmar', ascending=False, yearl
     if not rows:
         logger.info("没有有效的回测结果。")
         return pd.DataFrame()
+
+    if yearly and not yearly_cols_found:
+        reason_summary = ', '.join(f'{k}:{v}' for k, v in yearly_failure_reasons.most_common()) or 'unknown'
+        logger.warning(
+            "yearly=True，但没有获取到任何年度收益列。缺少 bt_id 的结果数: %s。"
+            "年度收益提取失败统计: %s。"
+            "当前代码已兼容多种 get_period_risks() 结构，也兼容 get_backtest() 返回 dict/object 两种形态。",
+            missing_bt_id_count,
+            reason_summary
+        )
     
     df = pd.DataFrame(rows)
     df.set_index('ID', inplace=True)
@@ -301,6 +467,8 @@ def format_table(df):
         fmt['AvgHoldDays'] = fmt['AvgHoldDays'].apply(
             lambda x: f"{x:.1f}" if isinstance(x, (int, float)) and not isinstance(x, bool) else x
         )
+
+    fmt.index = pd.Index(_compress_display_ids(fmt.index), name=fmt.index.name)
     
     return fmt
 
@@ -339,8 +507,7 @@ def jupyter_display_compare(df, sort_by='Calmar', ascending=False):
     fmt = format_table(df)
     order_str = '升序' if ascending else '降序'
     display(HTML(f"<b>参数优化对比表 (按 {sort_by} {order_str} 排列)</b>"))
-    with pd.option_context('display.max_columns', None):
-        display(fmt)
+    display(HTML(fmt.to_html()))
     display(HTML(f"<i>共 {len(df)} 组参数</i>"))
     return df
 
@@ -406,7 +573,7 @@ def get_best_config(results, params_def, sort_by='Calmar'):
 
 
 
-def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False, yearly=False):
+def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False, yearly=False, output='jupyter'):
     """
     Jupyter Notebook 友好的分析入口函数。
 
@@ -424,6 +591,7 @@ def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False, year
         sort_by (str): 排序字段，默认 'Calmar'。
         ascending (bool): 是否升序，默认 False（降序）。
         yearly (bool): 是否增加年度收益列。
+        output (str): 输出格式，可选 jupyter|markdown|print
 
     Returns:
         pd.DataFrame: 包含参数和指标的对比表格。
@@ -434,7 +602,7 @@ def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False, year
         sort_by=sort_by,
         ascending=ascending,
         yearly=yearly,
-        output='jupyter'
+        output=output
     )
 
 

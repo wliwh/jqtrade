@@ -1,0 +1,89 @@
+# 策略优化配置文件：7星 ETF 策略 (Fixed Pool)
+# 路径：backtest_executor/config/etf_7star_opt.yaml
+
+strategy:
+  file: "ETFs/ETF_7star_opt.py"
+  # base_id 仅作记录参考
+  base_id: "7star_fixed_base_20260413"
+
+backtest:
+  start_day: "2023-01-01"
+  end_day: "2026-03-01"
+  initial_cash: 100000
+
+# 全局参数库定义
+params:
+  S:
+    var: EXECUTION_SCORE_THRESHOLD
+    default: [0, 5]
+    values: [[0, 4], [0, 5], [0, 6], [0, 8], [0, 10]]
+  st:
+    var: EXECUTION_SHORT_MOMENTUM_PARAM
+    default: [false, 10, 0.0]
+    values: [[false, 10, 0.0], [true, 10, 0.0]]
+  r:
+    var: EXECUTION_R2_PARAM
+    default: [false, 0.4]
+    values: [[false, 0.4], [true, 0.3], [true, 0.4], [true, 0.5]]
+  ar:
+    var: EXECUTION_ANNUAL_RETURN_PARAM
+    default: [false, 1.0]
+    values: [[false, 1.0], [true, 1.0]]
+  ma:
+    var: EXECUTION_MA_PARAM
+    default: [false, 20]
+    values: [[false, 20], [true, 20]]
+  v:
+    var: EXECUTION_VOLUME_PARAM
+    default: [false, 5, 1.0]
+    values: [[false, 5, 1.0], [true, 5, 0.8], [true, 5, 1.0], [true, 5, 1.2], [true, 5, 1.5]]
+  ls:
+    var: EXECUTION_LOSS_PARAM
+    default: [true, 0.97]
+    values: [[true, 0.97], [false, 0.97]]
+  fl:
+    var: EXECUTION_FIXED_STOPLOSS
+    default: [false, 0.95]
+    values: [[false, 0.95], [true, 0.95]]
+  slday:
+    var: EXECUTION_SELL_COOLDOWN
+    default: [false, 3]
+    values: [[false, 3], [true, 3]]
+
+# 寻优轮次定义
+rounds:
+  # 第一轮：开关测试 (Grid Search)
+  - name: "round1a_switches"
+    method: "grid"
+    search: [st, ar, ma, ls, fl]
+    fixed:
+      S: [0, 5]
+  
+  - name: "round1b_switches"
+    method: "grid"
+    search: [st, ar, ma, ls, slday]
+    fixed:
+      S: [0, 5]
+      fl: [true, 0.95]
+
+  # 第二轮：参数微调 (Random Search)
+  - name: "round2_fine_tuning"
+    method: "random"
+    count: 10
+    search: [S, v, r]
+    fixed:
+      st: [true, 10, 0.0]
+      r: [true, 0.4]
+      ma: [false, 20]
+      ls: [true, 0.97]
+
+  # 第三轮：止损敏感度
+  - name: "round3_loss_sensitivity"
+    method: "sensitivity"
+    search: [ls]
+    base:
+      S: [0, 5]
+      st: [true, 10, 0.0]
+      r: [true, 0.4]
+      ma: [false, 20]
+      v: [true, 5, 1.0]
