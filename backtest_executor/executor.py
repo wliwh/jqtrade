@@ -207,7 +207,16 @@ class BacktestExecutorV3:
     def run_single_task(self, name: str, params: dict, 
                         create_bt_func, get_bt_func, 
                         start_day='2018-01-01', end_day='2026-01-10', 
-                        initial_cash=100000, frequency='day', use_credit=True):
+                        initial_cash=100000, frequency='day', use_credit=True,
+                        poll_interval=10, log_interval=60):
+        def format_duration(seconds):
+            seconds = max(int(seconds), 0)
+            minutes, sec = divmod(seconds, 60)
+            hours, minutes = divmod(minutes, 60)
+            if hours:
+                return "%02d:%02d:%02d" % (hours, minutes, sec)
+            return "%02d:%02d" % (minutes, sec)
+
         # 读取源码
         with open(self.strategy_file, 'r', encoding='utf-8') as f:
             original_code = f.read()
@@ -272,11 +281,29 @@ class BacktestExecutorV3:
         }
         self._save_records()
 
+        submitted_at = time.time()
+        last_logged_at = 0
+        last_status = None
+
         while True:
             bt = get_bt_func(bt_id)
             # 兼容不同版本的 JQ API，有些返回对象，有些返回字典
             status = bt.get_status() if hasattr(bt, 'get_status') else bt['status']
-            logger.info("Polling task '%s' (BTID: %s, TaskID: %s): %s", name, bt_id, task_id, status)
+            now = time.time()
+            elapsed = format_duration(now - submitted_at)
+            should_log = (
+                status != last_status or
+                last_logged_at == 0 or
+                now - last_logged_at >= log_interval
+            )
+
+            if should_log and status not in ['done', 'failed', 'canceled', 'deleted']:
+                logger.info(
+                    "Task '%s' polling status=%s (BTID: %s, elapsed: %s)",
+                    name, status, bt_id, elapsed
+                )
+                last_logged_at = now
+            last_status = status
             
             if status == 'done':
                 self.records["runs"][task_id]["status"] = "done"
@@ -298,14 +325,15 @@ class BacktestExecutorV3:
                     "turnover": risk.get("turnover_rate", 0),
                 }
                 self._save_records()
-                logger.info("Task '%s' Done. (Success)", name)
+                logger.info("Task '%s' Done. (Success, elapsed: %s)", name, elapsed)
                 return bt_id
             elif status in ['failed', 'canceled', 'deleted']:
                 self.records["runs"][task_id]["status"] = status
                 self._save_records()
+                logger.warning("Task '%s' ended with status=%s (elapsed: %s)", name, status, elapsed)
                 return None
             
-            time.sleep(10)
+            time.sleep(poll_interval)
 
 def mock_test():
     code_v1 = "import os\n# Comment\nEXECUTION_S = 10\ndef run():\n    print('hello')\n"

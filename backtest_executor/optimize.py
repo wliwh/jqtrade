@@ -109,7 +109,17 @@ def get_param_id(short_params, max_total_len=64):
         
     return res
 
-def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
+
+def format_duration(seconds):
+    seconds = max(int(seconds), 0)
+    minutes, sec = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return "%02d:%02d:%02d" % (hours, minutes, sec)
+    return "%02d:%02d" % (minutes, sec)
+
+def run_optimization(config_path, round_name, create_bt_func, get_bt_func,
+                     poll_interval=10, log_interval=60):
     """
     主入口函数。
     """
@@ -144,6 +154,11 @@ def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
         base_params.update(round_cfg['fixed'])
 
     # 5. 执行循环
+    round_started_at = time.time()
+    completed_count = 0
+    completed_durations = []
+    total_count = len(combos)
+
     for i, short_combo in enumerate(combos):
         # 合并当前组合
         current_short_params = base_params.copy()
@@ -159,9 +174,40 @@ def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
         param_id = get_param_id(short_combo) if short_combo else "BASE"
         task_name = f"{round_name}_{param_id}"
 
-        logger.info("[PROGRESS] %s/%s: %s", i+1, len(combos), task_name)
+        current_index = i + 1
+        progress_pct = (completed_count / float(total_count) * 100) if total_count else 100
+        elapsed_round = time.time() - round_started_at
+        avg_duration = (
+            sum(completed_durations) / float(len(completed_durations))
+            if completed_durations else None
+        )
+        remaining_count = total_count - completed_count
+
+        if avg_duration is not None and remaining_count > 0:
+            remaining_seconds = int(avg_duration * remaining_count)
+            eta_timestamp = time.time() + remaining_seconds
+            avg_text = "avg %s/task" % format_duration(avg_duration)
+            eta_text = "ETA %s | finish around %s" % (
+                format_duration(remaining_seconds),
+                time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(eta_timestamp))
+            )
+        else:
+            avg_text = "avg calculating"
+            eta_text = "ETA calculating"
+
+        logger.info(
+            "[PROGRESS] %s/%s | %.1f%% | elapsed %s | %s | %s | %s",
+            current_index,
+            total_count,
+            progress_pct,
+            format_duration(elapsed_round),
+            avg_text,
+            eta_text,
+            task_name
+        )
         
         # 执行（executor 自带去重和状态检查）
+        task_started_at = time.time()
         executor.run_single_task(
             name=task_name,
             params=full_params,
@@ -169,8 +215,12 @@ def run_optimization(config_path, round_name, create_bt_func, get_bt_func):
             get_bt_func=get_bt_func,
             start_day=cfg['backtest'].get('start_day', '2018-01-01'),
             end_day=cfg['backtest'].get('end_day', '2026-01-10'),
-            initial_cash=cfg['backtest'].get('initial_cash', 100000)
+            initial_cash=cfg['backtest'].get('initial_cash', 100000),
+            poll_interval=poll_interval,
+            log_interval=log_interval
         )
+        completed_count += 1
+        completed_durations.append(time.time() - task_started_at)
 
     logger.info("Round '%s' completed. Results in %s", round_name, mapper_path)
 
@@ -180,6 +230,8 @@ def main():
     parser.add_argument('--config', '-c', required=True, help='YAML 配置文件路径')
     parser.add_argument('--round', '-r', required=True, help='要执行的轮次名称')
     parser.add_argument('--base-id', '-b', help='JoinQuant base_id (可选)')
+    parser.add_argument('--poll-interval', type=int, default=10, help='任务状态轮询间隔（秒）')
+    parser.add_argument('--log-interval', type=int, default=60, help='任务轮询日志输出间隔（秒）')
     
     args = parser.parse_args()
     
@@ -187,10 +239,17 @@ def main():
         logger.error("jqdata not available. Please run in JQ environment.")
         sys.exit(1)
     
-    run_optimization(args.config, args.round, create_backtest, get_backtest)
+    run_optimization(
+        args.config,
+        args.round,
+        create_backtest,
+        get_backtest,
+        poll_interval=args.poll_interval,
+        log_interval=args.log_interval
+    )
 
 
-def nb_run(config_path, round_name):
+def nb_run(config_path, round_name, poll_interval=10, log_interval=60):
     """
     Jupyter Notebook 友好的入口函数。
 
@@ -199,10 +258,13 @@ def nb_run(config_path, round_name):
 
         from backtest_executor import nb_run
         nb_run('backtest_executor/config/etf_gao.yaml', 'round1_grid')
+        nb_run('backtest_executor/config/etf_gao.yaml', 'round1_grid', log_interval=120)
 
     Args:
         config_path (str): YAML 配置文件路径。
         round_name (str): 要执行的轮次名称（对应 YAML 中 rounds[].name）。
+        poll_interval (int): 任务状态轮询间隔，默认 10 秒。
+        log_interval (int): 轮询日志输出间隔，默认 60 秒。
     """
     # 在 JQ Notebook 中，create_backtest / get_backtest 由平台注入全局命名空间
     # 通过 __builtins__ 或直接 import 均可获取
@@ -220,7 +282,14 @@ def nb_run(config_path, round_name):
                 "请确认在 JQ 研究环境中运行，或已安装 jqdata。"
             )
 
-    run_optimization(config_path, round_name, _create_bt, _get_bt)
+    run_optimization(
+        config_path,
+        round_name,
+        _create_bt,
+        _get_bt,
+        poll_interval=poll_interval,
+        log_interval=log_interval
+    )
 
 
 if __name__ == '__main__':

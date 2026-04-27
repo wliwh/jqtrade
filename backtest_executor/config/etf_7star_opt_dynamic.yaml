@@ -73,7 +73,7 @@ rounds:
   # 第二轮：参数微调 (Random Search)
   - name: "round2_fine_tuning"
     method: "random"
-    count: 12
+    count: 40
     search: [S, v, r]
     fixed:
       st: [true, 10, 0.0]
