@@ -1,6 +1,6 @@
 """轻量级参数对比分析模块。
 
-根据 compare_params_plan.md 设计，输出纯表格，不做绘图。
+根据 backtest_executor/docs/planning/backtest_parameter_comparison_table_design.md 设计，输出纯表格，不做绘图。
 在 JQ 研究环境中运行。
 """
 from jqdata import *

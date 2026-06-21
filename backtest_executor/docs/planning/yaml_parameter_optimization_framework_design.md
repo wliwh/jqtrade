@@ -1,6 +1,6 @@
 # 策略参数优化工具设计方案
 
-在 `backtest_executor/` 下构建一套独立的、YAML 驱动的策略参数优化系统，与旧系统 `backtest_jq/` 并行共存。
+在 `backtest_executor/` 下构建一套独立的、YAML 驱动的策略参数优化系统。旧系统已归档到 `backtest_executor/archive/backtest_jq/`，用于参考和复现实验。
 
 ## 约束与前提
 
@@ -150,7 +150,7 @@ rounds:
 
 ## 4. 结果分析 (`analyzer.py`)
 
-从 `backtest_jq/analyze_simple.py` 复制并解耦，核心改动：
+从 `backtest_executor/archive/backtest_jq/analyze_simple.py` 复制并解耦，核心改动：
 
 - 删除 `from generate_params import Rules, Baseline` 依赖
 - 参数列名由调用方（`optimize.py`）从 YAML 读取后传入

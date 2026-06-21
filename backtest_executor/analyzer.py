@@ -1,6 +1,6 @@
 """参数优化结果分析模块。
 
-从 backtest_jq/analyze_simple.py 复制并解耦。
+从 backtest_executor/archive/backtest_jq/analyze_simple.py 复制并解耦。
 从 YAML 配置读取参数定义，而非 generate_params。
 
 在 JQ 研究环境中运行。

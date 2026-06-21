@@ -32,16 +32,16 @@
 - **后期**：
     - 可集成`micro/`中的一致性分析（PCA等）
 
-## 3. 回测引擎 (backtest_engine/)
-**状态**: 🟢 稳定 (持续维护)  
-**概述**: 提供策略回测、结果分析和性能评估的工具集。
+## 3. 归档回测引擎 (backtest_executor/archive/backtest_engine/)
+**状态**: ⚪ 已归档 (参考与复现)  
+**概述**: 早期策略回测、结果分析和性能评估工具集，现作为旧流程归档保留。
 - **核心组件**:
     - `Simple_Backtest_Manager.py`: 简易回测管理器。
     - `backtest_analyse.py`: 多次回测结果的对比分析与图表绘制。
     - `evaluate_pool.py`: 专门针对单次ETF轮动策略的评估，对比对象为ETF池内的标的，评估方法包括滚动收益对比、持仓段比较、换仓效果分析等。
-- **文档**:
-    - `JQ_backtest_API.md`: JoinQuant回测API说明文档，节略版。
-    - `strategy_comparison*.md`: 策略对比分析报告。
+	- **文档**:
+	    - `backtest_executor/docs/api/JQ_backtest_API.md`: JoinQuant回测API说明文档，节略版。
+	    - `backtest_executor/docs/forum_articles/strategy_comparison*.md`: 策略对比分析报告。
 - **观察**:
     - 目录结构清晰，功能划分明确。
     - `results/` 目录用于存放回测输出，需定期清理或归档。
@@ -74,4 +74,3 @@
 - **待办**:
     - [ ] 编写 `analyzer.py` 以可视化展示 `mapper.json` 中的结果。
     - [ ] 在 JQ 真实环境下进行联调测试。
-
