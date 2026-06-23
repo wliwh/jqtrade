@@ -11,6 +11,7 @@ from backtest_executor.executor import (
     BacktestExecutorV3
 )
 from backtest_executor.optimize import ParameterGenerator, get_param_id
+from backtest_executor.analyzer import _build_param_display_specs, _parse_param_columns
 
 # --- AST & Tools Tests ---
 
@@ -81,6 +82,68 @@ def test_get_param_id():
     assert get_param_id({"S": 0.5}) == "S.5"
     assert get_param_id({"B": True}) == "BT"
     assert get_param_id({"L": [True, 0.95]}) == "LT-.95"
+
+
+def test_analyzer_param_display_for_current_yaml_shapes():
+    params_def = {
+        "S": {
+            "var": "EXECUTION_SCORE_THRESHOLD",
+            "default": [0, 5],
+            "values": [[0, 4], [0, 5]],
+        },
+        "ar": {
+            "var": "EXECUTION_ANNUAL_RETURN_PARAM",
+            "default": [False, 1.0],
+            "values": [[False, 1.0], [True, 1.0]],
+        },
+        "r": {
+            "var": "EXECUTION_R2_PARAM",
+            "default": [False, 0.4],
+            "values": [[False, 0.4], [True, 0.3], [True, 0.4]],
+        },
+        "fm": {
+            "var": "EXECUTION_FLITER_MARKET",
+            "default": [False, False, True],
+            "values": [
+                [False, False, True],
+                [True, False, True],
+                [False, True, True],
+            ],
+        },
+    }
+    specs = _build_param_display_specs(params_def)
+
+    assert specs["ar"]["mode"] == "toggle"
+    assert specs["r"]["mode"] == "payload"
+    assert specs["fm"]["mode"] == "bool_vector"
+
+    row = _parse_param_columns(
+        {
+            "S": [0, 5],
+            "ar": [True, 1.0],
+            "r": [True, 0.4],
+            "fm": [True, False, True],
+        },
+        params_def,
+        specs,
+    )
+    assert row["S"] == "[0, 5]"
+    assert row["ar"] == "✓"
+    assert row["r"] == "0.4"
+    assert row["fm"] == "T/F/T"
+
+    row = _parse_param_columns(
+        {
+            "EXECUTION_ANNUAL_RETURN_PARAM": [False, 1.0],
+            "EXECUTION_R2_PARAM": [False, 0.4],
+            "EXECUTION_FLITER_MARKET": [False, True, True],
+        },
+        params_def,
+        specs,
+    )
+    assert row["ar"] == "-"
+    assert row["r"] == "-"
+    assert row["fm"] == "F/T/T"
 
 # --- Executor Core Tests ---
 

@@ -83,21 +83,34 @@ def _build_param_display_specs(params_def):
     """构建参数显示规则。
 
     - 纯开关: 仅显示 ✓ / -
+    - 多布尔位列表: 显示完整布尔向量，如 T/F/T
     - 带开关且 payload 可变: 仅显示真正变化的 payload 部分
     """
     specs = {}
 
     for key, cfg in params_def.items():
+        raw_candidates = []
         candidates = []
         default = cfg.get('default')
         values = cfg.get('values', [])
 
+        if isinstance(default, (list, tuple)) and default:
+            raw_candidates.append(list(default))
         if isinstance(default, (list, tuple)) and default and isinstance(default[0], bool):
             candidates.append(list(default))
 
         for item in values:
+            if isinstance(item, (list, tuple)) and item:
+                raw_candidates.append(list(item))
             if isinstance(item, (list, tuple)) and item and isinstance(item[0], bool):
                 candidates.append(list(item))
+
+        if raw_candidates and all(
+            len(item) > 1 and all(isinstance(v, bool) for v in item)
+            for item in raw_candidates
+        ):
+            specs[key] = {'mode': 'bool_vector'}
+            continue
 
         if not candidates:
             continue
@@ -148,6 +161,7 @@ def _parse_param_columns(config, params_def, display_specs):
     
     参数显示逻辑：
     - 纯开关类型: 显示 ✓ / -
+    - 多布尔位列表: 显示完整布尔向量，如 T/F/T
     - 带 bool 开关但 payload 可变: 显示 off / 具体 payload
     - 其他 list: 显示原始 payload
     """
@@ -168,7 +182,9 @@ def _parse_param_columns(config, params_def, display_specs):
 
         spec = display_specs.get(key)
 
-        if spec and spec.get('mode') == 'toggle' and isinstance(val, list) and val:
+        if spec and spec.get('mode') == 'bool_vector' and isinstance(val, list):
+            row[key] = "/".join(_format_param_item(v) for v in val)
+        elif spec and spec.get('mode') == 'toggle' and isinstance(val, list) and val:
             row[key] = '✓' if val[0] else '-'
         elif spec and spec.get('mode') == 'payload' and isinstance(val, list) and val and isinstance(val[0], bool):
             if val[0]:

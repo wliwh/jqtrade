@@ -24,7 +24,7 @@ params:
   r:
     var: EXECUTION_R2_PARAM
     default: [false, 0.4]
-    values: [[false, 0.4], [true, 0.3], [true, 0.4], [true, 0.5]]
+    values: [[false, 0.4], [true, 0.3], [true, 0.4], [true, 0.5], [true, 0.6]]
   ar:
     var: EXECUTION_ANNUAL_RETURN_PARAM
     default: [false, 1.0]
@@ -36,7 +36,7 @@ params:
   v:
     var: EXECUTION_VOLUME_PARAM
     default: [false, 5, 1.0]
-    values: [[false, 5, 1.0], [true, 5, 0.8], [true, 5, 1.0], [true, 5, 1.2], [true, 5, 1.5]]
+    values: [[false, 5, 1.0], [true, 5, 0.8], [true, 5, 1.0], [true, 5, 1.2], [true, 5, 1.5], [true, 5, 2.0]]
   ls:
     var: EXECUTION_LOSS_PARAM
     default: [true, 0.97]
@@ -78,18 +78,39 @@ rounds:
       - {S: [0,5], ar: [true, 1.0], ma: [true, 20], ls: [true, 0.97], fl: [true, 0.95], slday: [true, 3], fm: [true, false, true]}
       - {S: [0,5], st: [true, 10, 0.0], ar: [true, 1.0], ls: [true, 0.97], fl: [true, 0.95], slday: [true, 3], fm: [true, false, true]}
       - {S: [0,5], st: [true, 10, 0.0], ar: [true, 1.0], ma: [true, 20], ls: [true, 0.97], fl: [true, 0.95], slday: [true, 3], fm: [true, false, true]}
-      
 
   # 第二轮：参数微调 (Random Search)
   - name: "round2_fine_tuning"
     method: "random"
-    count: 40
+    count: 50
     search: [S, v, r]
     fixed:
-      st: [true, 10, 0.0]
-      ar: [false, 1.0]
-      ma: [false, 20]
+      ar: [true, 1.0]
       ls: [true, 0.97]
+      fl: [true, 0.95]
+      slday: [true, 3]
+      fm: [false, false, true]
+
+  - name: "round2b_fine_tuning"
+    method: "random"
+    count: 20
+    search: [S, v, r]
+    fixed:
+      ls: [true, 0.97]
+      fl: [true, 0.95]
+      slday: [true, 3]
+      fm: [false, false, true]
+
+  - name: "round2c_Ashare"
+    method: "grid"
+    search: [fm, v]
+    fixed:
+      S: [0, 5]
+      r: [true, 0.4]
+      ar: [true, 1.0]
+      ls: [true, 0.97]
+      fl: [true, 0.95]
+      slday: [true, 3]
 
   # 第三轮：均线与风控敏感度
   - name: "round3_filter_sensitivity"
