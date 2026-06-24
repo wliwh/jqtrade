@@ -10,8 +10,13 @@ from backtest_executor.executor import (
     inject_params_to_code, 
     BacktestExecutorV3
 )
-from backtest_executor.optimize import ParameterGenerator, get_param_id
-from backtest_executor.analyzer import _build_param_display_specs, _parse_param_columns
+from backtest_executor.optimize import ParameterGenerator, get_param_id, resolve_mapper_path
+from backtest_executor.analyzer import (
+    _build_param_display_specs,
+    _parse_param_columns,
+    compare_params,
+    csv_table_print,
+)
 
 # --- AST & Tools Tests ---
 
@@ -84,6 +89,28 @@ def test_get_param_id():
     assert get_param_id({"L": [True, 0.95]}) == "LT-.95"
 
 
+def test_resolve_mapper_path_uses_default_and_custom_file_name():
+    cfg = {"strategy": {"file": "ETFs/MyStrategy.py"}}
+    assert resolve_mapper_path(cfg) == os.path.join(
+        "backtest_executor", "results", "MyStrategy", "mapper.json"
+    )
+
+    cfg["results"] = {"mapper_file": "custom_mapper.json"}
+    assert resolve_mapper_path(cfg) == os.path.join(
+        "backtest_executor", "results", "MyStrategy", "custom_mapper.json"
+    )
+
+
+def test_resolve_mapper_path_rejects_path_like_file_name():
+    cfg = {
+        "strategy": {"file": "ETFs/MyStrategy.py"},
+        "results": {"mapper_file": "../mapper.json"},
+    }
+
+    with pytest.raises(ValueError, match="file name"):
+        resolve_mapper_path(cfg)
+
+
 def test_analyzer_param_display_for_current_yaml_shapes():
     params_def = {
         "S": {
@@ -144,6 +171,42 @@ def test_analyzer_param_display_for_current_yaml_shapes():
     assert row["ar"] == "-"
     assert row["r"] == "-"
     assert row["fm"] == "F/T/T"
+
+
+def test_analyzer_can_keep_mapper_order_and_print_csv(capsys):
+    params_def = {
+        "S": {
+            "var": "EXECUTION_SCORE_THRESHOLD",
+            "default": [0, 5],
+            "values": [[0, 4], [0, 5]],
+        },
+    }
+    results = [
+        (
+            "long_task_name_first",
+            {"EXECUTION_SCORE_THRESHOLD": [0, 4]},
+            {"annual_return": 0.10, "max_drawdown": 0.05, "calmar": 2.0},
+            "bt1",
+        ),
+        (
+            "long_task_name_second",
+            {"EXECUTION_SCORE_THRESHOLD": [0, 5]},
+            {"annual_return": 0.30, "max_drawdown": 0.05, "calmar": 6.0},
+            "bt2",
+        ),
+    ]
+
+    df = compare_params(results, params_def, sort_by="mapper")
+    assert list(df.index) == ["long_task_name_first", "long_task_name_second"]
+
+    sorted_df = compare_params(results, params_def, sort_by="Calmar")
+    assert list(sorted_df.index) == ["long_task_name_second", "long_task_name_first"]
+
+    csv_table_print(df, sort_by="mapper")
+    output = capsys.readouterr().out
+    assert output.startswith("ID,S,Return,Ann.Ret")
+    assert "long_task_name_first,\"[0, 4]\"" in output
+    assert "long_task_name_second,\"[0, 5]\"" in output
 
 # --- Executor Core Tests ---
 

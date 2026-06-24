@@ -67,6 +67,33 @@ class ParameterGenerator:
                     new_combo[k] = val
                     yield new_combo
 
+def resolve_mapper_path(cfg):
+    """
+    根据配置生成 mapper 记录文件路径。
+
+    默认保持旧行为：backtest_executor/results/{strategy_name}/mapper.json。
+    可通过 YAML 的 results.mapper_file 修改文件名，例如:
+
+        results:
+          mapper_file: "mapper_round_2026.json"
+
+    mapper_file 只表示文件名，不接受目录路径，避免无意中把结果写到其它位置。
+    """
+    strategy_file = cfg['strategy']['file']
+    strategy_name = os.path.splitext(os.path.basename(strategy_file))[0]
+    result_dir = os.path.join("backtest_executor", "results", strategy_name)
+
+    results_cfg = cfg.get('results') or {}
+    mapper_file = results_cfg.get('mapper_file', "mapper.json")
+    if not isinstance(mapper_file, str) or not mapper_file.strip():
+        raise ValueError("results.mapper_file must be a non-empty file name")
+
+    mapper_file = mapper_file.strip()
+    if os.path.isabs(mapper_file) or os.path.basename(mapper_file) != mapper_file:
+        raise ValueError("results.mapper_file must be a file name, not a path")
+
+    return os.path.join(result_dir, mapper_file)
+
 def get_param_id(short_params, max_total_len=64):
     """
     生成一个简短且具有人类可读性的标识符作为回测名称。
@@ -134,13 +161,12 @@ def run_optimization(config_path, round_name, create_bt_func, get_bt_func,
 
     # 2. 初始化执行器
     strategy_file = cfg['strategy']['file']
-    # 结果存放在 results/{strategy_name}/mapper.json
-    strategy_name = os.path.splitext(os.path.basename(strategy_file))[0]
-    result_dir = os.path.join("backtest_executor", "results", strategy_name)
+    # 默认结果存放在 results/{strategy_name}/mapper.json，文件名可由 results.mapper_file 覆盖。
+    mapper_path = resolve_mapper_path(cfg)
+    result_dir = os.path.dirname(mapper_path)
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
-    
-    mapper_path = os.path.join(result_dir, "mapper.json")
+
     executor = BacktestExecutorV3(mapper_path, strategy_file)
 
     # 3. 生成参数组合

@@ -1,0 +1,7309 @@
+strategy:
+  file: ETFs/ETF_7star_opt_dynamic.py
+  base_id: 7star_dynamic_base_20260630
+results:
+  mapper_file: mapper.json
+backtest:
+  start_day: '2026-03-01'
+  end_day: '2026-06-30'
+  initial_cash: 100000
+params:
+  S:
+    var: EXECUTION_SCORE_THRESHOLD
+    default:
+    - 0
+    - 5
+  st:
+    var: EXECUTION_SHORT_MOMENTUM_PARAM
+    default:
+    - false
+    - 10
+    - 0.0
+  r:
+    var: EXECUTION_R2_PARAM
+    default:
+    - false
+    - 0.4
+  ar:
+    var: EXECUTION_ANNUAL_RETURN_PARAM
+    default:
+    - false
+    - 1.0
+  ma:
+    var: EXECUTION_MA_PARAM
+    default:
+    - false
+    - 20
+  v:
+    var: EXECUTION_VOLUME_PARAM
+    default:
+    - false
+    - 5
+    - 1.0
+  ls:
+    var: EXECUTION_LOSS_PARAM
+    default:
+    - true
+    - 0.97
+  fl:
+    var: EXECUTION_FIXED_STOPLOSS
+    default:
+    - false
+    - 0.95
+  slday:
+    var: EXECUTION_SELL_COOLDOWN
+    default:
+    - false
+    - 3
+  fm:
+    var: EXECUTION_FLITER_MARKET
+    default:
+    - false
+    - false
+    - true
+rounds:
+- name: round1a_rerun
+  method: list
+  combinations:
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - false
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - false
+    - 3
+    fm:
+    - false
+    - false
+    - true
+- name: round1b_rerun
+  method: list
+  combinations:
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - false
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+- name: round1c_rerun
+  method: list
+  combinations:
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - true
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - true
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+- name: round2_rerun
+  method: list
+  combinations:
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+- name: round2b_rerun
+  method: list
+  combinations:
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - false
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 8
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.3
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 4
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.5
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 10
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 6
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.6
+    ar:
+    - false
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+- name: round2c_rerun
+  method: list
+  combinations:
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - true
+    - false
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - false
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - true
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 0.8
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - true
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - true
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.2
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - true
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 1.5
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - true
+    - true
+  - S:
+    - 0
+    - 5
+    st:
+    - false
+    - 10
+    - 0.0
+    r:
+    - true
+    - 0.4
+    ar:
+    - true
+    - 1.0
+    ma:
+    - false
+    - 20
+    v:
+    - true
+    - 5
+    - 2.0
+    ls:
+    - true
+    - 0.97
+    fl:
+    - true
+    - 0.95
+    slday:
+    - true
+    - 3
+    fm:
+    - false
+    - true
+    - true

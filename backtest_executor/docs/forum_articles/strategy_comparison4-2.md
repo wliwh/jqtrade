@@ -6,7 +6,7 @@
 
 所以我把这套流程整理成了一个轻量工具：`backtest_executor`。
 
-这篇文章只介绍这套新框架的设计思路和使用方式，不讨论某个具体策略参数是否最优。下一篇会用 `ETFs/ETF_7star_opt_dynamic.py` 作为实际案例，展示如何通过 `backtest_executor/config/etf_7star_opt_dynamic.yaml` 在 JQ 平台上完成多轮回测，并分析结果。
+这篇文章只介绍这套新框架的设计思路和使用方式，不讨论某个具体策略参数是否最优。下一篇会用 `ETFs/ETF_7star_opt_dynamic` 作为实际案例，展示如何通过配置文件在 JQ 平台上完成多轮回测，并分析结果。
 
 ## 它解决什么问题
 
@@ -42,7 +42,10 @@ EXECUTION_VOLUME_PARAM = (False, 5, 1.0)
 
 ```yaml
 strategy:
-  file: "ETFs/ETF_7star_opt_dynamic.py"
+  file: "ETFs/ETF_7star_opt_dynamic"
+
+results:
+  mapper_file: "mapper.json"
 
 backtest:
   start_day: "2023-01-01"
@@ -130,7 +133,20 @@ nb_run(
 
 ## 结果如何记录
 
-每个策略会生成一个 `mapper.json`，记录该策略所有已跑过的参数组合。里面主要包含：
+每个策略默认会生成一个 `mapper.json`，记录该策略所有已跑过的参数组合。保存目录由策略文件名决定，默认形如：
+
+```text
+backtest_executor/results/{策略文件名}/mapper.json
+```
+
+如果想区分不同实验，也可以在 YAML 里通过 `results.mapper_file` 修改文件名，例如：
+
+```yaml
+results:
+  mapper_file: "mapper_2023_2026.json"
+```
+
+这个记录文件里面主要包含：
 
 - 策略文件路径
 - 策略逻辑 hash
@@ -195,4 +211,4 @@ df = nb_analyze(
 
 对 ETF 轮动这类参数较多、需要反复验证的策略来说，把参数空间、回测轮次、结果记录和指标对比统一起来，会让研究过程更可控。更重要的是，后面回头复盘时，能清楚知道每一组结果是怎么来的。
 
-下一篇将以 `ETF_7star_opt_dynamic.py` 为例，展示这套框架在七星动态池策略上的一次实际参数优化过程。
+下一篇将以 `ETF_7star_opt_dynamic` 为例，展示这套框架在七星动态池策略上的一次实际参数优化过程。

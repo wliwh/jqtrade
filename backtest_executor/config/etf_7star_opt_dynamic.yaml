@@ -6,6 +6,10 @@ strategy:
   # base_id 仅作记录参考
   base_id: "7star_dynamic_base_20260413"
 
+results:
+  # 回测记录文件名，保存目录仍为 backtest_executor/results/{策略文件名}/
+  mapper_file: "mapper.json"
+
 backtest:
   start_day: "2023-01-01"
   end_day: "2026-03-01"

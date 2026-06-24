@@ -79,6 +79,19 @@ def _compress_display_ids(index_values, max_len=40):
     return compressed
 
 
+def _is_mapper_order_sort(sort_by):
+    """是否按 mapper.json 原始记录顺序输出。"""
+    if sort_by is None:
+        return True
+    return str(sort_by).lower() in ('mapper', 'mapper_order', 'original', 'none', '')
+
+
+def _sort_label(sort_by, ascending=False):
+    if _is_mapper_order_sort(sort_by):
+        return "mapper.json 原始顺序"
+    return f"按 {sort_by} {'升序' if ascending else '降序'} 排列"
+
+
 def _build_param_display_specs(params_def):
     """构建参数显示规则。
 
@@ -410,7 +423,7 @@ def compare_params(results, params_def, sort_by='Calmar', ascending=False, yearl
     
     results: list of (name, params_dict, metrics_dict, bt_id) — load_results 的输出
     params_def: dict, YAML 中的 params 定义
-    sort_by: str, 排序列名 (默认 'Calmar')
+    sort_by: str, 排序列名 (默认 'Calmar')；传入 'mapper' / 'original' / None 时保留 mapper.json 顺序
     ascending: bool, 升序/降序
     
     返回: pd.DataFrame
@@ -483,13 +496,13 @@ def compare_params(results, params_def, sort_by='Calmar', ascending=False, yearl
     remaining_cols = [c for c in df.columns if c not in new_columns]
     df = df[new_columns + remaining_cols]
     
-    if sort_by in df.columns:
+    if not _is_mapper_order_sort(sort_by) and sort_by in df.columns:
         df.sort_values(sort_by, ascending=ascending, inplace=True)
     
     return df
 
 
-def format_table(df):
+def format_table(df, compress_ids=True):
     """格式化 DataFrame 用于打印。"""
     fmt = df.copy()
     pct_cols = ['Return', 'Ann.Ret', 'MaxDD', 'Volatility', 'WinRate']
@@ -514,7 +527,8 @@ def format_table(df):
             lambda x: f"{x:.1f}" if isinstance(x, (int, float)) and not isinstance(x, bool) else x
         )
 
-    fmt.index = pd.Index(_compress_display_ids(fmt.index), name=fmt.index.name)
+    if compress_ids:
+        fmt.index = pd.Index(_compress_display_ids(fmt.index), name=fmt.index.name)
     
     return fmt
 
@@ -534,7 +548,7 @@ def print_compare(df, sort_by='Calmar', ascending=False):
         sep = "=" * max(120, line_len)
         
         print("\n" + sep)
-        print(f"参数优化对比表 (按 {sort_by} {'升序' if ascending else '降序'} 排列)")
+        print(f"参数优化对比表 ({_sort_label(sort_by, ascending)})")
         print(sep)
         print(output)
         print(sep)
@@ -551,8 +565,7 @@ def jupyter_display_compare(df, sort_by='Calmar', ascending=False):
         return df
 
     fmt = format_table(df)
-    order_str = '升序' if ascending else '降序'
-    display(HTML(f"<b>参数优化对比表 (按 {sort_by} {order_str} 排列)</b>"))
+    display(HTML(f"<b>参数优化对比表 ({_sort_label(sort_by, ascending)})</b>"))
     display(HTML(fmt.to_html()))
     display(HTML(f"<i>共 {len(df)} 组参数</i>"))
     return df
@@ -568,13 +581,22 @@ def markdown_table_print(df, sort_by='Calmar', ascending=False):
         return df
 
     fmt = format_table(df)
-    order_str = '升序' if ascending else '降序'
-    md_title = f"### 参数优化对比表 (按 {sort_by} {order_str} 排列)\n"
+    md_title = f"### 参数优化对比表 ({_sort_label(sort_by, ascending)})\n"
     md_table = tabulate(fmt, headers='keys', tablefmt='pipe', showindex=True)
     md_footer = f"\n\n*共 {len(df)} 组参数*"
     print(md_title)
     print(md_table)
     print(md_footer)
+    return df
+
+
+def csv_table_print(df, sort_by='Calmar', ascending=False):
+    """输出可复制的 CSV 表格。"""
+    if df.empty:
+        return df
+
+    fmt = format_table(df, compress_ids=False)
+    print(fmt.to_csv(index=True))
     return df
 
 
@@ -598,6 +620,8 @@ def analyze_results(mapper_path, config_path, sort_by='Calmar', ascending=False,
         jupyter_display_compare(df, sort_by=sort_by, ascending=ascending)
     elif output == 'markdown':
         markdown_table_print(df, sort_by=sort_by, ascending=ascending)
+    elif output == 'csv':
+        csv_table_print(df, sort_by=sort_by, ascending=ascending)
     else:
         print_compare(df, sort_by=sort_by, ascending=ascending)
     
@@ -634,10 +658,10 @@ def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False, year
     Args:
         mapper_path (str): mapper.json 文件路径。
         config_path (str): YAML 配置文件路径。
-        sort_by (str): 排序字段，默认 'Calmar'。
+        sort_by (str): 排序字段，默认 'Calmar'；传入 'mapper' / 'original' / None 时保留 mapper.json 顺序。
         ascending (bool): 是否升序，默认 False（降序）。
         yearly (bool): 是否增加年度收益列。
-        output (str): 输出格式，可选 jupyter|markdown|print
+        output (str): 输出格式，可选 jupyter|markdown|print|csv
 
     Returns:
         pd.DataFrame: 包含参数和指标的对比表格。
@@ -658,10 +682,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='参数优化结果分析工具')
     parser.add_argument('mapper', help='mapper.json 文件路径')
     parser.add_argument('config', nargs='?', help='YAML 配置文件路径 (可选)')
-    parser.add_argument('--sort', '-s', default='Calmar', help='排序字段 (默认: Calmar)')
+    parser.add_argument('--sort', '-s', default='Calmar', help="排序字段 (默认: Calmar；使用 'mapper' 保持 mapper.json 顺序)")
     parser.add_argument('--ascending', '-a', action='store_true', help='升序排列')
     parser.add_argument('--yearly', action='store_true', help='显示年度收益列')
-    parser.add_argument('--output', choices=['print', 'jupyter', 'markdown'], default='print', help='输出格式')
+    parser.add_argument('--output', choices=['print', 'jupyter', 'markdown', 'csv'], default='print', help='输出格式')
 
     args = parser.parse_args()
 
