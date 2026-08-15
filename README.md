@@ -44,6 +44,6 @@ pytest -q
 ## 文档规则
 
 - 当前计划只写在 `docs/planning/`，历史计划移入对应 `archive/`。
-- JQ API 参考以 `docs/reference/joinquant/` 为入口；论坛文章与配图保留在 `docs/reports/forum/`。
+- 文档检索从 [`docs/INDEX.md`](docs/INDEX.md) 开始；编写或审阅 JQ 策略时，先查 [`docs/reference/joinquant/`](docs/reference/joinquant/README.md) 的官方 API 离线快照；论坛文章与配图保留在 `docs/reports/forum/`。
 - 归档代码默认只用于追溯和复现，不作为新开发入口。
 - 策略表现必须以明确区间、成本口径和实际回测 ID 为依据，不能由文件名或历史文章推断。

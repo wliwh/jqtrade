@@ -3,14 +3,14 @@
 ## 当前入口
 
 - [工程总览](../README.md)
+- [文档检索索引](INDEX.md)
 - [backtest_executor 使用说明](../backtest_executor/README.md)
 - [下一阶段计划](planning/strategy_research_automation_pipeline_design.md)
 - [ETF 现役策略](../strategies/etf_rotation/README.md)
 
 ## JQ 参考
 
-- [`reference/joinquant/JQ_backtest_API.md`](reference/joinquant/JQ_backtest_API.md)：项目整理过的 `create_backtest()`、`get_backtest()` 研究接口说明。
-- [`reference/joinquant/joinquant-api-docs.md`](reference/joinquant/joinquant-api-docs.md)：较完整的 JQ API 文档快照，适合全文搜索；具体行为仍以实际 JQ 环境为准。
+- [`reference/joinquant/`](reference/joinquant/README.md)：**策略开发首选**。包含聚宽官网完整 API 快照、原始 HTML 和按主题划分的全文检索 Markdown。
 
 ## 历史资料
 

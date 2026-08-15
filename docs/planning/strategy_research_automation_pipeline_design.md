@@ -111,7 +111,7 @@ JQ 官方文档列出的 `get_backtest(backtest_id)` 数据包括：
 参考资料：
 
 - [聚宽官方 API PDF](https://cdn.joinquant.com/help/img/JoinQuantAPI.pdf)
-- [`../reference/joinquant/JQ_backtest_API.md`](../reference/joinquant/JQ_backtest_API.md)
+- [`../reference/joinquant/official/strategy-api.md`](../reference/joinquant/official/strategy-api.md)
 
 ## 4. 目标流水线
 
