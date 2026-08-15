@@ -37,6 +37,7 @@ rg -n -i -C 3 '关键词' docs/planning backtest_executor
 | 现役 ETF 策略、旧策略或策略辅助脚本 | [`../strategies/etf_rotation/README.md`](../strategies/etf_rotation/README.md) | `strategies/etf_rotation/` |
 | ETF 资产池、聚类、PCA 和研究产物 | [`../research/pools/README.md`](../research/pools/README.md) | `research/pools/src/`、`research/pools/docs/` |
 | 市场宽度与 micro 研究 | [`../research/micro/README.md`](../research/micro/README.md) | `research/micro/src/`、`research/micro/artifacts/` |
+| 指数顶部/底部定义及预警信号关系 | [`../research/index_turning_points/README.md`](../research/index_turning_points/README.md) | `research/index_turning_points/` |
 | JQ 历史数据导出 | [`../tools/jq_data_export/README.md`](../tools/jq_data_export/README.md) | `tools/jq_data_export/src/` |
 | 策略比较、历史方案或外部项目资料 | [`reports/forum/articles/`](reports/forum/articles/)、[`archive/`](archive/) | 只作追溯，不作当前事实源 |
 

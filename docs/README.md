@@ -7,6 +7,7 @@
 - [backtest_executor 使用说明](../backtest_executor/README.md)
 - [下一阶段计划](planning/strategy_research_automation_pipeline_design.md)
 - [ETF 现役策略](../strategies/etf_rotation/README.md)
+- [指数顶底信号研究](../research/index_turning_points/README.md)
 
 ## JQ 参考
 
