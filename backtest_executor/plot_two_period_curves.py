@@ -17,7 +17,7 @@ except ImportError:
 
 OLD_MAPPER = "backtest_executor/results/ETF_7star_opt_dynamic/mapper.json"
 Q2_MAPPER = "backtest_executor/results/ETF_7star_opt_dynamic/mapper_2026Q2.json"
-OUTPUT_FILE = "backtest_executor/results/ETF_7star_opt_dynamic/two_period_top_curves.png"
+OUTPUT_FILE = "backtest_executor/results/ETF_7star_opt_dynamic/figures/two_period_top_curves.png"
 TOP_N = 5
 START_DATE = pd.Timestamp("2023-01-01")
 SPLIT_DATE = pd.Timestamp("2026-03-01")

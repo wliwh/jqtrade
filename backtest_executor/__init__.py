@@ -8,12 +8,15 @@ backtest_executor 包初始化文件。
 
     # 运行参数优化（自动使用 JQ 全局的 create_backtest/get_backtest）
     from backtest_executor import nb_run
-    nb_run('backtest_executor/config/etf_gao.yaml', 'round1_grid')
+    nb_run('backtest_executor/config/etf_7star_opt_dynamic.yaml',
+           'round1a_switches')
 
     # 分析结果
     from backtest_executor import nb_analyze
-    df = nb_analyze('backtest_executor/results/ETF_gao_opt/mapper.json',
-                    'backtest_executor/config/etf_gao.yaml')
+    df = nb_analyze(
+        'backtest_executor/results/ETF_7star_opt_dynamic/mapper.json',
+        'backtest_executor/config/etf_7star_opt_dynamic.yaml'
+    )
 """
 
 from .optimize import nb_run, run_optimization

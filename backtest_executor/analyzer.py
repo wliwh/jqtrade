@@ -651,8 +651,8 @@ def nb_analyze(mapper_path, config_path, sort_by='Calmar', ascending=False, year
 
         from backtest_executor import nb_analyze
         df = nb_analyze(
-            'backtest_executor/results/ETF_gao_opt/mapper.json',
-            'backtest_executor/config/etf_gao.yaml'
+            'backtest_executor/results/ETF_7star_opt_dynamic/mapper.json',
+            'backtest_executor/config/etf_7star_opt_dynamic.yaml'
         )
 
     Args:

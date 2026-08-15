@@ -15,7 +15,7 @@ from analyze_simple import print_compare, compare_params, get_best_config
 # ==============================================================================
 
 # 策略文件路径 (相对于 JQ 研究环境的工作目录)
-STRATEGY_FILE = 'ETFs/ETF_gao_opt.py'
+STRATEGY_FILE = 'strategies/etf_rotation/archive/strategies/ETF_gao_opt.py'
 
 # 回测时间范围
 START_DAY = '2018-01-01'
@@ -25,7 +25,7 @@ END_DAY   = '2026-01-10'
 INITIAL_CASH = 100000
 
 # name→id 映射保存路径
-ID_SAVE_PATH = './ETFs/saved_name_id_mapper.json'
+ID_SAVE_PATH = 'backtest_executor/archive/results/saved_name_id_mapper.json'
 
 # 排序指标
 SORT_BY = 'Calmar'

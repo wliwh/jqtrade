@@ -15,7 +15,7 @@ def _load_module():
     jqdata.get_price = lambda **kwargs: None
     sys.modules["jqdata"] = jqdata
 
-    module_name = "jq_utils.download_fund_minute_data_batches"
+    module_name = "tools.jq_data_export.src.download_fund_minute_data_batches"
     sys.modules.pop(module_name, None)
     return importlib.import_module(module_name)
 

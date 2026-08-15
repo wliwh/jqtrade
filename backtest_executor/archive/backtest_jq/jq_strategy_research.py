@@ -8,7 +8,7 @@ import numpy as np
 from IPython.display import display, HTML
 from tabulate import tabulate
 
-ID_Save_Path = './ETFs/saved_name_id_mapper.json'
+ID_Save_Path = 'backtest_executor/archive/results/saved_name_id_mapper.json'
 Base_Back_Id = '6e21bbaee8cc3f8423def84436a2bf49'
 
 def get_name(short_name, value, Rules):
@@ -114,6 +114,7 @@ def config_to_execution_params(config, Rules):
     return mapped
 
 def get_name_id_mapper(update = {}, save_path = ID_Save_Path):
+    os.makedirs(os.path.dirname(save_path) or '.', exist_ok=True)
     if not os.path.exists(save_path):
         print('No Saved json file.')
         with open(save_path, 'w') as f:

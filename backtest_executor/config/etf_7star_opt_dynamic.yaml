@@ -2,7 +2,7 @@
 # 路径：backtest_executor/config/etf_7star_opt_dynamic.yaml
 
 strategy:
-  file: "ETFs/ETF_7star_opt_dynamic.py"
+  file: "strategies/etf_rotation/ETF_7star_opt_dynamic.py"
   # base_id 仅作记录参考
   base_id: "7star_dynamic_base_20260413"
 

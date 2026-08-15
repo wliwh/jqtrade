@@ -7,6 +7,8 @@
 - `backtest_executor/archive/backtest_jq/`: 早期 JQ Notebook 风格的参数研究脚本。主要依赖硬编码 `Rules` / `Baseline`，通过简单替换 `EXECUTION_` 参数行批量提交聚宽回测。
 - `backtest_executor/archive/backtest_engine/`: 更早的回测管理器原型、ETF 池分析工具、
   策略比较文章和部分结果快照。
+- `backtest_executor/archive/config/`: 已归档 Gao 策略配置，策略路径已指向 `strategies/etf_rotation/archive/strategies/`。
+- `backtest_executor/archive/docs/`: 已完成或被当前实现取代的参数比较与 YAML 框架设计。
 
 ## 当前入口
 
@@ -16,7 +18,7 @@
 from backtest_executor import nb_run, nb_analyze
 ```
 
-旧代码主要用于参考、结果复现和迁移旧分析逻辑，不作为当前主执行路径。
+旧代码、配置和设计主要用于参考、结果复现和迁移旧分析逻辑，不作为当前主执行路径。下一阶段计划由 `backtest_executor/docs/README.md` 统一指向。
 
 ## 已被当前框架覆盖的功能
 

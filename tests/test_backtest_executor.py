@@ -90,7 +90,7 @@ def test_get_param_id():
 
 
 def test_resolve_mapper_path_uses_default_and_custom_file_name():
-    cfg = {"strategy": {"file": "ETFs/MyStrategy.py"}}
+    cfg = {"strategy": {"file": "strategies/etf_rotation/MyStrategy.py"}}
     assert resolve_mapper_path(cfg) == os.path.join(
         "backtest_executor", "results", "MyStrategy", "mapper.json"
     )
@@ -103,7 +103,7 @@ def test_resolve_mapper_path_uses_default_and_custom_file_name():
 
 def test_resolve_mapper_path_rejects_path_like_file_name():
     cfg = {
-        "strategy": {"file": "ETFs/MyStrategy.py"},
+        "strategy": {"file": "strategies/etf_rotation/MyStrategy.py"},
         "results": {"mapper_file": "../mapper.json"},
     }
 

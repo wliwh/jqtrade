@@ -1,0 +1,27 @@
+# plan.md
+__pycache__/
+.pytest_cache/
+.vscode/
+.venv/
+.env
+.codex
+.idea/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+*.log
+*.bak
+*.tmp
+*.egg-info/
+dist/
+build/
+*.egg
+*.tar.gz
+*.zip
+*.db
+*.sqlite
+
+# JQ 分批下载在平台运行目录中生成；不属于仓库源码或参考数据。
+fund_minute_batches/

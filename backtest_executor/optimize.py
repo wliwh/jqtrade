@@ -283,8 +283,10 @@ def nb_run(config_path, round_name, poll_interval=10, log_interval=60):
     无需手动传入。在 JQ 研究环境的 Notebook Cell 中直接调用即可:
 
         from backtest_executor import nb_run
-        nb_run('backtest_executor/config/etf_gao.yaml', 'round1_grid')
-        nb_run('backtest_executor/config/etf_gao.yaml', 'round1_grid', log_interval=120)
+        nb_run('backtest_executor/config/etf_7star_opt_dynamic.yaml',
+               'round1a_switches')
+        nb_run('backtest_executor/config/etf_7star_opt_dynamic.yaml',
+               'round1a_switches', log_interval=120)
 
     Args:
         config_path (str): YAML 配置文件路径。

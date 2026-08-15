@@ -4,10 +4,11 @@ import json
 import os
 from generate_params import config_to_execution_params
 
-ID_Save_Path = './ETFs/saved_name_id_mapper.json'
+ID_Save_Path = 'backtest_executor/archive/results/saved_name_id_mapper.json'
 Base_Back_Id = '6e21bbaee8cc3f8423def84436a2bf49'
 
 def get_name_id_mapper(update = {}, save_path = ID_Save_Path):
+    os.makedirs(os.path.dirname(save_path) or '.', exist_ok=True)
     if not os.path.exists(save_path):
         print('No Saved json file.')
         with open(save_path, 'w') as f:
@@ -81,7 +82,7 @@ def batch_run(strategy_file, params_list, save_path=ID_Save_Path,
              initial_cash=100000, use_credit=False, sleep_between=2):
     """批量提交回测并收集结果。
     
-    strategy_file: str, 策略文件路径 (如 'ETFs/ETF_gao_opt.py')
+    strategy_file: str, 策略文件路径 (如 'strategies/etf_rotation/archive/strategies/ETF_gao_opt.py')
     params_list:   list of (name, config_dict), generate_stage_1/2 的输出
     save_path:     str, name→id 映射 JSON 路径 (断点续跑)
     sleep_between: int, 两次提交间休眠秒数
