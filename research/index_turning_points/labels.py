@@ -1,4 +1,4 @@
-"""Close-price directional-change labels for index research."""
+"""High/low directional-change labels for index research."""
 
 from __future__ import annotations
 
@@ -25,133 +25,160 @@ LABEL_COLUMNS = [
 
 
 def directional_change_labels(
-    close: pd.Series,
+    high: pd.Series,
+    low: pd.Series,
     threshold: float = 0.10,
 ) -> pd.DataFrame:
-    """Label close-price tops and bottoms confirmed by a relative reversal.
+    """Label tops from daily highs and bottoms from daily lows.
+
+    A top is anchored at a running high and confirmed when a later bar's low
+    falls by ``threshold``. A bottom is anchored at a running low and confirmed
+    when a later bar's high rises by ``threshold``. An anchor is never confirmed
+    on the same daily bar because OHLC data do not reveal the intraday order of
+    the high and low.
 
     The first confirmed pivot only establishes the initial direction and is
     returned with ``eligible=False``. Later confirmed pivots are eligible for
-    the main research sample. If direction has been established, the final
-    running extreme is returned as one ``unconfirmed`` row.
+    the main research sample. The final running extreme is returned as one
+    ``unconfirmed`` row.
 
     ``confirmation_lag`` is measured in observations (trading bars), not
     calendar days. Equal running extremes use their latest occurrence.
 
     Args:
-        close: Positive, finite close prices with a unique, increasing index.
+        high: Positive, finite daily highs with a unique, increasing index.
+        low: Positive, finite daily lows aligned exactly with ``high``.
         threshold: Relative reversal threshold in the open interval ``(0, 1)``.
 
     Returns:
-        A DataFrame with confirmed events followed by the final unconfirmed
-        candidate. An empty frame means that no initial direction was
-        established within the sample.
+        Confirmed events followed by the final unconfirmed candidate. An empty
+        frame means no initial direction was established within the sample.
     """
 
-    values = _validate_inputs(close, threshold)
-    if len(values) < 2:
+    high_values, low_values = _validate_inputs(high, low, threshold)
+    if len(high_values) < 2:
         return _empty_labels()
 
-    dates = close.index
+    dates = high.index
     records: list[dict[str, object]] = []
     up_factor = 1.0 + threshold
     down_factor = 1.0 - threshold
 
-    high_price = low_price = values[0]
+    running_high = high_values[0]
+    running_low = low_values[0]
     high_position = low_position = 0
     mode: str | None = None
-    next_position = len(values)
+    next_position = len(high_values)
 
-    for position in range(1, len(values)):
-        price = values[position]
+    for position in range(1, len(high_values)):
+        bar_high = high_values[position]
+        bar_low = low_values[position]
 
-        if price >= high_price:
-            high_price = price
-            high_position = position
-        if price <= low_price:
-            low_price = price
-            low_position = position
+        bottom_trigger = bar_low > running_low and bar_high / running_low >= up_factor
+        top_trigger = bar_high < running_high and bar_low / running_high <= down_factor
+        initial_event: str | None = None
 
-        if price / low_price >= up_factor:
+        if bottom_trigger and top_trigger:
+            if low_position > high_position:
+                initial_event = "bottom"
+            elif high_position > low_position:
+                initial_event = "top"
+        elif bottom_trigger:
+            initial_event = "bottom"
+        elif top_trigger:
+            initial_event = "top"
+
+        if initial_event == "bottom":
             records.append(
                 _confirmed_record(
                     event_type="bottom",
                     anchor_position=low_position,
-                    anchor_price=low_price,
+                    anchor_price=running_low,
                     confirmation_position=position,
-                    confirmation_price=price,
+                    confirmation_price=bar_high,
                     dates=dates,
                     threshold=threshold,
                     eligible=False,
                 )
             )
             mode = "up"
-        elif price / high_price <= down_factor:
+            extreme_price = bar_high
+            extreme_position = position
+            next_position = position + 1
+            break
+
+        if initial_event == "top":
             records.append(
                 _confirmed_record(
                     event_type="top",
                     anchor_position=high_position,
-                    anchor_price=high_price,
+                    anchor_price=running_high,
                     confirmation_position=position,
-                    confirmation_price=price,
+                    confirmation_price=bar_low,
                     dates=dates,
                     threshold=threshold,
                     eligible=False,
                 )
             )
             mode = "down"
-
-        if mode is not None:
-            extreme_price = price
+            extreme_price = bar_low
             extreme_position = position
             next_position = position + 1
             break
 
+        if bar_high >= running_high:
+            running_high = bar_high
+            high_position = position
+        if bar_low <= running_low:
+            running_low = bar_low
+            low_position = position
+
     if mode is None:
         return _empty_labels()
 
-    for position in range(next_position, len(values)):
-        price = values[position]
+    for position in range(next_position, len(high_values)):
+        bar_high = high_values[position]
+        bar_low = low_values[position]
 
         if mode == "up":
-            if price >= extreme_price:
-                extreme_price = price
+            if bar_high >= extreme_price:
+                extreme_price = bar_high
                 extreme_position = position
-            elif price / extreme_price <= down_factor:
+            elif bar_low / extreme_price <= down_factor:
                 records.append(
                     _confirmed_record(
                         event_type="top",
                         anchor_position=extreme_position,
                         anchor_price=extreme_price,
                         confirmation_position=position,
-                        confirmation_price=price,
+                        confirmation_price=bar_low,
                         dates=dates,
                         threshold=threshold,
                         eligible=True,
                     )
                 )
                 mode = "down"
-                extreme_price = price
+                extreme_price = bar_low
                 extreme_position = position
         else:
-            if price <= extreme_price:
-                extreme_price = price
+            if bar_low <= extreme_price:
+                extreme_price = bar_low
                 extreme_position = position
-            elif price / extreme_price >= up_factor:
+            elif bar_high / extreme_price >= up_factor:
                 records.append(
                     _confirmed_record(
                         event_type="bottom",
                         anchor_position=extreme_position,
                         anchor_price=extreme_price,
                         confirmation_position=position,
-                        confirmation_price=price,
+                        confirmation_price=bar_high,
                         dates=dates,
                         threshold=threshold,
                         eligible=True,
                     )
                 )
                 mode = "up"
-                extreme_price = price
+                extreme_price = bar_high
                 extreme_position = position
 
     records.append(
@@ -174,26 +201,35 @@ def directional_change_labels(
     return _labels_frame(records)
 
 
-def _validate_inputs(close: pd.Series, threshold: float) -> np.ndarray:
-    if not isinstance(close, pd.Series):
-        raise TypeError("close must be a pandas Series")
+def _validate_inputs(
+    high: pd.Series,
+    low: pd.Series,
+    threshold: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    if not isinstance(high, pd.Series) or not isinstance(low, pd.Series):
+        raise TypeError("high and low must be pandas Series")
     if not isfinite(float(threshold)) or not 0.0 < float(threshold) < 1.0:
         raise ValueError("threshold must be finite and between 0 and 1")
-    if not close.index.is_unique:
-        raise ValueError("close index must be unique")
-    if not close.index.is_monotonic_increasing:
-        raise ValueError("close index must be increasing")
+    if not high.index.equals(low.index):
+        raise ValueError("high and low indexes must match")
+    if not high.index.is_unique:
+        raise ValueError("high and low index must be unique")
+    if not high.index.is_monotonic_increasing:
+        raise ValueError("high and low index must be increasing")
 
     try:
-        values = close.to_numpy(dtype=float, na_value=np.nan)
+        high_values = high.to_numpy(dtype=float, na_value=np.nan)
+        low_values = low.to_numpy(dtype=float, na_value=np.nan)
     except (TypeError, ValueError) as exc:
-        raise ValueError("close prices must be numeric") from exc
+        raise ValueError("high and low prices must be numeric") from exc
 
-    if not np.isfinite(values).all():
-        raise ValueError("close prices must be finite and non-missing")
-    if (values <= 0.0).any():
-        raise ValueError("close prices must be strictly positive")
-    return values
+    if not np.isfinite(high_values).all() or not np.isfinite(low_values).all():
+        raise ValueError("high and low prices must be finite and non-missing")
+    if (high_values <= 0.0).any() or (low_values <= 0.0).any():
+        raise ValueError("high and low prices must be strictly positive")
+    if (high_values < low_values).any():
+        raise ValueError("daily high must be greater than or equal to daily low")
+    return high_values, low_values
 
 
 def _confirmed_record(

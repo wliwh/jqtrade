@@ -107,6 +107,30 @@ def test_forward_outcomes_require_complete_window():
     assert outcomes.iloc[2:]["future_return_2d"].isna().all()
 
 
+def test_fixed_thresholds_scale_with_index_volatility_bucket():
+    expected = {
+        "sse_composite": (0.04, 0.08, 0.16),
+        "csi300": (0.045, 0.09, 0.18),
+        "csi500": (0.055, 0.11, 0.22),
+        "csi1000": (0.06, 0.12, 0.24),
+        "cni2000": (0.06, 0.12, 0.24),
+        "microcap": (0.065, 0.13, 0.26),
+        "all_a": (0.05, 0.10, 0.20),
+    }
+
+    for index_id, thresholds in expected.items():
+        actual = tuple(
+            pipeline.threshold_for_index(index_id, base)
+            for _, base in pipeline.BASE_THRESHOLDS
+        )
+        assert actual == thresholds
+
+
+def test_rejects_index_without_threshold_multiplier():
+    with pytest.raises(KeyError, match="missing threshold multiplier"):
+        pipeline.threshold_for_index("unknown", 0.10)
+
+
 def test_pipeline_writes_three_csv_files(tmp_path, monkeypatch):
     vipdoc = tmp_path / "vipdoc"
     relative_path = "sh/lday/test.day"
@@ -116,6 +140,7 @@ def test_pipeline_writes_three_csv_files(tmp_path, monkeypatch):
         "INDEX_SPECS",
         (("test", "测试指数", "TEST", relative_path, False),),
     )
+    monkeypatch.setitem(pipeline.INDEX_THRESHOLD_MULTIPLIERS, "test", 1.0)
 
     outputs = pipeline.run_pipeline(vipdoc, tmp_path / "output")
 
@@ -125,5 +150,15 @@ def test_pipeline_writes_three_csv_files(tmp_path, monkeypatch):
     labels = pd.read_csv(outputs["labels"])
     outcomes = pd.read_csv(outputs["outcomes"])
     assert manifest.loc[0, "rows"] == 6
+    assert manifest.loc[0, "threshold_multiplier"] == 1.0
+    assert manifest.loc[0, "threshold_medium"] == 0.10
     assert set(labels["threshold"]) == {0.05, 0.10, 0.20}
+    assert set(labels["threshold_level"]) == {"small", "medium", "large"}
+    labels_10 = labels[labels["threshold"] == 0.10].reset_index(drop=True)
+    assert labels_10.loc[1, "event_type"] == "top"
+    assert labels_10.loc[1, "anchor_price"] == 121
+    assert labels_10.loc[1, "confirmation_price"] == 95
+    assert labels_10.loc[2, "event_type"] == "bottom"
+    assert labels_10.loc[2, "anchor_price"] == 74
+    assert labels_10.loc[2, "confirmation_price"] == 91
     assert {"date", "close", "future_return_5d"} <= set(outcomes.columns)

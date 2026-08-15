@@ -1,0 +1,2 @@
+export_start,export_end,export_days,full_coverage_start,full_coverage_end,full_coverage_days,trigger_days,trigger_rate,episodes,onset_days,continuation_days,exit_days,inactive_days,median_episode_days,max_episode_days,multi_top1_tie_days,trigger_days_with_multi_top1_tie,max_top1_tie_count,max_close_missing,max_status_missing,max_base_valid_missing_industry
+2012-01-04,2026-08-14,3549,2021-12-13,2026-08-14,1133,470,0.4148278905560459,106,106,364,106,557,2.0,25,44,33,30,1,1,1

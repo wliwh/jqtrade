@@ -12,7 +12,11 @@ import pandas as pd
 from .labels import directional_change_labels
 
 
-THRESHOLDS = (0.05, 0.10, 0.20)
+BASE_THRESHOLDS = (
+    ("small", 0.05),
+    ("medium", 0.10),
+    ("large", 0.20),
+)
 HORIZONS = (5, 10, 20, 60)
 
 INDEX_SPECS = (
@@ -24,6 +28,18 @@ INDEX_SPECS = (
     ("microcap", "微盘股", "TDX.880823", "sh/lday/sh880823.day", False),
     ("all_a", "全A", "000985.XSHG", "ds/lday/62#000985.day", True),
 )
+
+# Fixed before signal evaluation. These are intentionally simple volatility
+# buckets rather than rolling or outcome-optimized parameters.
+INDEX_THRESHOLD_MULTIPLIERS = {
+    "sse_composite": 0.8,
+    "csi300": 0.9,
+    "csi500": 1.1,
+    "csi1000": 1.2,
+    "cni2000": 1.2,
+    "microcap": 1.3,
+    "all_a": 1.0,
+}
 
 STANDARD_RECORD = struct.Struct("<IIIIIfII")
 FLOAT_RECORD = struct.Struct("<IfffffII")
@@ -37,6 +53,20 @@ DAILY_COLUMNS = [
     "volume",
     "reserved",
 ]
+
+
+def threshold_for_index(index_id: str, base_threshold: float) -> float:
+    """Return one fixed index-specific threshold from a common base scale."""
+
+    try:
+        multiplier = INDEX_THRESHOLD_MULTIPLIERS[index_id]
+    except KeyError as exc:
+        raise KeyError(f"missing threshold multiplier for index: {index_id}") from exc
+
+    threshold = round(float(base_threshold) * multiplier, 10)
+    if not 0.0 < threshold < 1.0:
+        raise ValueError("adjusted threshold must be between 0 and 1")
+    return threshold
 
 
 def read_tdx_daily(path: Path | str, *, float_prices: bool = False) -> pd.DataFrame:
@@ -126,6 +156,10 @@ def run_pipeline(vipdoc: Path | str, output_dir: Path | str) -> dict[str, Path]:
         raw_rows = path.stat().st_size // STANDARD_RECORD.size
         daily = read_tdx_daily(path, float_prices=float_prices)
         close = daily["close"]
+        adjusted_thresholds = {
+            level: threshold_for_index(index_id, base_threshold)
+            for level, base_threshold in BASE_THRESHOLDS
+        }
 
         manifests.append(
             {
@@ -139,13 +173,18 @@ def run_pipeline(vipdoc: Path | str, output_dir: Path | str) -> dict[str, Path]:
                 "start_date": daily.index.min(),
                 "end_date": daily.index.max(),
                 "last_close": close.iloc[-1],
+                "threshold_multiplier": INDEX_THRESHOLD_MULTIPLIERS[index_id],
+                "threshold_small": adjusted_thresholds["small"],
+                "threshold_medium": adjusted_thresholds["medium"],
+                "threshold_large": adjusted_thresholds["large"],
             }
         )
 
-        for threshold in THRESHOLDS:
-            labels = directional_change_labels(close, threshold)
+        for threshold_level, threshold in adjusted_thresholds.items():
+            labels = directional_change_labels(daily["high"], daily["low"], threshold)
             labels.insert(0, "index_name", index_name)
             labels.insert(0, "index_id", index_id)
+            labels.insert(2, "threshold_level", threshold_level)
             all_labels.append(labels)
 
         outcomes = forward_outcomes(close).reset_index()

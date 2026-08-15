@@ -13,7 +13,7 @@ import plotly.io as pio
 from plotly.offline import get_plotlyjs
 
 from .labels import directional_change_labels
-from .pipeline import INDEX_SPECS, read_tdx_daily
+from .pipeline import INDEX_SPECS, read_tdx_daily, threshold_for_index
 
 
 COLORS = {
@@ -38,7 +38,7 @@ def make_figure(
 ) -> go.Figure:
     """Build one full-width OHLC chart with directional-change markers."""
 
-    labels = directional_change_labels(daily["close"], threshold)
+    labels = directional_change_labels(daily["high"], daily["low"], threshold)
     confirmed = labels[labels["status"] == "confirmed"]
     eligible = confirmed[confirmed["eligible"]]
     initial = confirmed[~confirmed["eligible"]]
@@ -69,7 +69,7 @@ def make_figure(
 
     figure.update_layout(
         title=dict(
-            text=f"{index_name} · {threshold:.0%} 方向变化",
+            text=f"{index_name} · {threshold:.1%} 方向变化",
             x=0.01,
             xanchor="left",
             font=dict(size=20, color=COLORS["ink"]),
@@ -167,9 +167,9 @@ def _add_confirmed_markers(
             hovertemplate=(
                 ("已确认顶部" if is_top else "已确认底部")
                 + "<br>锚点 %{x|%Y-%m-%d}"
-                + "<br>锚点收盘 %{customdata[0]:.2f}"
+                + "<br>锚点价 %{customdata[0]:.2f}"
                 + "<br>确认日 %{customdata[1]}"
-                + "<br>确认收盘 %{customdata[2]:.2f}"
+                + "<br>确认价 %{customdata[2]:.2f}"
                 + "<br>确认滞后 %{customdata[3]} 个交易日"
                 + "<br>反转幅度 %{customdata[4]:.2%}<extra></extra>"
             ),
@@ -189,7 +189,7 @@ def _add_initial_marker(
     figure.add_trace(
         go.Scatter(
             x=[date],
-            y=[daily.loc[date, "close"]],
+            y=[float(row["anchor_price"])],
             mode="markers",
             name="初始化事件",
             marker=dict(symbol="x", size=10, color=COLORS["initial"]),
@@ -204,7 +204,7 @@ def _add_initial_marker(
                 "初始化事件（不进入主统计）"
                 "<br>类型 %{customdata[0]}"
                 "<br>锚点 %{x|%Y-%m-%d}"
-                "<br>锚点收盘 %{customdata[1]:.2f}"
+                "<br>锚点价 %{customdata[1]:.2f}"
                 "<br>确认日 %{customdata[2]}<extra></extra>"
             ),
         )
@@ -240,7 +240,7 @@ def _add_pending_marker(
                 "末端未确认候选"
                 "<br>候选类型 %{customdata[0]}"
                 "<br>锚点 %{x|%Y-%m-%d}"
-                "<br>锚点收盘 %{customdata[1]:.2f}"
+                "<br>锚点价 %{customdata[1]:.2f}"
                 "<br>尚未达到反转阈值<extra></extra>"
             ),
         )
@@ -266,7 +266,8 @@ def write_viewer(
     chart_ids = []
     for position, (index_id, index_name, _, relative_path, float_prices) in enumerate(INDEX_SPECS):
         daily = read_tdx_daily(vipdoc / relative_path, float_prices=float_prices)
-        figure = make_figure(daily, index_name, threshold)
+        adjusted_threshold = threshold_for_index(index_id, threshold)
+        figure = make_figure(daily, index_name, adjusted_threshold)
         chart_id = f"chart-{index_id}"
         chart_ids.append(chart_id)
         figure_html = pio.to_html(
@@ -319,7 +320,7 @@ def _page_html(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>指数顶底检查 · {threshold:.0%}</title>
+  <title>指数顶底检查 · 基础尺度 {threshold:.0%}</title>
   <style>
     :root {{
       --background: {COLORS['background']};
@@ -364,7 +365,7 @@ def _page_html(
 </head>
 <body>
   <header class="topbar">
-    <div class="heading"><strong>指数顶底检查</strong><span>{threshold:.0%} 方向变化 · 收盘价确认</span></div>
+    <div class="heading"><strong>指数顶底检查</strong><span>基础 {threshold:.0%} · 分指数波动调整 · 日K最高/最低价确认</span></div>
     <nav class="tabs" role="tablist" aria-label="指数切换">{tabs}</nav>
   </header>
   <main>{panels}</main>
@@ -408,7 +409,12 @@ def main() -> None:
         type=Path,
         default=Path.home() / ".local/share/tdxcfv/drive_c/tc/vipdoc",
     )
-    parser.add_argument("--threshold", type=float, default=0.10)
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.10,
+        help="基础阈值；每个指数再乘以固定波动倍率",
+    )
     parser.add_argument(
         "--output",
         type=Path,

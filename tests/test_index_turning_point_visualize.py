@@ -64,6 +64,11 @@ def test_writes_one_html_with_tabs_and_full_width_chart(tmp_path, monkeypatch):
         "INDEX_SPECS",
         (("test", "测试指数", "TEST", relative_path, False),),
     )
+    monkeypatch.setattr(
+        visualize,
+        "threshold_for_index",
+        lambda index_id, base_threshold: base_threshold,
+    )
 
     output = visualize.write_viewer(vipdoc, tmp_path / "viewer.html", 0.10)
     html = output.read_text(encoding="utf-8")
@@ -73,3 +78,5 @@ def test_writes_one_html_with_tabs_and_full_width_chart(tmp_path, monkeypatch):
     assert 'class="plotly-graph-div"' in html
     assert ".chart-shell { width: 100%; height: 540px" in html
     assert "2020-01-04" in html
+    assert "日K最高/最低价确认" in html
+    assert "基础 10% · 分指数波动调整" in html

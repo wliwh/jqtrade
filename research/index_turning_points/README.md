@@ -12,26 +12,36 @@
 # 生成数据清单、三档顶底标签和未来结果
 /home/hh01/anaconda3/envs/fin/bin/python -m research.index_turning_points.pipeline
 
-# 生成一个包含七个指数标签页的离线 HTML（默认 10% 主口径）
+# 生成一个包含七个指数标签页的离线 HTML（默认中级尺度）
 /home/hh01/anaconda3/envs/fin/bin/python -m research.index_turning_points.visualize
 
 # 运行本模块测试
 /home/hh01/anaconda3/bin/python -m pytest -q \
   tests/test_index_turning_point_labels.py \
   tests/test_index_turning_point_pipeline.py \
-  tests/test_index_turning_point_visualize.py
+  tests/test_index_turning_point_visualize.py \
+  tests/test_index_turning_point_breadth_analysis.py \
+  tests/test_jq_export_breadth.py
 ```
 
 主要产物位于 `artifacts/`：
 
-- [`data_manifest.csv`](artifacts/data_manifest.csv)：源文件、覆盖区间和规范化结果；
-- [`turning_point_labels.csv`](artifacts/turning_point_labels.csv)：5%、10%、20% 三档顶底事件；
+- [`data_manifest.csv`](artifacts/data_manifest.csv)：源文件、覆盖区间、规范化结果和各指数实际阈值；
+- [`turning_point_labels.csv`](artifacts/turning_point_labels.csv)：小、中、大三级顶底事件及实际阈值；
 - [`forward_outcomes.csv`](artifacts/forward_outcomes.csv)：未来 5/10/20/60 个交易日的最大上行、最大下行和期末收益；
 - [`index_turning_points.html`](artifacts/index_turning_points.html)：七指数 OHLC 与顶底标记的单文件交互图。
+- [`four_industry_top1/report.md`](artifacts/four_industry_top1/report.md)：全市场MA20宽度、四行业Top1及组合首次触发/退出的精简增量报告。
+- [`four_industry_top1/signal_daily_phases.csv`](artifacts/four_industry_top1/signal_daily_phases.csv)：逐日标记首次触发、持续期、退出日和普通非活跃日；
+- [`four_industry_top1/trigger_episodes.csv`](artifacts/four_industry_top1/trigger_episodes.csv)：每段连续信号的起止日、退出日、长度和出现过的目标行业。
+- [`four_industry_top1/filtered_trigger_episodes.csv`](artifacts/four_industry_top1/filtered_trigger_episodes.csv)：按全市场MA20宽度50%分组后重新识别的连续区间。
+
+JQ 全A市场宽度数据使用可直接复制到投资研究环境的
+[`jq_export_breadth.py`](jq_export_breadth.py) 生成。固定口径、ZIP 结构和字段说明见
+[`docs/jq_breadth_export.md`](docs/jq_breadth_export.md)。
 
 ## 研究对象与本地数据
 
-各指数独立生成标签。研究使用指数本身的日收盘价，不用 ETF 替代；JQ 标识仍需在正式导数前于 JQ 环境实测。
+各指数独立生成标签。研究使用指数本身的日K OHLC，不用 ETF 替代；JQ 标识仍需在正式导数前于 JQ 环境实测。
 
 | 指数 | JQ 标识 | 通达信日线 | 覆盖区间 |
 | --- | --- | --- | --- |
@@ -41,23 +51,40 @@
 | 中证1000 | `000852.XSHG` | `sh/lday/sh000852.day` | 2005-01-04—2026-08-14 |
 | 国证2000 | `399303.XSHE`（待实测） | `sz/lday/sz399303.day` | 2010-01-04—2026-08-14 |
 | 微盘股 | 暂无固定 JQ 标识 | `sh/lday/sh880823.day` | 2005-06-07—2026-08-14 |
-| 全A（中证全指） | `000985.XSHG`（待实测） | `ds/lday/62#000985.day` | 2005-01-04—2026-08-14 |
+| 全A（中证全指） | `000985.XSHG` | `ds/lday/62#000985.day` | 2005-01-04—2026-08-14 |
 
 上证指数固定使用 `sh999999.day`，不退回只有 2020 年以来数据的 `sh000001.day`。全A文件使用 32 字节浮点 OHLC 格式，不能按沪深标准整数价格格式解码；其中 `2016-06-13` 的一条完全重复记录会被去重，同日字段冲突则报错。
 
 ## 顶部和底部标签
 
-主标签采用收盘价方向变化（directional change）极值。标签可使用未来价格确认，但被研究的信号只能使用信号日当时已经可得的数据。
+主标签采用日K最高价、最低价的方向变化（directional change）极值。标签可使用未来价格确认，但被研究的信号只能使用信号日当时已经可得的数据。
 
-- 顶部：上行段中的运行最高收盘价，随后首次从该高点下跌至少 `δ`；
-- 底部：下行段中的运行最低收盘价，随后首次从该低点上涨至少 `δ`；
+- 顶部：上行段中的运行最高价，后续交易日最低价首次从该高点下跌至少 `δ`；
+- 底部：下行段中的运行最低价，后续交易日最高价首次从该低点上涨至少 `δ`；
+- 同一根日K不能同时作为锚点和确认日，因为日线 OHLC 无法确定盘中最高、最低价的先后顺序；
 - 锚点日与确认日分别保存，确认滞后按交易记录数计算；
-- 5% 用于小级别灵敏度检查，10% 是主口径，20% 用于重大转折检查；
-- 三档结果必须同时报告，不按指数分别寻优；
+- 小级别用于灵敏度检查，中级是主口径，大级别用于重大转折检查；
+- 三档结果必须同时报告，指数倍率在查看信号结果前固定；
 - 顶底严格交替，相同极值取最后一次出现日期；
 - 样本首个确认事件只初始化方向，末端未确认极值只作为候选，两者均不进入主统计。
 
-为降低结论对离散标签的依赖，每个交易日还计算未来 5/10/20/60 日最大下行、最大上行和期末收益。
+为降低结论对离散标签的依赖，每个交易日仍按收盘价计算未来 5/10/20/60 日最大下行、最大上行和期末收益。
+
+### 分指数固定阈值
+
+共同基础尺度仍为 5%、10%、20%，再乘以冻结的指数波动倍率。倍率参考 2010-01-04—2026-08-14 共同区间的 60 日年化波动中位数，并按 0.1 档位取整；微盘股同时考虑较高的日内尾部波动。该倍率不会随新增行情自动重估，也不会根据后续信号效果调整。
+
+| 指数 | 倍率 | 小级别 | 中级主口径 | 大级别 |
+| --- | ---: | ---: | ---: | ---: |
+| 上证指数 | 0.8 | 4.0% | 8.0% | 16.0% |
+| 沪深300 | 0.9 | 4.5% | 9.0% | 18.0% |
+| 全A | 1.0 | 5.0% | 10.0% | 20.0% |
+| 中证500 | 1.1 | 5.5% | 11.0% | 22.0% |
+| 中证1000 | 1.2 | 6.0% | 12.0% | 24.0% |
+| 国证2000 | 1.2 | 6.0% | 12.0% | 24.0% |
+| 微盘股 | 1.3 | 6.5% | 13.0% | 26.0% |
+
+可视化命令中的 `--threshold` 表示共同基础尺度，各指数仍会应用上述倍率。例如默认 `0.10` 会显示表中的“中级主口径”。
 
 ## 信号关系的统一口径
 
@@ -66,9 +93,13 @@
 - `0/5/10/20` 个交易日提前窗口内的事件召回率和信号精确率；
 - 信号到同类锚点的提前量分布、误报率和覆盖率；
 - 信号日与普通交易日的未来上行、下行和期末收益分布差异；
-- 5%、10%、20% 三种标签尺度下的稳定性。
+- 小、中、大三种标签尺度下的稳定性。
 
-同一事件前连续多日触发时，事件召回只计一次；每日观测仍保留给连续结果分析。显著性检验必须处理时间序列相关和事件窗口重叠。
+同一事件前连续多日触发时，事件召回只计一次。连续触发还要合并为区间，并区分区间首日 `onset`、后续活跃日 `continuation`、结束后的首个非触发日 `exit` 和其余 `inactive` 日。全部活跃日、首次触发和持续期均与真正的非活跃日比较，不能把持续期混入首次触发的对照组。显著性检验必须处理时间序列相关和事件窗口重叠。
+
+事件提前窗口包含锚点当日，0日匹配计为命中。全市场宽度过滤使用与行业信号同周期的 `breadth_ma20`，固定以50%分成 `≤50%` 和 `>50%` 两组；先过滤每日信号，再分别重新识别首次触发和退出，两组并列报告，不根据顶底结果选择方向。
+
+增量判断同时报告无条件精确率倍数和同宽度状态的条件倍数。组合首次触发还按“四行业变化导致、全市场宽度跨线导致、两者同日”拆分；组合退出同样拆分原因，不给跨越不同宽度状态的混合退出强设单一条件基准。
 
 ## 已固定的首个信号
 
@@ -87,9 +118,13 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| [`labels.py`](labels.py) | 收盘价方向变化标签器 |
+| [`labels.py`](labels.py) | 日K最高/最低价方向变化标签器 |
 | [`pipeline.py`](pipeline.py) | 七指数解码、标签和未来结果批处理 |
 | [`visualize.py`](visualize.py) | 七指数单 HTML 标签页可视化 |
+| [`jq_export_breadth.py`](jq_export_breadth.py) | JQ 点时全A市场宽度处理与单 ZIP 导出 |
+| [`analyze_breadth.py`](analyze_breadth.py) | 校验 JQ 包并分析四行业 Top1 与顶底、未来结果的关系 |
+| [`docs/jq_breadth_export.md`](docs/jq_breadth_export.md) | JQ 数据口径、字段和运行说明 |
+| [`docs/jq_research_compatibility.md`](docs/jq_research_compatibility.md) | JQ Python 3.6、旧 pandas 和导入方式避坑 |
 | [`docs/signal_backlog.md`](docs/signal_backlog.md) | 候选信号、优先级与开发顺序 |
 
 ## 研究红线

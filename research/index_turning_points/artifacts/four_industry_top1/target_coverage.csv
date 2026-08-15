@@ -1,0 +1,5 @@
+target_id,mapped_days,first_mapped_date,last_mapped_date,top1_days_all_export,top1_days_full_coverage
+bank,3037,2014-02-21,2026-08-14,749,264
+coal,1133,2021-12-13,2026-08-14,155,155
+nonferrous,3549,2012-01-04,2026-08-14,156,51
+steel,3549,2012-01-04,2026-08-14,329,38
