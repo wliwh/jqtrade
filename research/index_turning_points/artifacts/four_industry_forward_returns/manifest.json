@@ -1,0 +1,66 @@
+{
+  "actual_target_index_id": "csi2000",
+  "actual_target_present": false,
+  "analysis_id": "four_industry_forward_returns_v1",
+  "horizons": [
+    1,
+    2,
+    3,
+    5,
+    10,
+    20,
+    60
+  ],
+  "inference": {
+    "covariance": "Newey-West Bartlett kernel",
+    "duration_fdr_family": "index_id; 5 buckets x 7 horizons",
+    "global_fdr": "all inference-eligible rows in each output table",
+    "max_lag": "max(5, horizon_days)",
+    "minimum_episode_count": 20,
+    "minimum_sample_count": 30,
+    "primary_fdr_family": "index_id x phase; 5 signals x 7 horizons",
+    "subset_fdr_family": "index_id x phase; 15 subsets x 7 horizons"
+  },
+  "input": {
+    "outcomes": "/home/hh01/Documents/jqtrade/research/index_turning_points/artifacts/forward_outcomes.csv",
+    "outcomes_sha256": "cc16bea413d26a3fb1e31ddaade9645530051216347a39bf3467662103645f1d",
+    "package_manifest": "/home/hh01/Documents/jqtrade/research/index_turning_points/datas/all_a_breadth_v1_20120101_20260814/manifest.json",
+    "package_manifest_sha256": "b49a92070ede39c870a2ada935a8715ae122871b97033bf9246fc4152e6e371b"
+  },
+  "outputs": {
+    "durations": {
+      "path": "duration_tests.csv",
+      "rows": 245,
+      "sha256": "fde7802d3e09bd7be4b4a6c78acea9d4edf646a2cbc3d43d3ede2d942b547c4f"
+    },
+    "primary": {
+      "path": "primary_tests.csv",
+      "rows": 980,
+      "sha256": "7d94e29d1683c59413b1581838775e1aad5b7d845bd48c1995d4386523530517"
+    },
+    "primary_episodes": {
+      "path": "primary_episodes.csv",
+      "rows": 266,
+      "sha256": "2d5b457adc3a556efec868d45ee06189542bdcd5754d9f33abf5a660605ac4cc"
+    },
+    "report": {
+      "path": "report.md",
+      "rows": null,
+      "sha256": "d88f96cfd4ee2e758b6031c57348807516c324d9288c4563ee11543747933b59"
+    },
+    "subset_episodes": {
+      "path": "subset_episodes.csv",
+      "rows": 1049,
+      "sha256": "76d157163892bc96e2da104fb642ded901ac2b51e5cf04f4665924c7763a0364"
+    },
+    "subsets": {
+      "path": "subset_tests.csv",
+      "rows": 2940,
+      "sha256": "8494540ebb65327dc394a13b963be8a82c7da91d28e7cea8904931ee9ca01c72"
+    }
+  },
+  "proxy_target_index_id": "cni2000",
+  "signal_days": 1133,
+  "signal_end": "2026-08-14",
+  "signal_start": "2021-12-13"
+}

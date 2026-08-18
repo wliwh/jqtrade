@@ -1,6 +1,6 @@
 # 指数顶底信号研究
 
-状态：顶底标签器、七指数数据批处理和离线可视化已经可用；下一阶段研究可观测信号与顶部、底部的统计关系。
+状态：顶底标签、七指数批处理和四行业 Top1 关系研究可用；下一阶段继续研究其他市场宽度信号。
 
 本目录不开发交易策略，不生成仓位规则，也不以策略收益反向选择信号或参数。顶部与底部是两个独立问题，信号可以只服务其中一类。
 
@@ -15,25 +15,24 @@
 # 生成一个包含七个指数标签页的离线 HTML（默认中级尺度）
 /home/hh01/anaconda3/envs/fin/bin/python -m research.index_turning_points.visualize
 
+# 检验四行业 Top1 后 1/2/3/5/10/20/60 日收盘收益
+/home/hh01/anaconda3/envs/fin/bin/python \
+  -m research.index_turning_points.analyze_forward_returns
+
 # 运行本模块测试
 /home/hh01/anaconda3/bin/python -m pytest -q \
-  tests/test_index_turning_point_labels.py \
-  tests/test_index_turning_point_pipeline.py \
-  tests/test_index_turning_point_visualize.py \
-  tests/test_index_turning_point_breadth_analysis.py \
+  tests/test_index_turning_point_*.py \
   tests/test_jq_export_breadth.py
 ```
 
 主要产物位于 `artifacts/`：
 
-- [`data_manifest.csv`](artifacts/data_manifest.csv)：源文件、覆盖区间、规范化结果和各指数实际阈值；
-- [`turning_point_labels.csv`](artifacts/turning_point_labels.csv)：小、中、大三级顶底事件及实际阈值；
-- [`forward_outcomes.csv`](artifacts/forward_outcomes.csv)：未来 5/10/20/60 个交易日的最大上行、最大下行和期末收益；
-- [`index_turning_points.html`](artifacts/index_turning_points.html)：七指数 OHLC 与顶底标记的单文件交互图。
-- [`four_industry_top1/report.md`](artifacts/four_industry_top1/report.md)：全市场MA20宽度、四行业Top1及组合首次触发/退出的精简增量报告。
-- [`four_industry_top1/signal_daily_phases.csv`](artifacts/four_industry_top1/signal_daily_phases.csv)：逐日标记首次触发、持续期、退出日和普通非活跃日；
-- [`four_industry_top1/trigger_episodes.csv`](artifacts/four_industry_top1/trigger_episodes.csv)：每段连续信号的起止日、退出日、长度和出现过的目标行业。
-- [`four_industry_top1/filtered_trigger_episodes.csv`](artifacts/four_industry_top1/filtered_trigger_episodes.csv)：按全市场MA20宽度50%分组后重新识别的连续区间。
+| 路径 | 内容 |
+| --- | --- |
+| [`data_manifest.csv`](artifacts/data_manifest.csv)、[`turning_point_labels.csv`](artifacts/turning_point_labels.csv)、[`forward_outcomes.csv`](artifacts/forward_outcomes.csv) | 指数数据清单、顶底标签和未来结果 |
+| [`index_turning_points.html`](artifacts/index_turning_points.html) | 七指数顶底交互图 |
+| [`four_industry_top1/`](artifacts/four_industry_top1/) | 四行业 Top1 与顶底关系、每日阶段和连续区间 |
+| [`four_industry_forward_returns/`](artifacts/four_industry_forward_returns/) | 后续收益报告、正式/探索检验和复现清单 |
 
 JQ 全A市场宽度数据使用可直接复制到投资研究环境的
 [`jq_export_breadth.py`](jq_export_breadth.py) 生成。固定口径、ZIP 结构和字段说明见
@@ -112,7 +111,9 @@ JQ 全A市场宽度数据使用可直接复制到投资研究环境的
 5. 银行、煤炭、钢铁、有色金属中任一行业排名为 1 时触发；
 6. 并列第一全部视为 Top1，并记录行业、宽度、并列数和全市场平均宽度。
 
-`research/micro/` 只作为来源参考：其中原始策略实际使用沪深300股票池，历史宽度脚本又用单一日期的股票集合和行业归属回看整段窗口，不能直接复用为本研究的点时全A实现。正式计算前还需一次性固定历史股票池、上市天数、ST、停牌、缺失价格、申万版本和最小行业样本数。
+`research/micro/` 只作为来源参考：其中原始策略实际使用沪深300股票池，历史宽度脚本又用单一日期的股票集合和行业归属回看整段窗口，不能直接复用为本研究的点时全A实现。股票池、ST、停牌、缺价、申万版本和最小行业样本数以 JQ 导出器及其字段文档中的固定口径为准。
+
+后续收益研究固定检验1/2/3/5/10/20/60日收盘收益，区分全部活跃日、首次触发、持续期和退出日，并使用Newey-West协方差和FDR处理重叠收益及多重比较。少于20个独立区间或30个有效收益观测的项目只作描述；当前全局校正后没有显著结果。指数输入不含中证2000 `932000`，国证2000 `399303` 仅为代理，收盘信号也不能假设按同一收盘价成交。完整方法和结果以 [`four_industry_forward_returns/report.md`](artifacts/four_industry_forward_returns/report.md) 及同目录 `manifest.json` 为准。
 
 ## 文件结构
 
@@ -123,6 +124,7 @@ JQ 全A市场宽度数据使用可直接复制到投资研究环境的
 | [`visualize.py`](visualize.py) | 七指数单 HTML 标签页可视化 |
 | [`jq_export_breadth.py`](jq_export_breadth.py) | JQ 点时全A市场宽度处理与单 ZIP 导出 |
 | [`analyze_breadth.py`](analyze_breadth.py) | 校验 JQ 包并分析四行业 Top1 与顶底、未来结果的关系 |
+| [`analyze_forward_returns.py`](analyze_forward_returns.py) | 检验单行业/行业组合在不同连续阶段后的多期限收盘收益 |
 | [`docs/jq_breadth_export.md`](docs/jq_breadth_export.md) | JQ 数据口径、字段和运行说明 |
 | [`docs/jq_research_compatibility.md`](docs/jq_research_compatibility.md) | JQ Python 3.6、旧 pandas 和导入方式避坑 |
 | [`docs/signal_backlog.md`](docs/signal_backlog.md) | 候选信号、优先级与开发顺序 |
@@ -137,4 +139,4 @@ JQ 全A市场宽度数据使用可直接复制到投资研究环境的
 
 ## 下一步
 
-候选信号及推荐顺序见 [`docs/signal_backlog.md`](docs/signal_backlog.md)。建议先建设一次可复用的全A点时截面数据层，再依次实现四行业 Top1、基础市场宽度和宽度背离；这一批共享相同数据，最容易先形成可审计的研究闭环。
+候选信号及顺序见 [`docs/signal_backlog.md`](docs/signal_backlog.md)。当前优先研究多周期宽度和宽度—指数背离；若要直接评价中证2000，先补充 `932000` 点时行情，不用国证2000代理下交易结论。

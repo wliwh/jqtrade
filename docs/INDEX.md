@@ -1,29 +1,12 @@
 # 文档检索索引
 
-这里是人和 Codex 类工具的统一文档导航入口。先按问题定位目录，再对目标文件使用全文搜索；不要把整个 `docs/` 或整份 JQ API 一次性读入上下文。
+先按问题定位目录，再对最小相关范围全文搜索；不要一次性加载整个 `docs/` 或整份 JQ API。
 
 ## 检索方法
 
 ```bash
-# 先按主题限定目录，再带上下文输出命中位置
-rg -n -i -C 3 '关键词' <目标目录>
-
-# 仅列出可能相关的文件
 rg -l -i '关键词' <目标目录>
-```
-
-例如：
-
-```bash
-# JQ 调度、下单、数据与回测 API
-rg -n -i -C 3 'run_daily|order_target|get_price|create_backtest' \
-  docs/reference/joinquant/official/strategy-api.md
-
-# ETF 策略实现与参数
-rg -n -i -C 3 '关键词' strategies/etf_rotation backtest_executor/config
-
-# 当前自动化研究计划
-rg -n -i -C 3 '关键词' docs/planning backtest_executor
+rg -n -i -C 3 '关键词' <目标文件或目录>
 ```
 
 ## 按问题定位
@@ -41,13 +24,12 @@ rg -n -i -C 3 '关键词' docs/planning backtest_executor
 | JQ 历史数据导出 | [`../tools/jq_data_export/README.md`](../tools/jq_data_export/README.md) | `tools/jq_data_export/src/` |
 | 策略比较、历史方案或外部项目资料 | [`reports/forum/articles/`](reports/forum/articles/)、[`archive/`](archive/) | 只作追溯，不作当前事实源 |
 
-## 给 Codex 的检索顺序
+## 检索顺序
 
-1. 读取根 `README.md` 和本索引，确定领域与当前入口。
-2. 读取该领域的 `README.md`，确认代码、文档和产物边界。
-3. 用 `rg -n -i -C 3` 在最小相关范围搜索问题中的函数名、字段名或关键词。
-4. 只打开命中片段及其直接上下文；遇到 JQ 平台语义时优先取 `official/` 快照，必要时再核对官网和实际 JQ 环境。
-5. 历史文档和 `archive/` 仅用于解释来历，不能覆盖现行设计、配置或实验事实。
+1. 读根 README、本索引和目标模块 README。
+2. 在最小范围搜索函数名、字段名或关键词，只打开命中上下文。
+3. JQ 平台语义优先查 `official/` 快照，必要时核对官网和实际环境。
+4. `archive/` 和历史文章只能解释来历，不能覆盖现行设计、配置或实验事实。
 
 ## 文档归位规则
 
