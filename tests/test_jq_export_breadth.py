@@ -23,7 +23,10 @@ def _load_module():
     jqdata.get_trade_days = lambda *args, **kwargs: None
     sys.modules["jqdata"] = jqdata
 
-    module_name = "research.index_turning_points.jq_export_breadth"
+    module_name = (
+        "research.index_turning_points.datas."
+        "all_a_breadth_v1_20120101_20260814.jq_export_breadth"
+    )
     sys.modules.pop(module_name, None)
     return importlib.import_module(module_name)
 

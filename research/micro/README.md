@@ -35,6 +35,6 @@
 
 ## 与当前顶底研究的关系
 
-当前定义以 [`../index_turning_points/README.md`](../index_turning_points/README.md) 为准：全A点时股票池、申万一级行业、四行业、MA20、Top1，并且只研究信号与顶部/底部的统计关系。
+现行研究边界以 [`../index_turning_points/README.md`](../index_turning_points/README.md) 为准：先建立事后顶底区域，再用严格点时信号分别评价区域定位和信号后结果。四行业 MA20 Top1 的旧单点口径结果已经归档，只作方法追溯。
 
 后续可借用本目录的行业宽度计算思路和图表表达，但必须重新建立点时数据层，不直接读取这里的 CSV 作为正式样本，也不复用任何交易或仓位逻辑。

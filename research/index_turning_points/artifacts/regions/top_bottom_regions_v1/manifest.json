@@ -1,0 +1,212 @@
+{
+  "label_version": "top_bottom_regions_v1",
+  "generated_at_utc": "2026-08-19T06:19:39.669505+00:00",
+  "purpose": "Post-hoc top/bottom ground truth; not a point-in-time signal.",
+  "protocol": {
+    "label_version": "top_bottom_regions_v1",
+    "price_band_fraction_of_threshold": 0.25,
+    "max_side_days": 20,
+    "max_lobe_gap": 10,
+    "prediction_windows": [
+      5,
+      10,
+      20
+    ],
+    "confirmation_windows": [
+      5,
+      10,
+      20
+    ],
+    "capped_confirmation_n": 2
+  },
+  "boundary_policy": "Each medium anchor owns the non-overlapping midpoint cell between its adjacent directional-change anchors, capped by max_side_days.",
+  "source_files": [
+    {
+      "index_id": "sse_composite",
+      "path": "sh/lday/sh999999.day",
+      "bytes": 206400,
+      "sha256": "217c9678077a88b27d5ad8f894517d51a96b8c3daa674ba8546dfe67ef175b6e",
+      "start_date": "2000-01-04",
+      "end_date": "2026-08-14"
+    },
+    {
+      "index_id": "csi300",
+      "path": "sh/lday/sh000300.day",
+      "bytes": 168000,
+      "sha256": "86a48a6f4bf6f3f5fdfd0b794132837cbbbf5f75dd2bad80df189bafb189d63b",
+      "start_date": "2005-01-04",
+      "end_date": "2026-08-14"
+    },
+    {
+      "index_id": "csi500",
+      "path": "sh/lday/sh000905.day",
+      "bytes": 168000,
+      "sha256": "e00329d5d46e5e096b1b4ebe36d4424245e428f781ad186e5789fd31ff7f589d",
+      "start_date": "2005-01-04",
+      "end_date": "2026-08-14"
+    },
+    {
+      "index_id": "csi1000",
+      "path": "sh/lday/sh000852.day",
+      "bytes": 168000,
+      "sha256": "e9a5cb9d80b0c8989243241c1db864139fcbc83846d657d04fc2f23bafc7a5a2",
+      "start_date": "2005-01-04",
+      "end_date": "2026-08-14"
+    },
+    {
+      "index_id": "cni2000",
+      "path": "sz/lday/sz399303.day",
+      "bytes": 129120,
+      "sha256": "35a7f3063f451098cb9d6fce0379fd18650d2839be5fb70ca96ba62451a64b83",
+      "start_date": "2010-01-04",
+      "end_date": "2026-08-14"
+    },
+    {
+      "index_id": "microcap",
+      "path": "sh/lday/sh880823.day",
+      "bytes": 164864,
+      "sha256": "33e90e87615b77b96c61aac36c6e8426d240534493144634a3734fe46d590ce0",
+      "start_date": "2005-06-07",
+      "end_date": "2026-08-14"
+    },
+    {
+      "index_id": "all_a",
+      "path": "ds/lday/62#000985.day",
+      "bytes": 168000,
+      "sha256": "36ed9682cabe99e06bf2950d1f560b418bf0027ffe5ce00725d2803b67f67016",
+      "start_date": "2005-01-04",
+      "end_date": "2026-08-14"
+    }
+  ],
+  "logic": {
+    "combined_sha256": "3a8fdab59ef97063c6d6b62d0781ae3a3df1f5d6d9f6cc49361fb5296165d318",
+    "files": [
+      {
+        "path": "labels.py",
+        "sha256": "bb50e0284718a9b653154a1dd710c5051361c3cc8b60085c654a70a8b9c4c11b"
+      },
+      {
+        "path": "regions.py",
+        "sha256": "3093cce19136c25152f9ceef0aa8222f402b5eb743124e2fe94924ece8af25ec"
+      },
+      {
+        "path": "pipeline.py",
+        "sha256": "b00bb85b34c295dfeb64d062c7d7c41c25313287bc626104526802934fd3bd8a"
+      }
+    ]
+  },
+  "point_labels": {
+    "path": "turning_point_labels.csv",
+    "rows": 4243,
+    "columns": [
+      "index_id",
+      "index_name",
+      "threshold_level",
+      "event_type",
+      "status",
+      "eligible",
+      "anchor_date",
+      "anchor_position",
+      "anchor_price",
+      "confirmation_date",
+      "confirmation_position",
+      "confirmation_price",
+      "confirmation_lag",
+      "reversal_return",
+      "threshold"
+    ],
+    "bytes": 520626,
+    "sha256": "d96e0b507a1acd31519600e556322e85ce04251919632effd4d51b7bbb346bd0",
+    "encoding": "utf-8"
+  },
+  "outputs": [
+    {
+      "path": "regions/top_bottom_regions_v1/turning_point_regions.csv",
+      "rows": 975,
+      "columns": [
+        "region_id",
+        "index_id",
+        "index_name",
+        "event_type",
+        "scale",
+        "status",
+        "eligible",
+        "region_start",
+        "region_end",
+        "region_start_position",
+        "region_end_position",
+        "anchor_date",
+        "anchor_position",
+        "anchor_price",
+        "first_core_date",
+        "last_core_date",
+        "lobe_count",
+        "confirmation_date",
+        "confirmation_position",
+        "confirmation_price",
+        "confirmation_lag",
+        "reversal_return",
+        "threshold",
+        "price_band_pct",
+        "price_band_fraction_of_threshold",
+        "max_side_days",
+        "max_lobe_gap",
+        "label_version"
+      ],
+      "bytes": 242507,
+      "sha256": "f9bb24fa3ee0e88e8b2c6118c13fada6fcbc0718444e3623b5a31397f4aa8c8e",
+      "encoding": "utf-8"
+    },
+    {
+      "path": "regions/top_bottom_regions_v1/turning_point_region_lobes.csv",
+      "rows": 1539,
+      "columns": [
+        "region_id",
+        "lobe_id",
+        "index_id",
+        "index_name",
+        "event_type",
+        "scale",
+        "lobe_number",
+        "lobe_start",
+        "lobe_end",
+        "lobe_start_position",
+        "lobe_end_position",
+        "representative_date",
+        "representative_position",
+        "representative_price",
+        "relative_anchor_price",
+        "core_days",
+        "gap_from_previous_lobe",
+        "small_pivot_count",
+        "small_pivot_dates",
+        "label_version"
+      ],
+      "bytes": 314645,
+      "sha256": "69a38fb6d7b4e751e458fdfba62be4ceaf08c5a7bd271decd1e5b35b68dd3a83",
+      "encoding": "utf-8"
+    }
+  ],
+  "counts": {
+    "regions": 975,
+    "top_regions": 487,
+    "bottom_regions": 488,
+    "lobes": 1539,
+    "multi_lobe_regions": 376
+  },
+  "acceptance_checks": {
+    "sse_2021_medium_tops": {
+      "status": "passed",
+      "expected_anchor_dates": [
+        "2021-02-18",
+        "2021-06-02",
+        "2021-09-14"
+      ],
+      "actual_anchor_dates": [
+        "2021-02-18",
+        "2021-06-02",
+        "2021-09-14"
+      ]
+    }
+  }
+}

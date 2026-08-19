@@ -1,9 +1,9 @@
 # JQ 全A市场宽度导出口径
 
-[`../jq_export_breadth.py`](../jq_export_breadth.py) 用于复制到聚宽投资研究环境运行。JQ 内完成点时股票池、价格有效性、均线、申万一级行业聚合和四行业 Top1 判定；本地只接收一个 ZIP，不接收逐股行情或逐股行业明细。
+[`jq_export_breadth.py`](jq_export_breadth.py) 用于复制到聚宽投资研究环境运行。JQ 内完成点时股票池、价格有效性、均线、申万一级行业聚合和四行业 Top1 判定；本地只接收一个 ZIP，不接收逐股行情或逐股行业明细。本页、导出脚本、manifest 和两张数据表共同记录 `all_a_breadth_v1` 数据包，不应脱离版本目录单独解释。
 
 平台 Python、pandas 和导入方式的已知限制见
-[`jq_research_compatibility.md`](jq_research_compatibility.md)。
+[`../jq_research_compatibility.md`](../jq_research_compatibility.md)。
 
 该导出服务于信号与指数顶部、底部关系研究，不生成交易动作、仓位或策略收益。
 
@@ -105,7 +105,7 @@ data/
 
 ## 在 JQ 投资研究中运行
 
-1. 将 [`../jq_export_breadth.py`](../jq_export_breadth.py) 复制到 JQ 投资研究根目录。
+1. 将 [`jq_export_breadth.py`](jq_export_breadth.py) 复制到 JQ 投资研究根目录。
 2. 可先执行 `get_index_stocks('000985.XSHG', date='2012-01-04')`，复核平台返回非空历史成分。
 3. 检查脚本顶部的日期、股票池、均线和最小行业样本数。改变任一口径时同步修改 `DATA_VERSION`，不要覆盖旧版本。
 4. 初次建议先把日期改为一个月做冒烟；确认 ZIP 后再恢复完整区间运行。

@@ -1,8 +1,8 @@
-index_id,index_name,jq_code,source_file,raw_rows,rows,duplicates_removed,start_date,end_date,last_close,threshold_multiplier,threshold_small,threshold_medium,threshold_large
-sse_composite,上证指数,000001.XSHG,sh/lday/sh999999.day,6450,6450,0,2000-01-04,2026-08-14,3927.18,0.8,0.04,0.08,0.16
-csi300,沪深300,000300.XSHG,sh/lday/sh000300.day,5250,5250,0,2005-01-04,2026-08-14,4665.88,0.9,0.045,0.09,0.18
-csi500,中证500,000905.XSHG,sh/lday/sh000905.day,5250,5250,0,2005-01-04,2026-08-14,7990.33,1.1,0.055,0.11,0.22
-csi1000,中证1000,000852.XSHG,sh/lday/sh000852.day,5250,5250,0,2005-01-04,2026-08-14,7769.82,1.2,0.06,0.12,0.24
-cni2000,国证2000,399303.XSHE,sz/lday/sz399303.day,4035,4035,0,2010-01-04,2026-08-14,10115.47,1.2,0.06,0.12,0.24
-microcap,微盘股,TDX.880823,sh/lday/sh880823.day,5152,5152,0,2005-06-07,2026-08-14,6743.91,1.3,0.065,0.13,0.26
-all_a,全A,000985.XSHG,ds/lday/62#000985.day,5250,5249,1,2005-01-04,2026-08-14,5991.01904296875,1.0,0.05,0.1,0.2
+index_id,index_name,jq_code,source_file,raw_rows,rows,duplicates_removed,start_date,end_date,last_close,threshold_multiplier,threshold_small,threshold_medium,threshold_large,region_label_version,region_price_band_pct,region_count,top_region_count,bottom_region_count,multi_lobe_region_count
+sse_composite,上证指数,000001.XSHG,sh/lday/sh999999.day,6450,6450,0,2000-01-04,2026-08-14,3927.18,0.8,0.04,0.08,0.16,top_bottom_regions_v2,0.016,213,107,106,73
+csi300,沪深300,000300.XSHG,sh/lday/sh000300.day,5250,5250,0,2005-01-04,2026-08-14,4665.88,0.9,0.045,0.09,0.18,top_bottom_regions_v2,0.018,149,75,74,48
+csi500,中证500,000905.XSHG,sh/lday/sh000905.day,5250,5250,0,2005-01-04,2026-08-14,7990.33,1.1,0.055,0.11,0.22,top_bottom_regions_v2,0.02,140,70,70,50
+csi1000,中证1000,000852.XSHG,sh/lday/sh000852.day,5250,5250,0,2005-01-04,2026-08-14,7769.82,1.2,0.06,0.12,0.24,top_bottom_regions_v2,0.02,125,62,63,49
+cni2000,国证2000,399303.XSHE,sz/lday/sz399303.day,4035,4035,0,2010-01-04,2026-08-14,10115.47,1.2,0.06,0.12,0.24,top_bottom_regions_v2,0.02,77,38,39,28
+microcap,微盘股,TDX.880823,sh/lday/sh880823.day,5152,5152,0,2005-06-07,2026-08-14,6743.91,1.3,0.065,0.13,0.26,top_bottom_regions_v2,0.02,133,66,67,41
+all_a,全A,000985.XSHG,ds/lday/62#000985.day,5250,5249,1,2005-01-04,2026-08-14,5991.01904296875,1.0,0.05,0.1,0.2,top_bottom_regions_v2,0.02,138,69,69,60

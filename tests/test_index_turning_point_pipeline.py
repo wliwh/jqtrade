@@ -1,3 +1,4 @@
+import json
 import struct
 
 import pandas as pd
@@ -131,7 +132,7 @@ def test_rejects_index_without_threshold_multiplier():
         pipeline.threshold_for_index("unknown", 0.10)
 
 
-def test_pipeline_writes_three_csv_files(tmp_path, monkeypatch):
+def test_pipeline_writes_point_and_region_artifacts(tmp_path, monkeypatch):
     vipdoc = tmp_path / "vipdoc"
     relative_path = "sh/lday/test.day"
     write_standard(vipdoc / relative_path, sample_rows())
@@ -144,11 +145,23 @@ def test_pipeline_writes_three_csv_files(tmp_path, monkeypatch):
 
     outputs = pipeline.run_pipeline(vipdoc, tmp_path / "output")
 
-    assert set(outputs) == {"manifest", "labels", "outcomes"}
+    assert set(outputs) == {
+        "manifest",
+        "labels",
+        "outcomes",
+        "regions",
+        "region_lobes",
+        "region_manifest",
+    }
     assert all(path.exists() for path in outputs.values())
     manifest = pd.read_csv(outputs["manifest"])
     labels = pd.read_csv(outputs["labels"])
     outcomes = pd.read_csv(outputs["outcomes"])
+    regions = pd.read_csv(outputs["regions"])
+    lobes = pd.read_csv(outputs["region_lobes"])
+    region_manifest = json.loads(
+        outputs["region_manifest"].read_text(encoding="utf-8")
+    )
     assert manifest.loc[0, "rows"] == 6
     assert manifest.loc[0, "threshold_multiplier"] == 1.0
     assert manifest.loc[0, "threshold_medium"] == 0.10
@@ -162,3 +175,22 @@ def test_pipeline_writes_three_csv_files(tmp_path, monkeypatch):
     assert labels_10.loc[2, "anchor_price"] == 74
     assert labels_10.loc[2, "confirmation_price"] == 91
     assert {"date", "close", "future_return_5d"} <= set(outcomes.columns)
+    assert set(regions["event_type"]) == {"top", "bottom"}
+    assert regions["label_version"].eq("top_bottom_regions_v2").all()
+    assert regions["lobe_count"].sum() == len(lobes)
+    assert outputs["region_manifest"].parent.name == "top_bottom_regions_v2"
+    assert region_manifest["protocol"] == {
+        "label_version": "top_bottom_regions_v2",
+        "price_band_fraction_of_threshold": 0.20,
+        "max_price_band_pct": 0.02,
+        "max_side_days": 20,
+        "max_lobe_gap": 10,
+        "prediction_windows": [5, 10, 20],
+        "confirmation_windows": [5, 10, 20],
+        "capped_confirmation_n": 2,
+    }
+    assert region_manifest["source_files"][0]["sha256"]
+    assert region_manifest["logic"]["combined_sha256"]
+    assert region_manifest["acceptance_checks"] == {
+        "sse_2021_medium_tops": {"status": "not_applicable"}
+    }

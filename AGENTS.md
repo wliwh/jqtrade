@@ -22,6 +22,14 @@
 - `backtest_executor/results/` 是实验事实；不要为了整理目录改写既有 `mapper.json`、CSV 或回测 ID。
 - `research/pools/artifacts/`、`research/micro/artifacts/` 和 `docs/reports/forum/assets/` 中的 CSV、HTML、图片是研究产物或文章资产，不是通用程序入口。
 
+## 指数顶底研究
+
+- 稳定边界读 `research/index_turning_points/README.md`，当前实施以 `research/index_turning_points/docs/top_bottom_region_evaluation_plan.md` 为准，P1 候选只看 `research/index_turning_points/docs/signal_backlog.md`。
+- 顶底区域和未来收益属于事后标准答案，可以使用未来行情；日期 `t` 的信号值、触发状态和输出日期只能使用 `t` 当时已知的数据。
+- 离线评测可以读取未来定义的区域与收益，但不能让它们参与信号生成、阈值选择或触发日期回填；标签参数和评测窗口必须在查看候选信号结果前冻结。
+- `research/index_turning_points/datas/<数据版本>/` 是数据包事实源，可同时保存生成该包的 JQ 脚本和口径说明；不要改写已有 manifest、CSV 或哈希来适配新分析。
+- `research/index_turning_points/artifacts/archive/` 仅保存旧口径实验事实，不代表现行区域评测结论。
+
 ## 验证
 
 - 普通 Python 改动至少运行相关测试；跨模块改动运行 `pytest -q`。

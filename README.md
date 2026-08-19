@@ -5,7 +5,7 @@
 ## 当前重点
 
 - 策略工程：[研究自动化流水线](docs/planning/strategy_research_automation_pipeline_design.md)；执行入口见 [`backtest_executor/`](backtest_executor/README.md)。
-- 独立研究：[指数顶底信号](research/index_turning_points/README.md)，不纳入策略开发流程。
+- 独立研究：[指数顶底区域与点时信号](research/index_turning_points/README.md)，不纳入策略开发流程。
 
 ## 目录
 
@@ -15,7 +15,7 @@
 | [`backtest_executor/`](backtest_executor/README.md) | YAML 驱动的 JQ 参数回测与结果分析 | 活跃 |
 | [`research/pools/`](research/pools/README.md) | ETF 池过滤、聚类、族谱和 PCA 研究 | 研究中 |
 | [`research/micro/`](research/micro/README.md) | 市场宽度和一致性研究 | 探索中 |
-| [`research/index_turning_points/`](research/index_turning_points/README.md) | 指数顶底标签与预警信号关系研究，不开发交易策略 | 研究中 |
+| [`research/index_turning_points/`](research/index_turning_points/README.md) | 事后顶底区域、点时信号与两套离线评测，不开发交易策略 | 研究中 |
 | [`tools/jq_data_export/`](tools/jq_data_export/README.md) | JQ 数据导出和批次续传工具 | 辅助工具 |
 | [`docs/`](docs/INDEX.md) | 计划、JQ 参考、研究报告与历史归档 | 文档 |
 | `tests/` | 回测辅助、数据导出和研究模块的本地确定性测试 | 测试 |

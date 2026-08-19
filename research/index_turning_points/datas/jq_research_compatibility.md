@@ -1,6 +1,6 @@
 # JQ 研究环境兼容性备忘
 
-本页记录 `jq_export_breadth.py` 在真实 JQ 投资研究环境中确认过的兼容性约束。编写或复制新的 JQ 研究脚本时先检查本页；本地较新的 Python/pandas 测试不能替代平台冒烟。
+本页记录 JQ 投资研究环境中确认过的通用兼容性约束。当前已验证脚本为 [`all_a_breadth_v1_20120101_20260814/jq_export_breadth.py`](all_a_breadth_v1_20120101_20260814/jq_export_breadth.py)；编写或复制新的 JQ 研究脚本时先检查本页，本地较新的 Python/pandas 测试不能替代平台冒烟。
 
 ## 已确认的环境差异
 
