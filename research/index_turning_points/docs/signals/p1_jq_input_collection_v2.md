@@ -1,6 +1,6 @@
 # P1 JQ 共用输入采集 V2
 
-状态：真实 JQ V2 快照已接收并通过[本地数据验收](p1_jq_input_v2_acceptance.md)。[`export_all_a_p1_inputs.py`](../../adapters/jq/export_all_a_p1_inputs.py) 已通过本地测试；[`V1`](../../data/inputs/all_a_p1_inputs/all_a_p1_inputs_v1_20120101_20260814/) 因 MA 浮点相等判定不稳定，只保留追溯。
+状态：真实 JQ V2 快照已接收并通过本地验收。[`export_all_a_p1_inputs.py`](../../adapters/jq/export_all_a_p1_inputs.py) 已通过本地测试；[`V1`](../../data/inputs/all_a_p1_inputs/all_a_p1_inputs_v1_20120101_20260814/) 因 MA 浮点相等判定不稳定，只保留追溯。
 
 ## 冻结口径
 
@@ -34,3 +34,7 @@ data/industry_breadth.csv
 4. 原样放入 [`data/inputs/all_a_p1_inputs/all_a_p1_inputs_v2_20120101_20260814/`](../../data/inputs/all_a_p1_inputs/all_a_p1_inputs_v2_20120101_20260814/)，不得覆盖 V1；当前快照已按此路径验收。
 
 JQ 兼容限制见 [`../jq_research_compatibility.md`](../jq_research_compatibility.md)。
+
+## 已验收边界
+
+V2 日表 3549 行、行业表 100211 行，覆盖 2012-01-04 至 2026-08-14；结构、哈希、比例还原、分母和行业排名与 manifest 一致。V2 相对 V1 只改变 MA 宽度及其行业派生字段，后续不得复用 V1 的 MA 触发结果。银行与煤炭分别从 2014-02-21、2021-12-13 起可比，旧采掘不映射为煤炭；本地验收不能替代独立 JQ 短区间重跑。

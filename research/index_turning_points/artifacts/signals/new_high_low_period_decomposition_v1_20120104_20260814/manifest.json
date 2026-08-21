@@ -1,0 +1,351 @@
+{
+  "signal_version": "new_high_low_period_decomposition_v1_20120104_20260814",
+  "generated_at_utc": "2026-08-20T10:58:01.797567+00:00",
+  "purpose": "Causal 60/120/250-day new-high versus new-low breadth signals with identical thresholds for horizon comparison; not a trading strategy.",
+  "definition": {
+    "high_low_windows": [
+      60,
+      120,
+      250
+    ],
+    "signals_per_window": [
+      "top",
+      "bottom"
+    ],
+    "change_lookback_trade_days": 5,
+    "top_trigger": "net ratio >= 0.05 and five-day change <= -0.03",
+    "bottom_trigger": "net ratio <= -0.05 and five-day change >= 0.03",
+    "extreme_threshold": 0.05,
+    "change_threshold": 0.03,
+    "raw_value": "the selected horizon new-high minus new-low ratio",
+    "valid_count": "the selected horizon high-low valid count",
+    "start_date": "2012-01-01",
+    "capped_confirmation_n": 2
+  },
+  "comparison": {
+    "signal_version": "new_high_low_period_decomposition_v1_20120104_20260814",
+    "requested_start_date": "2012-01-01",
+    "comparison_start_date": "2012-01-04",
+    "comparison_end_date": "2026-08-14",
+    "change_available_from": "2012-01-11",
+    "trade_dates": 3549,
+    "daily_rows": 21294,
+    "signal_series": 6,
+    "series_counts": [
+      {
+        "signal_id": "new_high_low_60_breadth_reversal_top",
+        "high_low_window": 60,
+        "direction": "top",
+        "triggered_days": 176,
+        "episodes": 98
+      },
+      {
+        "signal_id": "new_high_low_60_breadth_reversal_bottom",
+        "high_low_window": 60,
+        "direction": "bottom",
+        "triggered_days": 97,
+        "episodes": 73
+      },
+      {
+        "signal_id": "new_high_low_120_breadth_reversal_top",
+        "high_low_window": 120,
+        "direction": "top",
+        "triggered_days": 103,
+        "episodes": 48
+      },
+      {
+        "signal_id": "new_high_low_120_breadth_reversal_bottom",
+        "high_low_window": 120,
+        "direction": "bottom",
+        "triggered_days": 54,
+        "episodes": 43
+      },
+      {
+        "signal_id": "new_high_low_250_breadth_reversal_top",
+        "high_low_window": 250,
+        "direction": "top",
+        "triggered_days": 61,
+        "episodes": 24
+      },
+      {
+        "signal_id": "new_high_low_250_breadth_reversal_bottom",
+        "high_low_window": 250,
+        "direction": "bottom",
+        "triggered_days": 32,
+        "episodes": 27
+      }
+    ]
+  },
+  "inputs": {
+    "manifest": {
+      "path": "/home/hh01/Documents/jqtrade/research/index_turning_points/data/inputs/all_a_p1_inputs/all_a_p1_inputs_v2_20120101_20260814/manifest.json",
+      "bytes": 7869,
+      "sha256": "ba773b011705c992fd9cc864a1fea1f42279da33e1533cec0d3546d27326094e"
+    },
+    "data_version": "all_a_p1_inputs_v2",
+    "source_files": [
+      {
+        "path": "data/daily_market_features.csv",
+        "bytes": 2617712,
+        "sha256": "b2fb65c99ba2e7d13669a9a777b429594e83adc29686646b9a42cc7b8a078006",
+        "rows": 3549,
+        "columns": [
+          "above_count_ma120",
+          "above_count_ma20",
+          "above_count_ma60",
+          "base_valid_count",
+          "base_valid_missing_industry_count",
+          "breadth_ma120",
+          "breadth_ma20",
+          "breadth_ma60",
+          "close_missing_count",
+          "date",
+          "four_industry_present_count",
+          "four_industry_top1_ids",
+          "four_industry_top1_triggered",
+          "high_missing_count",
+          "insufficient_history_count_high_low_120",
+          "insufficient_history_count_high_low_250",
+          "insufficient_history_count_high_low_60",
+          "insufficient_history_count_ma120",
+          "insufficient_history_count_ma20",
+          "insufficient_history_count_ma60",
+          "limit_close_net_count",
+          "limit_close_net_ratio",
+          "limit_down_close_count",
+          "limit_down_close_ratio",
+          "limit_down_hit_count",
+          "limit_down_hit_ratio",
+          "limit_hit_net_count",
+          "limit_hit_net_ratio",
+          "limit_price_missing_count",
+          "limit_up_close_count",
+          "limit_up_close_ratio",
+          "limit_up_hit_count",
+          "limit_up_hit_ratio",
+          "low_missing_count",
+          "new_high_count_120",
+          "new_high_count_250",
+          "new_high_count_60",
+          "new_high_low_net_count_120",
+          "new_high_low_net_count_250",
+          "new_high_low_net_count_60",
+          "new_high_low_net_ratio_120",
+          "new_high_low_net_ratio_250",
+          "new_high_low_net_ratio_60",
+          "new_high_ratio_120",
+          "new_high_ratio_250",
+          "new_high_ratio_60",
+          "new_low_count_120",
+          "new_low_count_250",
+          "new_low_count_60",
+          "new_low_ratio_120",
+          "new_low_ratio_250",
+          "new_low_ratio_60",
+          "paused_count",
+          "paused_status_missing_count",
+          "ranked_industry_count_ma20",
+          "st_count",
+          "st_status_missing_count",
+          "target_bank_breadth_ma20",
+          "target_bank_expected_name",
+          "target_bank_industry_code",
+          "target_bank_industry_name",
+          "target_bank_is_top1_ma20",
+          "target_bank_mapping_count",
+          "target_bank_rank_ma20",
+          "target_bank_valid_count_ma20",
+          "target_coal_breadth_ma20",
+          "target_coal_expected_name",
+          "target_coal_industry_code",
+          "target_coal_industry_name",
+          "target_coal_is_top1_ma20",
+          "target_coal_mapping_count",
+          "target_coal_rank_ma20",
+          "target_coal_valid_count_ma20",
+          "target_nonferrous_breadth_ma20",
+          "target_nonferrous_expected_name",
+          "target_nonferrous_industry_code",
+          "target_nonferrous_industry_name",
+          "target_nonferrous_is_top1_ma20",
+          "target_nonferrous_mapping_count",
+          "target_nonferrous_rank_ma20",
+          "target_nonferrous_valid_count_ma20",
+          "target_steel_breadth_ma20",
+          "target_steel_expected_name",
+          "target_steel_industry_code",
+          "target_steel_industry_name",
+          "target_steel_is_top1_ma20",
+          "target_steel_mapping_count",
+          "target_steel_rank_ma20",
+          "target_steel_valid_count_ma20",
+          "top1_industry_codes_ma20",
+          "top1_industry_names_ma20",
+          "top1_tie_count_ma20",
+          "turnover_cap_weight_valid_count",
+          "turnover_ge_10pct_count",
+          "turnover_ge_10pct_ratio",
+          "turnover_ge_20pct_count",
+          "turnover_ge_20pct_ratio",
+          "turnover_ge_5pct_count",
+          "turnover_ge_5pct_ratio",
+          "turnover_ratio_pct_cap_weighted_mean",
+          "turnover_ratio_pct_mean",
+          "turnover_ratio_pct_p25",
+          "turnover_ratio_pct_p50",
+          "turnover_ratio_pct_p75",
+          "turnover_ratio_pct_p90",
+          "turnover_ratio_pct_p95",
+          "turnover_valid_count",
+          "universe_size",
+          "valid_count_high_low_120",
+          "valid_count_high_low_250",
+          "valid_count_high_low_60",
+          "valid_count_limit",
+          "valid_count_ma120",
+          "valid_count_ma20",
+          "valid_count_ma60"
+        ],
+        "encoding": "utf-8-sig"
+      }
+    ]
+  },
+  "logic": {
+    "combined_sha256": "810c900bd08f8d198cf4ede9509eceaa763a3dd154028831470b650cc221d48a",
+    "files": [
+      {
+        "path": "signals/events.py",
+        "sha256": "fb671928ee85725090a28e96a9025bf76aad5cac182512548a88b3dba46c24cd"
+      },
+      {
+        "path": "signals/definitions/new_high_low_breadth.py",
+        "sha256": "dba1920f19abb797b69653a60f4bf7aed4b1ec651d3268042eb840f35aa25c5b"
+      },
+      {
+        "path": "signals/definitions/new_high_low_period_decomposition.py",
+        "sha256": "3b784a9f36cb8503d56b108b4049b77adbeba716f710db7c75d2d05992c241a0"
+      },
+      {
+        "path": "pipelines/build_new_high_low_period_decomposition.py",
+        "sha256": "d87030dd2c7e9805af6648c824794c2d94bf2ea8289adc8ee36f537c788aa7f4"
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "path": "signal_daily.csv",
+      "bytes": 5680823,
+      "sha256": "78d0dac9308aedcd245cdae84c54030ac21cd708b55c3869d6aaa0a257d0c13c",
+      "rows": 21294,
+      "columns": [
+        "date",
+        "signal_id",
+        "direction",
+        "raw_value",
+        "triggered",
+        "universe_size",
+        "valid_count",
+        "version",
+        "high_low_window",
+        "new_high_low_net_ratio",
+        "new_high_low_net_change_5d",
+        "change_available",
+        "new_high_count",
+        "new_low_count",
+        "new_high_low_net_count",
+        "new_high_ratio",
+        "new_low_ratio",
+        "high_low_valid_count",
+        "episode_id",
+        "episode_number",
+        "episode_day",
+        "episode_stage",
+        "event_onset",
+        "event_continuation",
+        "event_exit",
+        "event_capped_confirmation",
+        "capped_confirmation_reason",
+        "capped_confirmation_n"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "signal_episodes.csv",
+      "bytes": 99072,
+      "sha256": "890160c6e7203083ced33b33dd0e5e98c44f6b3bf7f5ec65283f73f04285bc0f",
+      "rows": 313,
+      "columns": [
+        "episode_id",
+        "signal_id",
+        "direction",
+        "version",
+        "episode_number",
+        "onset_date",
+        "last_active_date",
+        "exit_date",
+        "active_days",
+        "status",
+        "capped_confirmation_n",
+        "capped_confirmation_date",
+        "capped_confirmation_reason",
+        "confirmation_status",
+        "series_start_date",
+        "series_end_date"
+      ],
+      "encoding": "utf-8"
+    }
+  ],
+  "counts": {
+    "signal_series": 6,
+    "trade_dates": 3549,
+    "daily_rows": 21294,
+    "triggered_days": 523,
+    "episodes": 313,
+    "onsets": 313,
+    "capped_confirmations": 313,
+    "series_counts": [
+      {
+        "signal_id": "new_high_low_60_breadth_reversal_top",
+        "high_low_window": 60,
+        "direction": "top",
+        "triggered_days": 176,
+        "episodes": 98
+      },
+      {
+        "signal_id": "new_high_low_60_breadth_reversal_bottom",
+        "high_low_window": 60,
+        "direction": "bottom",
+        "triggered_days": 97,
+        "episodes": 73
+      },
+      {
+        "signal_id": "new_high_low_120_breadth_reversal_top",
+        "high_low_window": 120,
+        "direction": "top",
+        "triggered_days": 103,
+        "episodes": 48
+      },
+      {
+        "signal_id": "new_high_low_120_breadth_reversal_bottom",
+        "high_low_window": 120,
+        "direction": "bottom",
+        "triggered_days": 54,
+        "episodes": 43
+      },
+      {
+        "signal_id": "new_high_low_250_breadth_reversal_top",
+        "high_low_window": 250,
+        "direction": "top",
+        "triggered_days": 61,
+        "episodes": 24
+      },
+      {
+        "signal_id": "new_high_low_250_breadth_reversal_bottom",
+        "high_low_window": 250,
+        "direction": "bottom",
+        "triggered_days": 32,
+        "episodes": 27
+      }
+    ]
+  }
+}

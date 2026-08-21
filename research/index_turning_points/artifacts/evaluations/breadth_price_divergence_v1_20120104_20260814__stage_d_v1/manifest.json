@@ -1,0 +1,452 @@
+{
+  "evaluation_version": "breadth_price_divergence_v1_20120104_20260814__stage_d_v1",
+  "generated_at_utc": "2026-08-20T09:18:18.412769+00:00",
+  "purpose": "Offline evaluation of causal signal events against post-hoc regions and future OHLC paths; not a trading backtest.",
+  "composite_score": null,
+  "protocol": {
+    "region": {
+      "label_version": "top_bottom_regions_v2",
+      "price_band_fraction_of_threshold": 0.2,
+      "max_price_band_pct": 0.02,
+      "max_side_days": 20,
+      "max_lobe_gap": 10,
+      "prediction_windows": [
+        5,
+        10,
+        20
+      ],
+      "confirmation_windows": [
+        5,
+        10,
+        20
+      ],
+      "capped_confirmation_n": 2
+    },
+    "event_kinds": [
+      "onset",
+      "capped_confirmation"
+    ],
+    "forward_horizons": [
+      5,
+      10,
+      20
+    ],
+    "outcomes": {
+      "terminal_return": "close[t+h] / close[t] - 1",
+      "max_up": "max(high[t+1:t+h]) / close[t] - 1",
+      "max_down": "min(low[t+1:t+h]) / close[t] - 1"
+    },
+    "baseline": "complete non-event dates in the same signal/index coverage",
+    "inference": {
+      "model": "OLS outcome ~ intercept + event indicator",
+      "covariance": "Newey-West",
+      "hac_lag": "equal to horizon",
+      "min_event_count": 20,
+      "min_baseline_count": 30,
+      "local_fdr_family": "signal_id/direction/version/event_kind across indices, horizons and outcomes",
+      "global_fdr_family": "all eligible tests in this bundle"
+    },
+    "aggregate_region_unit": "index-region or index-episode pair",
+    "false_alarm_slice_assignment": "nearest same-direction region in coverage, diagnostic only"
+  },
+  "inputs": {
+    "signal_daily": {
+      "path": "research/index_turning_points/artifacts/signals/breadth_price_divergence_v1_20120104_20260814/signal_daily.csv",
+      "bytes": 1196532,
+      "sha256": "96475c09f38318e18e5b139c1b588f4ef272a98cf7754c954859bd7e44258121",
+      "rows": 3549,
+      "columns": [
+        "date",
+        "signal_id",
+        "direction",
+        "raw_value",
+        "triggered",
+        "universe_size",
+        "valid_count",
+        "version",
+        "index_id",
+        "index_name",
+        "index_close",
+        "index_close_high_60",
+        "breadth_ma20",
+        "breadth_ma20_high_60",
+        "index_price_distance_from_high_60",
+        "breadth_distance_from_high_60",
+        "breadth_price_divergence",
+        "comparison_available",
+        "index_price_valid_count_60",
+        "above_count_ma20",
+        "valid_count_ma20",
+        "episode_id",
+        "episode_number",
+        "episode_day",
+        "episode_stage",
+        "event_onset",
+        "event_continuation",
+        "event_exit",
+        "event_capped_confirmation",
+        "capped_confirmation_reason",
+        "capped_confirmation_n"
+      ]
+    },
+    "signal_episodes": {
+      "path": "research/index_turning_points/artifacts/signals/breadth_price_divergence_v1_20120104_20260814/signal_episodes.csv",
+      "bytes": 41790,
+      "sha256": "678cc8369a67c38f1287b6b99cdf68ce5bb55a62718b8ea5549bba971b85b116",
+      "rows": 140,
+      "columns": [
+        "episode_id",
+        "signal_id",
+        "direction",
+        "version",
+        "episode_number",
+        "onset_date",
+        "last_active_date",
+        "exit_date",
+        "active_days",
+        "status",
+        "capped_confirmation_n",
+        "capped_confirmation_date",
+        "capped_confirmation_reason",
+        "confirmation_status",
+        "series_start_date",
+        "series_end_date"
+      ]
+    },
+    "ground_truth_manifest": {
+      "path": "research/index_turning_points/artifacts/ground_truth/index_ohlc_20260814/regions/top_bottom_regions_v2/manifest.json",
+      "bytes": 5835,
+      "sha256": "ebdab2bfae97d8554d0bde770c7152bb40310814dc9228fec0b42a5bbf456924"
+    },
+    "turning_point_regions": {
+      "path": "research/index_turning_points/artifacts/ground_truth/index_ohlc_20260814/regions/top_bottom_regions_v2/turning_point_regions.csv",
+      "bytes": 245806,
+      "sha256": "b793ad841a1bda4a54fa21559bd5e41008ad8402e8c1294009bf50d26b8bf928",
+      "rows": 975,
+      "columns": [
+        "region_id",
+        "index_id",
+        "index_name",
+        "event_type",
+        "scale",
+        "status",
+        "eligible",
+        "region_start",
+        "region_end",
+        "region_start_position",
+        "region_end_position",
+        "anchor_date",
+        "anchor_position",
+        "anchor_price",
+        "first_core_date",
+        "last_core_date",
+        "lobe_count",
+        "confirmation_date",
+        "confirmation_position",
+        "confirmation_price",
+        "confirmation_lag",
+        "reversal_return",
+        "threshold",
+        "price_band_pct",
+        "price_band_fraction_of_threshold",
+        "max_price_band_pct",
+        "max_side_days",
+        "max_lobe_gap",
+        "label_version"
+      ]
+    },
+    "turning_point_region_lobes": {
+      "path": "research/index_turning_points/artifacts/ground_truth/index_ohlc_20260814/regions/top_bottom_regions_v2/turning_point_region_lobes.csv",
+      "bytes": 304989,
+      "sha256": "13806218f7639c5d8ad848120e71ee0fd51e315b433e4394dfc422bc398ee8b6",
+      "rows": 1494,
+      "columns": [
+        "region_id",
+        "lobe_id",
+        "index_id",
+        "index_name",
+        "event_type",
+        "scale",
+        "lobe_number",
+        "lobe_start",
+        "lobe_end",
+        "lobe_start_position",
+        "lobe_end_position",
+        "representative_date",
+        "representative_position",
+        "representative_price",
+        "relative_anchor_price",
+        "core_days",
+        "gap_from_previous_lobe",
+        "small_pivot_count",
+        "small_pivot_dates",
+        "label_version"
+      ]
+    },
+    "tdx_ohlc": [
+      {
+        "index_id": "sse_composite",
+        "index_name": "上证指数",
+        "path": "sh/lday/sh999999.day",
+        "bytes": 206400,
+        "sha256": "217c9678077a88b27d5ad8f894517d51a96b8c3daa674ba8546dfe67ef175b6e",
+        "rows": 6450,
+        "start_date": "2000-01-04",
+        "end_date": "2026-08-14"
+      },
+      {
+        "index_id": "csi300",
+        "index_name": "沪深300",
+        "path": "sh/lday/sh000300.day",
+        "bytes": 168000,
+        "sha256": "86a48a6f4bf6f3f5fdfd0b794132837cbbbf5f75dd2bad80df189bafb189d63b",
+        "rows": 5250,
+        "start_date": "2005-01-04",
+        "end_date": "2026-08-14"
+      },
+      {
+        "index_id": "csi500",
+        "index_name": "中证500",
+        "path": "sh/lday/sh000905.day",
+        "bytes": 168000,
+        "sha256": "e00329d5d46e5e096b1b4ebe36d4424245e428f781ad186e5789fd31ff7f589d",
+        "rows": 5250,
+        "start_date": "2005-01-04",
+        "end_date": "2026-08-14"
+      },
+      {
+        "index_id": "csi1000",
+        "index_name": "中证1000",
+        "path": "sh/lday/sh000852.day",
+        "bytes": 168000,
+        "sha256": "e9a5cb9d80b0c8989243241c1db864139fcbc83846d657d04fc2f23bafc7a5a2",
+        "rows": 5250,
+        "start_date": "2005-01-04",
+        "end_date": "2026-08-14"
+      },
+      {
+        "index_id": "cni2000",
+        "index_name": "国证2000",
+        "path": "sz/lday/sz399303.day",
+        "bytes": 129120,
+        "sha256": "35a7f3063f451098cb9d6fce0379fd18650d2839be5fb70ca96ba62451a64b83",
+        "rows": 4035,
+        "start_date": "2010-01-04",
+        "end_date": "2026-08-14"
+      },
+      {
+        "index_id": "microcap",
+        "index_name": "微盘股",
+        "path": "sh/lday/sh880823.day",
+        "bytes": 164864,
+        "sha256": "33e90e87615b77b96c61aac36c6e8426d240534493144634a3734fe46d590ce0",
+        "rows": 5152,
+        "start_date": "2005-06-07",
+        "end_date": "2026-08-14"
+      },
+      {
+        "index_id": "all_a",
+        "index_name": "全A",
+        "path": "ds/lday/62#000985.day",
+        "bytes": 168000,
+        "sha256": "36ed9682cabe99e06bf2950d1f560b418bf0027ffe5ce00725d2803b67f67016",
+        "rows": 5249,
+        "start_date": "2005-01-04",
+        "end_date": "2026-08-14"
+      }
+    ]
+  },
+  "logic": {
+    "combined_sha256": "6bbc0071f7541ccf22443edd1ef3285609cfdbff92f076131a47235a70e29f5a",
+    "files": [
+      {
+        "path": "evaluation/region_matching.py",
+        "sha256": "fae43172a96a0d5044d695e878c551211456fc94ee3a6034c357dfc4b4bf6ca9"
+      },
+      {
+        "path": "evaluation/region_metrics.py",
+        "sha256": "b34fef389843b112f78091f875be4bc85b095126e360da7fa63cf6858cae1034"
+      },
+      {
+        "path": "evaluation/post_event.py",
+        "sha256": "18ce91c9ef7bf4439238825cda067a3a8196674f83c4968075d987a4ad10d5f1"
+      },
+      {
+        "path": "evaluation/reports.py",
+        "sha256": "9db8befc1bb6edc92f6adbccec62427e50ea59a1b629e09e5ac39977a1551ea1"
+      },
+      {
+        "path": "ground_truth/regions.py",
+        "sha256": "f4f0871aa07ce25b2fc8a375ccb937b6590bbc61004c00ce7f305928182b5e8e"
+      },
+      {
+        "path": "adapters/tdx.py",
+        "sha256": "6e7791c202981d4a1b40218bd30ae408048962b152f136689a0e982f5597a9e2"
+      },
+      {
+        "path": "pipelines/evaluate_signal.py",
+        "sha256": "8b5ba64520dd70cfda393c4f52e61bebaee5eed35d7ecb90b7c969d6e8454f60"
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "path": "region_matches.csv",
+      "bytes": 1480043,
+      "sha256": "ba5ef0dbf14bf07005770e7e6547bfa7cc7a11d11d4b79e9ccf348bb57ae320a",
+      "encoding": "utf-8",
+      "rows": 2192,
+      "columns": [
+        "record_id",
+        "signal_id",
+        "direction",
+        "version",
+        "event_kind",
+        "index_id",
+        "index_name",
+        "match_status",
+        "primary_match",
+        "episode_id",
+        "event_date",
+        "region_id",
+        "anchor_date",
+        "region_start",
+        "region_end",
+        "region_form",
+        "lobe_count",
+        "matched_lobe_id",
+        "match_level",
+        "strict_matched",
+        "loose_matched",
+        "timing",
+        "lead_lag_days",
+        "absolute_distance_days",
+        "window_days",
+        "primary_episode_id_for_region",
+        "coverage_start_date",
+        "coverage_end_date",
+        "prediction_window_complete",
+        "confirmation_window_complete",
+        "label_version",
+        "diagnostic_region_id",
+        "diagnostic_timing",
+        "diagnostic_region_form",
+        "diagnostic_assignment"
+      ]
+    },
+    {
+      "path": "region_metrics.csv",
+      "bytes": 108468,
+      "sha256": "82f2e187034f3004decb4ba6182dae9175c095d2357dda80d0175cfbdcc7e127",
+      "encoding": "utf-8",
+      "rows": 432,
+      "columns": [
+        "signal_id",
+        "direction",
+        "version",
+        "event_kind",
+        "aggregation",
+        "index_id",
+        "index_name",
+        "observation_unit",
+        "match_scope",
+        "timing_slice",
+        "region_form_slice",
+        "region_count",
+        "matched_region_count",
+        "missed_region_count",
+        "region_recall",
+        "episode_count",
+        "matched_episode_count",
+        "false_alarm_count",
+        "isolated_false_alarm_count",
+        "duplicate_alarm_count",
+        "unclassified_episode_count",
+        "episode_precision",
+        "median_lead_lag_days",
+        "q25_lead_lag_days",
+        "q75_lead_lag_days"
+      ]
+    },
+    {
+      "path": "forward_event_outcomes.csv",
+      "bytes": 1947194,
+      "sha256": "65e2a29084b3b43b7d8cdf8dd0e936363f07435d08d17ee0618184c6742a38b4",
+      "encoding": "utf-8",
+      "rows": 5880,
+      "columns": [
+        "signal_id",
+        "direction",
+        "version",
+        "event_kind",
+        "episode_id",
+        "event_date",
+        "index_id",
+        "index_name",
+        "horizon",
+        "event_date_available",
+        "available_future_bars",
+        "complete_window",
+        "window_end_date",
+        "close",
+        "terminal_return",
+        "max_up",
+        "max_down"
+      ]
+    },
+    {
+      "path": "forward_metrics.csv",
+      "bytes": 50876,
+      "sha256": "45df50fd6e4ab34f4fbc081de703d30223180e07cd9369e5c1478add52b444ab",
+      "encoding": "utf-8",
+      "rows": 126,
+      "columns": [
+        "signal_id",
+        "direction",
+        "version",
+        "event_kind",
+        "index_id",
+        "index_name",
+        "horizon",
+        "outcome_name",
+        "event_count",
+        "event_mean",
+        "event_median",
+        "event_q25",
+        "event_q75",
+        "baseline_count",
+        "baseline_mean",
+        "mean_difference",
+        "hac_lag",
+        "hac_standard_error",
+        "ci95_lower",
+        "ci95_upper",
+        "hac_p_value",
+        "local_fdr_q_value",
+        "global_fdr_q_value",
+        "inference_eligible"
+      ]
+    },
+    {
+      "path": "region_report.md",
+      "bytes": 5323,
+      "sha256": "f0f170505c7755d5e46f8e42808bb40c094d5a6876c39e231de9778308189f50",
+      "encoding": "utf-8"
+    },
+    {
+      "path": "forward_report.md",
+      "bytes": 31625,
+      "sha256": "3128899b17ea1314c7563759d12becb7f3348ffb007e4f17b3d5eca9d329db51",
+      "encoding": "utf-8"
+    }
+  ],
+  "counts": {
+    "signal_daily_rows": 3549,
+    "signal_episodes": 140,
+    "region_match_rows": 2192,
+    "region_metric_rows": 432,
+    "forward_event_outcome_rows": 5880,
+    "forward_metric_rows": 126,
+    "eligible_forward_tests": 126
+  }
+}

@@ -11,9 +11,18 @@
 
 评测 bundle 由 `pipelines/evaluate_signal.py` 写入全新目录，拒绝覆盖非空目录，并要求 TDX OHLC 与 ground-truth manifest 的来源哈希一致。区域与信号后结果不合成总分。
 
-当前阶段 E 基线：
+## 现役信号与评测
 
-- `signals/four_industry_top1_v2_20211213_20260814/`：V2 JQ 输入生成的四行业 Top1 daily、episode 与 manifest；
-- `evaluations/four_industry_top1_v2_20211213_20260814__stage_d_v2/`：当前正式固定格式报告。`stage_d_v1` 是同次运行中报告发现规则增强前的不可变中间版本，指标 CSV 口径未变，现行阅读入口为 v2。
-- `signals/single_industry_top1_v1_20170103_20260814/`：从 2017 年开始、按历史存续边界生成的 32 条单行业 Top1 序列；
-- `evaluations/single_industry_top1_v1_20170103_20260814__stage_d_v1/`：单行业区域定位与事件后 OHLC 固定格式评测。
+| 信号 | signal bundle | evaluation bundle |
+| --- | --- | --- |
+| 四行业 Top1 | [`four_industry_top1_v2_20211213_20260814`](signals/four_industry_top1_v2_20211213_20260814/) | [`stage_d_v2`](evaluations/four_industry_top1_v2_20211213_20260814__stage_d_v2/)¹ |
+| 单行业 Top1 | [`single_industry_top1_v1_20170103_20260814`](signals/single_industry_top1_v1_20170103_20260814/) | [`stage_d_v1`](evaluations/single_industry_top1_v1_20170103_20260814__stage_d_v1/) |
+| 多周期 MA 宽度 | [`multi_period_ma_breadth_v1_20120104_20260814`](signals/multi_period_ma_breadth_v1_20120104_20260814/) | [`stage_d_v1`](evaluations/multi_period_ma_breadth_v1_20120104_20260814__stage_d_v1/) |
+| MA 周期拆分 | [`ma_period_breadth_decomposition_v1_20120104_20260814`](signals/ma_period_breadth_decomposition_v1_20120104_20260814/) | [`stage_d_v1`](evaluations/ma_period_breadth_decomposition_v1_20120104_20260814__stage_d_v1/) |
+| 宽度—指数背离 | [`breadth_price_divergence_v1_20120104_20260814`](signals/breadth_price_divergence_v1_20120104_20260814/) | [`stage_d_v1`](evaluations/breadth_price_divergence_v1_20120104_20260814__stage_d_v1/) |
+| 新高—新低广度 | [`new_high_low_breadth_v1_20120104_20260814`](signals/new_high_low_breadth_v1_20120104_20260814/) | [`stage_d_v1`](evaluations/new_high_low_breadth_v1_20120104_20260814__stage_d_v1/) |
+| 新高—新低周期拆分 | [`new_high_low_period_decomposition_v1_20120104_20260814`](signals/new_high_low_period_decomposition_v1_20120104_20260814/) | [`stage_d_v1`](evaluations/new_high_low_period_decomposition_v1_20120104_20260814__stage_d_v1/) |
+| 涨跌停广度 | [`limit_up_down_breadth_v1_20120705_20260814`](signals/limit_up_down_breadth_v1_20120705_20260814/) | [`stage_d_v1`](evaluations/limit_up_down_breadth_v1_20120705_20260814__stage_d_v1/) |
+| 换手热度 | [`turnover_heat_v1_20120705_20260814`](signals/turnover_heat_v1_20120705_20260814/) | [`stage_d_v1`](evaluations/turnover_heat_v1_20120705_20260814__stage_d_v1/) |
+
+¹ `stage_d_v1` 是报告规则增强前的不可变中间版本；指标 CSV 口径未变，现行入口为 v2。

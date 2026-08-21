@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-
-import pandas as pd
 
 from ..signals.definitions.four_industry_top1 import (
     MIN_INDUSTRY_VALID_COUNT,
     SIGNAL_VERSION,
     TARGET_NAMES,
     build_four_industry_top1_signal,
+)
+from .signal_bundle import (
+    input_file_record,
+    load_verified_frame,
+    logic_records,
+    output_frame_record,
+    require_empty_output_dir,
+    write_manifest,
+    write_signal_frames,
 )
 
 
@@ -27,6 +33,8 @@ DEFAULT_INPUT_DIR = (
     / "all_a_p1_inputs_v2_20120101_20260814"
 )
 INPUT_DATA_VERSION = "all_a_p1_inputs_v2"
+DAILY_PATH = "data/daily_market_features.csv"
+INDUSTRY_PATH = "data/industry_breadth.csv"
 
 
 def run_pipeline(
@@ -38,26 +46,22 @@ def run_pipeline(
     """Validate the V2 snapshot and write daily, episode and manifest files."""
 
     input_dir = Path(input_dir)
-    output_dir = Path(output_dir)
-    if output_dir.exists() and any(output_dir.iterdir()):
-        raise FileExistsError(f"signal bundle already exists: {output_dir}")
+    output_dir = require_empty_output_dir(output_dir)
     manifest_path = input_dir / "manifest.json"
     input_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     _validate_input_protocol(input_manifest)
-    frames, source_records = _load_manifest_frames(input_dir, input_manifest)
+    market, market_record = load_verified_frame(
+        input_dir, input_manifest, DAILY_PATH
+    )
+    _, industry_record = load_verified_frame(
+        input_dir, input_manifest, INDUSTRY_PATH
+    )
     daily, episodes, comparison = build_four_industry_top1_signal(
-        frames["data/daily_market_features.csv"],
+        market,
         version=signal_version,
     )
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    outputs = {
-        "signal_daily": output_dir / "signal_daily.csv",
-        "signal_episodes": output_dir / "signal_episodes.csv",
-        "manifest": output_dir / "manifest.json",
-    }
-    daily.to_csv(outputs["signal_daily"], index=False)
-    episodes.to_csv(outputs["signal_episodes"], index=False)
+    outputs = write_signal_frames(output_dir, daily, episodes)
     manifest = {
         "signal_version": signal_version,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -85,14 +89,23 @@ def run_pipeline(
         },
         "comparison": comparison,
         "inputs": {
-            "manifest": _input_file_record(manifest_path),
+            "manifest": input_file_record(manifest_path),
             "data_version": input_manifest["data_version"],
-            "source_files": source_records,
+            "source_files": [market_record, industry_record],
         },
-        "logic": _logic_records(),
+        "logic": logic_records(
+            [
+                PROJECT_DIR / "signals" / "events.py",
+                PROJECT_DIR
+                / "signals"
+                / "definitions"
+                / "four_industry_top1.py",
+                Path(__file__),
+            ]
+        ),
         "outputs": [
-            _output_frame_record(outputs["signal_daily"], daily, output_dir),
-            _output_frame_record(outputs["signal_episodes"], episodes, output_dir),
+            output_frame_record(outputs["signal_daily"], daily, output_dir),
+            output_frame_record(outputs["signal_episodes"], episodes, output_dir),
         ],
         "counts": {
             "daily_rows": len(daily),
@@ -104,10 +117,7 @@ def run_pipeline(
             ),
         },
     }
-    outputs["manifest"].write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_manifest(outputs["manifest"], manifest)
     return outputs
 
 
@@ -131,93 +141,6 @@ def _validate_input_protocol(manifest: dict[str, object]) -> None:
         or query.get("min_industry_valid_count") != MIN_INDUSTRY_VALID_COUNT
     ):
         raise ValueError("input industry ranking protocol does not match signal")
-
-
-def _load_manifest_frames(
-    input_dir: Path,
-    manifest: dict[str, object],
-) -> tuple[dict[str, pd.DataFrame], list[dict[str, object]]]:
-    frames = {}
-    records = []
-    for source in manifest.get("files", []):
-        relative = str(source["path"])
-        path = input_dir / relative
-        digest = _sha256_file(path)
-        if digest != source.get("sha256"):
-            raise ValueError(f"input snapshot hash mismatch: {relative}")
-        frame = pd.read_csv(path, encoding=source.get("encoding", "utf-8-sig"))
-        if len(frame) != source.get("rows"):
-            raise ValueError(f"input snapshot row count mismatch: {relative}")
-        if list(frame.columns) != source.get("columns"):
-            raise ValueError(f"input snapshot columns mismatch: {relative}")
-        frames[relative] = frame
-        records.append(
-            {
-                "path": relative,
-                "bytes": path.stat().st_size,
-                "sha256": digest,
-                "rows": len(frame),
-                "columns": list(frame.columns),
-                "encoding": source.get("encoding", "utf-8-sig"),
-            }
-        )
-    required = {
-        "data/daily_market_features.csv",
-        "data/industry_breadth.csv",
-    }
-    missing = required.difference(frames)
-    if missing:
-        raise ValueError(f"input snapshot is missing files: {sorted(missing)}")
-    return frames, records
-
-
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _input_file_record(path: Path) -> dict[str, object]:
-    return {
-        "path": path.as_posix(),
-        "bytes": path.stat().st_size,
-        "sha256": _sha256_file(path),
-    }
-
-
-def _output_frame_record(
-    path: Path,
-    frame: pd.DataFrame,
-    output_dir: Path,
-) -> dict[str, object]:
-    return {
-        "path": path.relative_to(output_dir).as_posix(),
-        "bytes": path.stat().st_size,
-        "sha256": _sha256_file(path),
-        "rows": len(frame),
-        "columns": list(frame.columns),
-        "encoding": "utf-8",
-    }
-
-
-def _logic_records() -> dict[str, object]:
-    paths = [
-        PROJECT_DIR / "signals" / "events.py",
-        PROJECT_DIR / "signals" / "definitions" / "four_industry_top1.py",
-        Path(__file__),
-    ]
-    combined = hashlib.sha256()
-    files = []
-    for path in paths:
-        content = path.read_bytes()
-        relative = path.relative_to(PROJECT_DIR).as_posix()
-        files.append({"path": relative, "sha256": hashlib.sha256(content).hexdigest()})
-        combined.update(relative.encode("utf-8"))
-        combined.update(b"\0")
-        combined.update(content)
-    return {"combined_sha256": combined.hexdigest(), "files": files}
 
 
 def main() -> None:

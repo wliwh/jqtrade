@@ -1,8 +1,8 @@
 # 指数顶底区域与点时信号研究
 
-状态：`top_bottom_regions_v2` 与阶段 C/D 已完成；四行业、单行业 Top1 基线已评测，下一候选为多周期均线宽度。
+状态：`top_bottom_regions_v2`、阶段 C/D 与 P1 主候选首次冻结评测均已完成；现有候选均不足以作为独立顶底预测器，后续研究须另行预先冻结。
 
-本项目只研究严格点时信号能否预测或确认指数顶底，不开发交易策略、仓位规则或综合总分。
+本项目研究严格点时信号或评分能否预测、确认指数顶底；不开发交易策略或仓位规则，也不把区域定位与信号后收益合成评测总分。
 
 | 层 | 未来数据 | 职责 |
 | --- | --- | --- |
@@ -27,17 +27,15 @@
 ## 常用命令
 
 ```bash
-# 重建标准答案或人工审计查看器
+# 标准答案与人工审计查看器
 /home/hh01/anaconda3/envs/fin/bin/python -m research.index_turning_points.pipelines.build_ground_truth --output-dir research/index_turning_points/artifacts/ground_truth/<版本>
 /home/hh01/anaconda3/envs/fin/bin/python -m research.index_turning_points.pipelines.render_viewer
 
-# 生成信号；输出目录必须为空
-/home/hh01/anaconda3/bin/python -m research.index_turning_points.pipelines.build_four_industry_top1 --output-dir research/index_turning_points/artifacts/signals/<版本>
-/home/hh01/anaconda3/bin/python -m research.index_turning_points.pipelines.build_single_industry_top1 --output-dir research/index_turning_points/artifacts/signals/<版本>
+# 生成任一信号；<signal> 对应 pipelines/build_<signal>.py，输出目录必须为空
+/home/hh01/anaconda3/bin/python -m research.index_turning_points.pipelines.build_<signal> --output-dir research/index_turning_points/artifacts/signals/<版本>
 
-# 评测已有 signal bundle；默认读取本机 TDX vipdoc
+# 评测已有 signal bundle；默认读取本机 TDX vipdoc；最后运行本地研究测试
 /home/hh01/anaconda3/bin/python -m research.index_turning_points.pipelines.evaluate_signal --signal-daily <signal_daily.csv> --signal-episodes <signal_episodes.csv> --ground-truth-dir research/index_turning_points/artifacts/ground_truth/index_ohlc_20260814 --evaluation-version <版本> --output-dir research/index_turning_points/artifacts/evaluations/<版本>
-
 /home/hh01/anaconda3/bin/python -m pytest -q tests/index_turning_points
 ```
 

@@ -24,8 +24,6 @@
 
 所有行业共享一个版本化 signal bundle，但阶段 D 按 `signal_id/direction/version` 分组独立完成区域定位和事件后 5/10/20 日 OHLC 评测。顶部区域、信号后结果和多重检验继续按现行协议分别报告，不生成综合总分。
 
-## 首次评测结果
+## 结果入口
 
-现役产物为 [`single_industry_top1_v1_20170103_20260814`](../../artifacts/signals/single_industry_top1_v1_20170103_20260814/) 及其 [`stage_d_v1`](../../artifacts/evaluations/single_industry_top1_v1_20170103_20260814__stage_d_v1/) 评测。32 条行业序列共有 68779 个行业日、2822 个 Top1 日和 1058 个 episode。
-
-结果不支持把单行业 MA20 Top1 解释为顶部信号：15 项全局 FDR 发现全部与冻结方向相反。值得复核的行业、限制和顺序统一记在 [`signal_backlog.md`](../signal_backlog.md#单行业后续研究备忘)，避免在冻结规格中重复维护结论。
+正式产物见 [`signal bundle`](../../artifacts/signals/single_industry_top1_v1_20170103_20260814/) 和 [`stage_d_v1`](../../artifacts/evaluations/single_industry_top1_v1_20170103_20260814__stage_d_v1/)；跨信号结论见 [`signal_backlog.md`](../signal_backlog.md#首次冻结评测总览)。
