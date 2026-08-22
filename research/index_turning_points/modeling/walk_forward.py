@@ -56,6 +56,50 @@ class WalkForwardFold:
         }
 
 
+@dataclass(frozen=True)
+class CalibrationFold:
+    """One train/multi-year-calibration/test split for probability V2."""
+
+    fold_id: str
+    test_year: int
+    calibration_years: tuple[int, ...]
+    train_positions: tuple[int, ...]
+    calibration_positions: tuple[int, ...]
+    test_positions: tuple[int, ...]
+    raw_train_positions: tuple[int, ...]
+    raw_calibration_positions: tuple[int, ...]
+
+    def audit_record(self, dates: pd.DatetimeIndex) -> dict[str, object]:
+        return {
+            "fold_id": self.fold_id,
+            "test_year": self.test_year,
+            "calibration_start_year": self.calibration_years[0],
+            "calibration_end_year": self.calibration_years[-1],
+            "calibration_year_count": len(self.calibration_years),
+            "raw_train_rows": len(self.raw_train_positions),
+            "train_rows": len(self.train_positions),
+            "raw_calibration_rows": len(self.raw_calibration_positions),
+            "calibration_rows": len(self.calibration_positions),
+            "test_rows": len(self.test_positions),
+            "train_start_date": _boundary_date(dates, self.train_positions, "min"),
+            "train_end_date": _boundary_date(dates, self.train_positions, "max"),
+            "raw_train_end_date": _boundary_date(
+                dates, self.raw_train_positions, "max"
+            ),
+            "calibration_start_date": _boundary_date(
+                dates, self.calibration_positions, "min"
+            ),
+            "calibration_end_date": _boundary_date(
+                dates, self.calibration_positions, "max"
+            ),
+            "raw_calibration_end_date": _boundary_date(
+                dates, self.raw_calibration_positions, "max"
+            ),
+            "test_start_date": _boundary_date(dates, self.test_positions, "min"),
+            "test_end_date": _boundary_date(dates, self.test_positions, "max"),
+        }
+
+
 def build_yearly_expanding_folds(
     dates: pd.Series | pd.DatetimeIndex,
     *,
@@ -113,6 +157,77 @@ def build_yearly_expanding_folds(
         )
     if not folds:
         raise ValueError("no yearly walk-forward folds can be built")
+    return folds
+
+
+def build_yearly_calibration_folds(
+    dates: pd.Series | pd.DatetimeIndex,
+    *,
+    first_test_year: int = 2019,
+    calibration_year_count: int = 3,
+    boundary_gap: int = DEFAULT_BOUNDARY_GAP,
+) -> list[CalibrationFold]:
+    """Build train/three-year-calibration/test folds without row overlap."""
+
+    for value, name in (
+        (first_test_year, "first_test_year"),
+        (calibration_year_count, "calibration_year_count"),
+        (boundary_gap, "boundary_gap"),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"{name} must be an integer")
+    if calibration_year_count <= 0:
+        raise ValueError("calibration_year_count must be positive")
+    if boundary_gap < 0:
+        raise ValueError("boundary_gap must be non-negative")
+
+    index = pd.DatetimeIndex(pd.to_datetime(dates, errors="coerce"))
+    if len(index) == 0 or index.isna().any():
+        raise ValueError("dates must be non-empty and valid")
+    if index.has_duplicates or not index.is_monotonic_increasing:
+        raise ValueError("dates must be unique and increasing")
+
+    years = index.year.to_numpy()
+    max_year = int(years.max())
+    folds: list[CalibrationFold] = []
+    for test_year in range(first_test_year, max_year + 1):
+        calibration_years = tuple(
+            range(test_year - calibration_year_count, test_year)
+        )
+        raw_train = np.flatnonzero(years < calibration_years[0])
+        raw_calibration = np.flatnonzero(
+            (years >= calibration_years[0]) & (years < test_year)
+        )
+        test = np.flatnonzero(years == test_year)
+        observed_calibration_years = tuple(
+            sorted(set(int(value) for value in years[raw_calibration]))
+        )
+        if not len(test) or observed_calibration_years != calibration_years:
+            continue
+        if len(raw_train) <= boundary_gap or len(raw_calibration) <= boundary_gap:
+            raise ValueError(
+                f"fold {test_year} has too few rows for boundary_gap={boundary_gap}"
+            )
+        train = raw_train[:-boundary_gap] if boundary_gap else raw_train
+        calibration = (
+            raw_calibration[:-boundary_gap] if boundary_gap else raw_calibration
+        )
+        folds.append(
+            CalibrationFold(
+                fold_id=f"wf_cal{calibration_year_count}_{test_year}",
+                test_year=test_year,
+                calibration_years=calibration_years,
+                train_positions=tuple(int(value) for value in train),
+                calibration_positions=tuple(int(value) for value in calibration),
+                test_positions=tuple(int(value) for value in test),
+                raw_train_positions=tuple(int(value) for value in raw_train),
+                raw_calibration_positions=tuple(
+                    int(value) for value in raw_calibration
+                ),
+            )
+        )
+    if not folds:
+        raise ValueError("no yearly calibration folds can be built")
     return folds
 
 
