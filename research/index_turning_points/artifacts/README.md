@@ -15,7 +15,7 @@
 
 评测 bundle 由 `pipelines/evaluate_signal.py` 写入全新目录，拒绝覆盖非空目录，并要求 TDX OHLC 与 ground-truth manifest 的来源哈希一致。区域与信号后结果不合成总分。
 
-ML 数据集由 `pipelines/build_ml_dataset.py` 生成；回顾性年度 OOS bundle 由 `pipelines/train_ml_walk_forward.py` 读取并校验前者的 manifest 后生成。两者都拒绝覆盖非空目录，具体冻结口径见 [`../docs/ml_training_v1_memo.md`](../docs/ml_training_v1_memo.md)。
+ML 数据集由 `pipelines/build_ml_dataset.py` 生成。旧版未来进入概率由 `pipelines/train_ml_walk_forward.py` 训练，冻结口径见 [`../docs/ml_training_v1_memo.md`](../docs/ml_training_v1_memo.md)；当日 strict membership V1/V2 分别由 `pipelines/train_ml_today_walk_forward.py` 和 `pipelines/train_ml_today_calibrated_walk_forward.py` 训练，口径与结果见 [`V1 规格`](../docs/ml_today_probability_v1_spec.md)、[`V1 结果`](../docs/ml_today_probability_v1_results.md)、[`V2 规格`](../docs/ml_today_probability_v2_spec.md) 和 [`V2 结果`](../docs/ml_today_probability_v2_results.md)。MA20 候选 episode ML 由 `pipelines/build_ma20_episode_dataset.py` 和 `pipelines/train_ma20_episode_walk_forward.py` 生成，主标签收窄为 strict 或锚点前后 5 个交易日，见 [`冻结规格`](../docs/ma20_episode_ml_v1_spec.md) 与 [`结果`](../docs/ma20_episode_ml_v1_results.md)。所有入口都拒绝覆盖非空目录。
 
 ## 现役信号与评测
 
@@ -32,7 +32,14 @@ ML 数据集由 `pipelines/build_ml_dataset.py` 生成；回顾性年度 OOS bun
 | 换手热度 | [`turnover_heat_v1_20120705_20260814`](signals/turnover_heat_v1_20120705_20260814/) | [`stage_d_v1`](evaluations/turnover_heat_v1_20120705_20260814__stage_d_v1/) |
 | 全 A ML V2 OOS | [`all_a_ml_walk_forward_v2_20190102_20260814`](modeling/all_a_ml_walk_forward_v2_20190102_20260814/) | [`stage_d_v1`](evaluations/all_a_ml_walk_forward_v2_20190102_20260814__stage_d_v1/) |
 | 全 A ML V3 OOS | [`all_a_ml_walk_forward_v3_20190102_20260814`](modeling/all_a_ml_walk_forward_v3_20190102_20260814/) | [`stage_d_v1`](evaluations/all_a_ml_walk_forward_v3_20190102_20260814__stage_d_v1/) |
+| 全 A 当日顶底概率 ML V1 OOS | [`all_a_ml_today_walk_forward_v1_20190102_20260814`](modeling/all_a_ml_today_walk_forward_v1_20190102_20260814/) | [`stage_d_v1`](evaluations/all_a_ml_today_walk_forward_v1_20190102_20260814__stage_d_v1/) |
+| 全 A 当日顶底概率 ML V2 OOS | [`all_a_ml_today_walk_forward_v2_20190102_20260814`](modeling/all_a_ml_today_walk_forward_v2_20190102_20260814/) | [`stage_d_v1`](evaluations/all_a_ml_today_walk_forward_v2_20190102_20260814__stage_d_v1/) |
+| MA20 候选 episode ML V1 OOS | [`all_a_ma20_episode_match_walk_forward_v1_20190102_20260814`](modeling/all_a_ma20_episode_match_walk_forward_v1_20190102_20260814/) | [`stage_d_v1`](evaluations/all_a_ma20_episode_match_walk_forward_v1_20190102_20260814__stage_d_v1/) |
 
 全 A ML V2/V3 的共同输入数据集为 [`all_a_ml_dataset_v1_20120705_20260814`](modeling/all_a_ml_dataset_v1_20120705_20260814/)。V3 是查看 V2 结果后的短周期评分和两日告警改版。模型 bundle 和评测 bundle 均记录 `fin` 解释器、输入文件及逻辑哈希；其 2019—2026 结果是回顾性 OOS，不是协议冻结后的新增前瞻样本。
+
+全 A 当日顶底概率 ML V1/V2 的共同输入为 [`all_a_ml_today_dataset_v1_20120705_20260814`](modeling/all_a_ml_today_dataset_v1_20120705_20260814/)，只保留 15 个冻结连续输入、strict membership 二分类真值和辅助 intensity。V2 增加三年校准、固定概率箱、校准状态和滞回/冷却报警审计；其 2019—2026 结果同样是回顾性 OOS，且固定 0.50 进入门槛被评测证明过于保守。
+
+MA20 候选 episode ML V1 的输入为 [`all_a_ma20_episode_dataset_v1_20120705_20260814`](modeling/all_a_ma20_episode_dataset_v1_20120705_20260814/)。它只在 MA20 onset 上输出条件命中概率；2019—2026 顶部仅保留 2 个报警，底部精确率几乎没有提高，因此目前仅作候选评分审计，不替代原 MA20 信号。
 
 ¹ `stage_d_v1` 是报告规则增强前的不可变中间版本；指标 CSV 口径未变，现行入口为 v2。
