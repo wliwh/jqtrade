@@ -927,7 +927,7 @@ def _page_html(
     .phase-swatch.is-pending {{ background: var(--pending); opacity: .58; }}
     .phase-swatch.is-top {{ background: var(--top); opacity: .76; }}
     .phase-swatch.is-bottom {{ background: var(--bottom); opacity: .76; }}
-    {page.extra_css}
+{page.extra_css.strip()}
     .tabs {{
       display: flex; flex: 1 1 auto; min-width: 0; gap: 4px;
       overflow-x: auto; scrollbar-width: thin;

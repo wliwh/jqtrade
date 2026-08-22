@@ -303,6 +303,7 @@ def test_writes_one_html_with_tabs_and_full_width_chart(tmp_path, monkeypatch):
         ma20_signals=sample_ma20_signals(),
     )
     ma20_html = ma20_output.read_text(encoding="utf-8")
+    assert all(line == line.rstrip() for line in ma20_html.splitlines())
     assert "指数顶底区域与全 A MA20 宽度" in ma20_html
     assert "下排固定为全 A MA20 宽度" in ma20_html
     assert "上排空心圆点为点时信号" in ma20_html
