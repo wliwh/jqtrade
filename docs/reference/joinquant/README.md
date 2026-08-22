@@ -1,13 +1,14 @@
 # 聚宽官方 API 离线参考
 
-本目录是编写、审阅和排查 JQ 策略时的**首选查询入口**。`official/` 保存了 2026-08-15 从聚宽官网公开 API 正文接口取得的完整快照：可读、可全文检索的 Markdown 位于该目录根部；同名的官方 HTML 原始片段位于 `official/source/`，用于核验转换内容。
+本目录是编写、审阅和排查 JQ 目标程序时的**首选查询入口**。凡程序将运行在 JQ 投资研究、回测或模拟盘，必须先遵守 [`jq_research_compatibility.md`](jq_research_compatibility.md)。`official/` 保存了 2026-08-15 从聚宽官网公开 API 正文接口取得的完整快照：可读、可全文检索的 Markdown 位于该目录根部；同名的官方 HTML 原始片段位于 `official/source/`，用于核验转换内容。
 
 ## 查询顺序
 
-1. 策略运行语义、调度、数据获取、下单、账户对象、回测与模拟盘行为：先查 [`official/strategy-api.md`](official/strategy-api.md)。
-2. 具体数据、指标、因子或优化器：查下表对应模块。
-3. 当前项目封装的 `create_backtest()` / `get_backtest()` 用法：查 [`official/strategy-api.md`](official/strategy-api.md) 后，再查 [`../../../backtest_executor/README.md`](../../../backtest_executor/README.md)。
-4. 如果本地快照与当前 JQ 页面、实际 JQ 运行环境冲突，以官网和实测结果为准；平台 API 会更新，不能把本地快照当作永久事实。
+1. 先查 [`jq_research_compatibility.md`](jq_research_compatibility.md)，确认 Python、pandas、导入、日期、批次、输出和平台冒烟约束。
+2. 策略运行语义、调度、数据获取、下单、账户对象、回测与模拟盘行为：查 [`official/strategy-api.md`](official/strategy-api.md)。
+3. 具体数据、指标、因子或优化器：查下表对应模块。
+4. 当前项目封装的 `create_backtest()` / `get_backtest()` 用法：查 [`official/strategy-api.md`](official/strategy-api.md) 后，再查 [`../../../backtest_executor/README.md`](../../../backtest_executor/README.md)。
+5. 如果本地快照与当前 JQ 页面、实际 JQ 运行环境冲突，以官网和实测结果为准；平台 API 会更新，不能把本地快照当作永久事实。
 
 本目录不再保留与官方快照重复的旧 API 摘录；所有 JQ 平台语义以 `official/` 与官网为准。
 
