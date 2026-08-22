@@ -1,0 +1,165 @@
+{
+  "archive_format": "tar+gzip",
+  "archive_root": "momentum_index_p1_inputs_smoke_v1",
+  "available_assets_by_group": {
+    "broad": 10,
+    "industry_sw_l1": 31,
+    "style": 7
+  },
+  "dataset_id": "momentum_index_p1_inputs_smoke_v1",
+  "exporter_logic_hash": "d9283741fd63f9ae2159e093ea9c74c5dbe8c37f8f054f1aff0b13b81858dcec",
+  "files": [
+    {
+      "bytes": 12178,
+      "columns": [
+        "date",
+        "code",
+        "close"
+      ],
+      "date_column": "date",
+      "duplicate_keys": 0,
+      "encoding": "utf-8-sig",
+      "key_columns": [
+        "date",
+        "code"
+      ],
+      "max_date": "2026-08-20",
+      "min_date": "2026-07-01",
+      "path": "momentum_index_p1_inputs_smoke_v1/data/broad_index_close.csv",
+      "rows": 370,
+      "sha256": "43679a9d62166690417841fbec95703108ce3c9d6bede021a47148700aa62b24"
+    },
+    {
+      "bytes": 12972,
+      "columns": [
+        "date",
+        "code",
+        "close"
+      ],
+      "date_column": "date",
+      "duplicate_keys": 0,
+      "encoding": "utf-8-sig",
+      "key_columns": [
+        "date",
+        "code"
+      ],
+      "max_date": "2026-08-20",
+      "min_date": "2026-07-01",
+      "path": "momentum_index_p1_inputs_smoke_v1/data/style_index_close.csv",
+      "rows": 444,
+      "sha256": "671291cd405b2dfddd08cd2dfaded32d81ee9bf8f4cc3db2b47589aaae49a05b"
+    },
+    {
+      "bytes": 29724,
+      "columns": [
+        "date",
+        "code",
+        "close"
+      ],
+      "date_column": "date",
+      "duplicate_keys": 0,
+      "encoding": "utf-8-sig",
+      "key_columns": [
+        "date",
+        "code"
+      ],
+      "max_date": "2026-08-20",
+      "min_date": "2026-07-01",
+      "path": "momentum_index_p1_inputs_smoke_v1/data/sw_l1_index_close.csv",
+      "rows": 1147,
+      "sha256": "b38dd3bb97721f28b38504e34bbd18a087142983539e93c189ecf317655b4d58"
+    },
+    {
+      "bytes": 4995,
+      "columns": [
+        "catalog_start_date",
+        "code",
+        "min_assets",
+        "name",
+        "source",
+        "universe_group",
+        "version"
+      ],
+      "duplicate_keys": 0,
+      "encoding": "utf-8-sig",
+      "key_columns": [
+        "universe_group",
+        "code"
+      ],
+      "path": "momentum_index_p1_inputs_smoke_v1/data/universe_catalog.csv",
+      "rows": 60,
+      "sha256": "cd1a94fe036497a5199180e32bf383368624115b41b5e387a977c773e99c00a8"
+    },
+    {
+      "bytes": 4119,
+      "columns": [
+        "code",
+        "first_valid_date",
+        "last_valid_date",
+        "name",
+        "non_null_close",
+        "rows",
+        "status",
+        "universe_group"
+      ],
+      "duplicate_keys": 0,
+      "encoding": "utf-8-sig",
+      "key_columns": [
+        "universe_group",
+        "code"
+      ],
+      "path": "momentum_index_p1_inputs_smoke_v1/data/universe_coverage.csv",
+      "rows": 60,
+      "sha256": "b950c24685cec22090fc49355103f0f37f6c4b0dd319ccb8e97dbce17c030c4d"
+    },
+    {
+      "bytes": 415,
+      "columns": [
+        "date"
+      ],
+      "date_column": "date",
+      "duplicate_keys": 0,
+      "encoding": "utf-8-sig",
+      "key_columns": [
+        "date"
+      ],
+      "max_date": "2026-08-20",
+      "min_date": "2026-07-01",
+      "path": "momentum_index_p1_inputs_smoke_v1/data/trade_days.csv",
+      "rows": 37,
+      "sha256": "25adc8dd10da5e22705e64e6f3b56fcc8fe0b5afd81f212d8a9969c12e5aa246"
+    }
+  ],
+  "generated_at_jq": "2026-08-22 13:45:03",
+  "request": {
+    "fetch_start": "2026-07-01",
+    "fields": [
+      "close"
+    ],
+    "fill_paused": false,
+    "frequency": "daily",
+    "price_fq": "pre",
+    "research_end": "2026-08-20",
+    "research_start": "2026-07-01",
+    "skip_paused": false,
+    "sw1_query_batching": "one industry code per query",
+    "sw1_query_row_boundary": 5000
+  },
+  "runtime": {
+    "get_industries_source": "module_globals",
+    "get_price_source": "python_builtins",
+    "get_trade_days_source": "module_globals",
+    "jqdata_imported": true,
+    "numpy_version": "1.14.6",
+    "pandas_version": "0.23.4",
+    "python_version": "3.6.7 |Anaconda, Inc.| (default, Oct 23 2018, 19:16:44)  [GCC 7.3.0]"
+  },
+  "schema_version": 1,
+  "source_path": "research/momentum_signal_validation/adapters/jq/export_p1_index_inputs.py",
+  "source_platform": "JQ Research",
+  "universe_versions": {
+    "broad": "broad_index_v1",
+    "industry_sw_l1": "all_historical_sw_l1_v1",
+    "style": "style_index_v1"
+  }
+}
