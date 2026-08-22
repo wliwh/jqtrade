@@ -3,7 +3,7 @@
 [`export_all_a_breadth.py`](../../../../adapters/jq/export_all_a_breadth.py) 用于复制到聚宽投资研究环境运行。JQ 内完成点时股票池、价格有效性、均线、申万一级行业聚合和四行业 Top1 判定；本地只接收一个 ZIP，不接收逐股行情或逐股行业明细。本页、manifest 和两张数据表共同记录 `all_a_breadth_v1` 输入快照，不应脱离版本目录单独解释；导出程序是现役适配器，不复制进不可变版本目录。
 
 平台 Python、pandas 和导入方式的已知限制见
-[`../../../../docs/jq_research_compatibility.md`](../../../../docs/jq_research_compatibility.md)。
+[`../../../../../../docs/reference/joinquant/jq_research_compatibility.md`](../../../../../../docs/reference/joinquant/jq_research_compatibility.md)。
 
 该导出服务于信号与指数顶部、底部关系研究，不生成交易动作、仓位或策略收益。
 

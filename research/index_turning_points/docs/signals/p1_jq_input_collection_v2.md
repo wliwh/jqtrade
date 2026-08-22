@@ -33,7 +33,7 @@ data/industry_breadth.csv
 3. 恢复完整区间运行；下载后校验行数、字段、SHA-256、比例范围和 MA 预热不变性。
 4. 原样放入 [`data/inputs/all_a_p1_inputs/all_a_p1_inputs_v2_20120101_20260814/`](../../data/inputs/all_a_p1_inputs/all_a_p1_inputs_v2_20120101_20260814/)，不得覆盖 V1；当前快照已按此路径验收。
 
-JQ 兼容限制见 [`../jq_research_compatibility.md`](../jq_research_compatibility.md)。
+JQ 兼容限制见 [`../../../../docs/reference/joinquant/jq_research_compatibility.md`](../../../../docs/reference/joinquant/jq_research_compatibility.md)。
 
 ## 已验收边界
 

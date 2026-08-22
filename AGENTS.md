@@ -10,7 +10,7 @@
 ## 运行环境
 
 - ETF 策略和真实参数回测运行在 JQ 研究环境，依赖平台注入的 `jqdata`、`create_backtest()` 和 `get_backtest()`。
-- 编写、审阅或排查 JQ 策略时，先查询 `docs/reference/joinquant/README.md` 和其中的 `official/strategy-api.md`；数据、因子和优化器问题再查相应官方模块。本地快照与官网或实际 JQ 环境冲突时，以官网和实测为准。
+- 任何目标平台为 JQ 投资研究、回测或模拟盘的程序，先遵守 `docs/reference/joinquant/jq_research_compatibility.md`，再查询 `docs/reference/joinquant/README.md` 和其中的 `official/strategy-api.md`；数据、因子和优化器问题再查相应官方模块。本地快照与官网或实际 JQ 环境冲突时，以官网和实测为准。
 - 本地测试只验证参数生成、代码注入、结果分析和数据导出等可离线部分，不能据此声称 JQ 策略回测通过。
 - 性能或策略比较必须记录策略路径、逻辑 hash、参数、回测区间、成本口径和 JQ 回测 ID。
 

@@ -17,6 +17,7 @@
 
 ## 验证
 
+- `adapters/jq/` 中目标平台为 JQ 的文件同时受项目级 [`docs/reference/joinquant/jq_research_compatibility.md`](../../docs/reference/joinquant/jq_research_compatibility.md) 约束。
 - 相关改动先跑 `pytest -q tests/index_turning_points`；跨模块改动跑根目录 `pytest -q`。
 - 目录或文档整理还要检查 Markdown 链接、Python 语法和 `git diff --check`。
 - JQ adapter 的本地测试只验证语法与确定性逻辑；真实数据覆盖和资源限制必须在 JQ 平台另行冒烟。
