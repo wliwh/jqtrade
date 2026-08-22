@@ -13,12 +13,14 @@ rg -n -i -C 3 '关键词' <目标文件或目录>
 
 | 你要解决的问题 | 先读 | 再搜索 |
 | --- | --- | --- |
-| JQ 策略语义、定时调度、下单、账户、回测或模拟盘 | [`reference/joinquant/README.md`](reference/joinquant/README.md) | `reference/joinquant/official/strategy-api.md` |
-| JQ 股票、ETF、指数、期货、宏观、因子或技术指标数据 | [`reference/joinquant/README.md`](reference/joinquant/README.md) | `reference/joinquant/official/` 对应主题文件 |
+| JQ 研究、回测或模拟盘程序的 Python/pandas/导入/批次兼容性 | [`reference/joinquant/jq_research_compatibility.md`](reference/joinquant/jq_research_compatibility.md) | `reference/joinquant/README.md` |
+| JQ 策略语义、定时调度、下单、账户、回测或模拟盘 | [`reference/joinquant/jq_research_compatibility.md`](reference/joinquant/jq_research_compatibility.md)、[`reference/joinquant/README.md`](reference/joinquant/README.md) | `reference/joinquant/official/strategy-api.md` |
+| JQ 股票、ETF、指数、期货、宏观、因子或技术指标数据 | [`reference/joinquant/jq_research_compatibility.md`](reference/joinquant/jq_research_compatibility.md)、[`reference/joinquant/README.md`](reference/joinquant/README.md) | `reference/joinquant/official/` 对应主题文件 |
 | `create_backtest()` / `get_backtest()` 与本项目参数回测衔接 | [`../backtest_executor/README.md`](../backtest_executor/README.md) | `reference/joinquant/official/strategy-api.md`、`backtest_executor/` |
 | 当前研究自动化的目标、阶段门和已知风险 | [`planning/strategy_research_automation_pipeline_design.md`](planning/strategy_research_automation_pipeline_design.md) | `backtest_executor/` |
 | 现役 ETF 策略、旧策略或策略辅助脚本 | [`../strategies/etf_rotation/README.md`](../strategies/etf_rotation/README.md) | `strategies/etf_rotation/` |
 | ETF 资产池、聚类、PCA 和研究产物 | [`../research/pools/README.md`](../research/pools/README.md) | `research/pools/src/`、`research/pools/docs/` |
+| ETF 轮动的动量信号、Rank IC、指数输入导出和本地计算 | [`../research/momentum_signal_validation/README.md`](../research/momentum_signal_validation/README.md) | `research/momentum_signal_validation/p1_jq_signal_validation.py`、`adapters/jq/`、`local/`；历史 P1 见其 `archive/` |
 | 市场宽度与 micro 研究 | [`../research/micro/README.md`](../research/micro/README.md) | `research/micro/src/`、`research/micro/artifacts/` |
 | 指数顶底区域、点时信号和两套离线评测 | [`../research/index_turning_points/README.md`](../research/index_turning_points/README.md)、[实施计划](../research/index_turning_points/docs/top_bottom_region_evaluation_plan.md) | `research/index_turning_points/docs/`、`research/index_turning_points/data/inputs/` |
 | JQ 历史数据导出 | [`../tools/jq_data_export/README.md`](../tools/jq_data_export/README.md) | `tools/jq_data_export/src/` |
