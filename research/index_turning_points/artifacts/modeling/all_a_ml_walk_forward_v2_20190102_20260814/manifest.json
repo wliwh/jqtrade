@@ -1,0 +1,536 @@
+{
+  "training_version": "all_a_ml_walk_forward_v2",
+  "generated_at_utc": "2026-08-21T06:08:58.240037+00:00",
+  "purpose": "Retrospective expanding walk-forward model comparison with only test-year predictions exported; not untouched forward evidence or a production trading strategy.",
+  "definition": {
+    "index_id": "all_a",
+    "models": [
+      "simple_rule",
+      "elastic_net",
+      "shallow_xgboost"
+    ],
+    "model_parameters": {
+      "simple_rule": {
+        "target_fitted_weights": false,
+        "scaling": "training median and interquartile range",
+        "clip": [
+          -3.0,
+          3.0
+        ],
+        "combination": "equal-weight signed mean then sigmoid",
+        "features": {
+          "top": [
+            {
+              "column": "breadth_ma20_change_10d",
+              "sign": -1.0
+            },
+            {
+              "column": "breadth_ma60_change_10d",
+              "sign": -1.0
+            },
+            {
+              "column": "new_high_low_net_ratio_60_change_10d",
+              "sign": -1.0
+            },
+            {
+              "column": "limit_hit_net_ratio_change_5d",
+              "sign": -1.0
+            },
+            {
+              "column": "turnover_ratio_pct_p50_change_10d",
+              "sign": -1.0
+            },
+            {
+              "column": "index_close_to_ma60",
+              "sign": 1.0
+            }
+          ],
+          "bottom": [
+            {
+              "column": "breadth_ma20_change_10d",
+              "sign": 1.0
+            },
+            {
+              "column": "breadth_ma60_change_10d",
+              "sign": 1.0
+            },
+            {
+              "column": "new_high_low_net_ratio_60_change_10d",
+              "sign": 1.0
+            },
+            {
+              "column": "limit_hit_net_ratio_change_5d",
+              "sign": 1.0
+            },
+            {
+              "column": "turnover_ratio_pct_p50_change_10d",
+              "sign": 1.0
+            },
+            {
+              "column": "index_close_to_ma60",
+              "sign": -1.0
+            }
+          ]
+        }
+      },
+      "elastic_net": {
+        "estimator": "sklearn.linear_model.LogisticRegression",
+        "penalty": "elasticnet",
+        "solver": "saga",
+        "l1_ratio": 0.5,
+        "C": 0.05,
+        "class_weight": "balanced",
+        "max_iter": 3000
+      },
+      "shallow_gbdt": {
+        "estimator": "sklearn.ensemble.GradientBoostingClassifier",
+        "n_estimators": 60,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_samples_leaf": 20,
+        "subsample": 0.8,
+        "sample_weight": "balanced"
+      },
+      "shallow_xgboost": {
+        "estimator": "xgboost.XGBClassifier",
+        "n_estimators": 100,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_child_weight": 20.0,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0.05,
+        "reg_lambda": 1.0,
+        "tree_method": "hist",
+        "sample_weight": "balanced",
+        "n_jobs": 1
+      },
+      "random_state": 20260821
+    },
+    "runtime": {
+      "python_executable": "/home/hh01/anaconda3/envs/fin/bin/python",
+      "python_version": "3.9.0",
+      "pandas": "2.2.3",
+      "scikit_learn": "1.5.2",
+      "xgboost": "2.1.4"
+    },
+    "first_validation_year": 2018,
+    "first_test_year": 2019,
+    "boundary_gap_trade_days": 20,
+    "horizons_trade_days": [
+      5,
+      10,
+      20
+    ],
+    "calibration": "Validation-only sigmoid calibration; smoothed validation prevalence fallback for a one-class validation slice.",
+    "horizon_projection": "row-wise L2 projection to p5 <= p10 <= p20",
+    "score_formula": "100 * (0.5*p5 + 0.3*p10 + 0.2*p20)",
+    "annual_episode_budget": 6,
+    "threshold_selection": "Validation scores only; maximize contiguous episode count at or below budget, with higher threshold winning ties.",
+    "feature_columns": [
+      "breadth_ma20",
+      "breadth_ma60",
+      "breadth_ma120",
+      "new_high_low_net_ratio_60",
+      "new_high_low_net_ratio_120",
+      "new_high_low_net_ratio_250",
+      "limit_hit_net_ratio",
+      "limit_close_net_ratio",
+      "turnover_ratio_pct_p50",
+      "turnover_ratio_pct_cap_weighted_mean",
+      "turnover_ge_10pct_ratio",
+      "breadth_ma20_change_1d",
+      "breadth_ma20_change_5d",
+      "breadth_ma20_change_10d",
+      "breadth_ma60_change_1d",
+      "breadth_ma60_change_5d",
+      "breadth_ma60_change_10d",
+      "breadth_ma120_change_1d",
+      "breadth_ma120_change_5d",
+      "breadth_ma120_change_10d",
+      "new_high_low_net_ratio_60_change_1d",
+      "new_high_low_net_ratio_60_change_5d",
+      "new_high_low_net_ratio_60_change_10d",
+      "new_high_low_net_ratio_120_change_1d",
+      "new_high_low_net_ratio_120_change_5d",
+      "new_high_low_net_ratio_120_change_10d",
+      "new_high_low_net_ratio_250_change_1d",
+      "new_high_low_net_ratio_250_change_5d",
+      "new_high_low_net_ratio_250_change_10d",
+      "limit_hit_net_ratio_change_1d",
+      "limit_hit_net_ratio_change_5d",
+      "limit_hit_net_ratio_change_10d",
+      "limit_close_net_ratio_change_1d",
+      "limit_close_net_ratio_change_5d",
+      "limit_close_net_ratio_change_10d",
+      "turnover_ratio_pct_p50_change_1d",
+      "turnover_ratio_pct_p50_change_5d",
+      "turnover_ratio_pct_p50_change_10d",
+      "turnover_ratio_pct_cap_weighted_mean_change_1d",
+      "turnover_ratio_pct_cap_weighted_mean_change_5d",
+      "turnover_ratio_pct_cap_weighted_mean_change_10d",
+      "turnover_ge_10pct_ratio_change_1d",
+      "turnover_ge_10pct_ratio_change_5d",
+      "turnover_ge_10pct_ratio_change_10d",
+      "market_universe_size",
+      "market_base_coverage",
+      "market_ma20_coverage",
+      "market_ma60_coverage",
+      "market_ma120_coverage",
+      "market_high_low_60_coverage",
+      "market_high_low_120_coverage",
+      "market_high_low_250_coverage",
+      "market_limit_coverage",
+      "market_turnover_coverage",
+      "index_price_available",
+      "index_return_1d",
+      "index_return_5d",
+      "index_return_10d",
+      "index_return_20d",
+      "index_return_60d",
+      "index_range_1d",
+      "index_close_to_ma20",
+      "index_close_to_ma60",
+      "index_close_to_ma120",
+      "index_drawdown_20d",
+      "index_rebound_20d",
+      "index_drawdown_60d",
+      "index_rebound_60d",
+      "index_drawdown_120d",
+      "index_rebound_120d",
+      "index_drawdown_250d",
+      "index_rebound_250d",
+      "index_volatility_10d",
+      "index_volatility_20d",
+      "index_volatility_60d",
+      "index_phase_pending",
+      "index_phase_up",
+      "index_phase_down"
+    ]
+  },
+  "inputs": {
+    "dataset_manifest": {
+      "path": "research/index_turning_points/artifacts/modeling/all_a_ml_dataset_v1_20120705_20260814/manifest.json",
+      "bytes": 16389,
+      "sha256": "831d6f82d47eaa7156ddca719a56aa80b39c9b36c254d5622f5e55bc844a87f9"
+    },
+    "source_files": [
+      {
+        "source": "all_a_ml_dataset_v1",
+        "path": "training_daily.csv",
+        "bytes": 5062088,
+        "sha256": "6d86c404cefc0b04d6420bc09cf9d46f8f338ee459c49a8342f11bcb13382bd0",
+        "rows": 3429,
+        "columns": [
+          "date",
+          "breadth_ma20",
+          "breadth_ma20_change_1d",
+          "breadth_ma20_change_5d",
+          "breadth_ma20_change_10d",
+          "breadth_ma60",
+          "breadth_ma60_change_1d",
+          "breadth_ma60_change_5d",
+          "breadth_ma60_change_10d",
+          "breadth_ma120",
+          "breadth_ma120_change_1d",
+          "breadth_ma120_change_5d",
+          "breadth_ma120_change_10d",
+          "new_high_low_net_ratio_60",
+          "new_high_low_net_ratio_60_change_1d",
+          "new_high_low_net_ratio_60_change_5d",
+          "new_high_low_net_ratio_60_change_10d",
+          "new_high_low_net_ratio_120",
+          "new_high_low_net_ratio_120_change_1d",
+          "new_high_low_net_ratio_120_change_5d",
+          "new_high_low_net_ratio_120_change_10d",
+          "new_high_low_net_ratio_250",
+          "new_high_low_net_ratio_250_change_1d",
+          "new_high_low_net_ratio_250_change_5d",
+          "new_high_low_net_ratio_250_change_10d",
+          "limit_hit_net_ratio",
+          "limit_hit_net_ratio_change_1d",
+          "limit_hit_net_ratio_change_5d",
+          "limit_hit_net_ratio_change_10d",
+          "limit_close_net_ratio",
+          "limit_close_net_ratio_change_1d",
+          "limit_close_net_ratio_change_5d",
+          "limit_close_net_ratio_change_10d",
+          "turnover_ratio_pct_p50",
+          "turnover_ratio_pct_p50_change_1d",
+          "turnover_ratio_pct_p50_change_5d",
+          "turnover_ratio_pct_p50_change_10d",
+          "turnover_ratio_pct_cap_weighted_mean",
+          "turnover_ratio_pct_cap_weighted_mean_change_1d",
+          "turnover_ratio_pct_cap_weighted_mean_change_5d",
+          "turnover_ratio_pct_cap_weighted_mean_change_10d",
+          "turnover_ge_10pct_ratio",
+          "turnover_ge_10pct_ratio_change_1d",
+          "turnover_ge_10pct_ratio_change_5d",
+          "turnover_ge_10pct_ratio_change_10d",
+          "market_universe_size",
+          "market_base_coverage",
+          "market_ma20_coverage",
+          "market_ma60_coverage",
+          "market_ma120_coverage",
+          "market_high_low_60_coverage",
+          "market_high_low_120_coverage",
+          "market_high_low_250_coverage",
+          "market_limit_coverage",
+          "market_turnover_coverage",
+          "index_price_available",
+          "index_return_1d",
+          "index_return_5d",
+          "index_return_10d",
+          "index_return_20d",
+          "index_return_60d",
+          "index_range_1d",
+          "index_close_to_ma20",
+          "index_close_to_ma60",
+          "index_close_to_ma120",
+          "index_drawdown_20d",
+          "index_rebound_20d",
+          "index_drawdown_60d",
+          "index_rebound_60d",
+          "index_drawdown_120d",
+          "index_rebound_120d",
+          "index_drawdown_250d",
+          "index_rebound_250d",
+          "index_volatility_10d",
+          "index_volatility_20d",
+          "index_volatility_60d",
+          "index_phase_pti",
+          "index_phase_pending",
+          "index_phase_up",
+          "index_phase_down",
+          "truth_top_intensity",
+          "truth_top_in_strict_lobe",
+          "truth_bottom_intensity",
+          "truth_bottom_in_strict_lobe",
+          "target_complete_5d",
+          "target_top_within_5d",
+          "target_bottom_within_5d",
+          "target_complete_10d",
+          "target_top_within_10d",
+          "target_bottom_within_10d",
+          "target_complete_20d",
+          "target_top_within_20d",
+          "target_bottom_within_20d",
+          "target_available"
+        ],
+        "encoding": "utf-8"
+      }
+    ]
+  },
+  "logic": {
+    "combined_sha256": "0a6cd971b68b2684f62ae9ff2e88b0dc9e19df270bfc4b66a56abb0a6efbf60a",
+    "files": [
+      {
+        "path": "modeling/walk_forward.py",
+        "sha256": "fccc1734bd3a12789988739d7daf8b6b8a06574510bfb29ace9fad13bfb7425d"
+      },
+      {
+        "path": "modeling/models.py",
+        "sha256": "67c9dd02bc04f8cbb237bbb52cd3b2861ac89e894f13b4bcf457fb5601a91303"
+      },
+      {
+        "path": "modeling/alerts.py",
+        "sha256": "5f6080f8c363fa67781a1b59b77b6dd2c4e9e907ea82338033cebf24d0621f3a"
+      },
+      {
+        "path": "modeling/training.py",
+        "sha256": "62c99c4435ae56225e8a6df6d794106e2ccd4287b7c7f5eecb0ad14fe5809617"
+      },
+      {
+        "path": "signals/events.py",
+        "sha256": "fb671928ee85725090a28e96a9025bf76aad5cac182512548a88b3dba46c24cd"
+      },
+      {
+        "path": "pipelines/train_ml_walk_forward.py",
+        "sha256": "8adc616083f4ea7e3ee7ece7c951f6cea975433a2a62f2c0ed0a519255ec3f4e"
+      },
+      {
+        "path": "pipelines/signal_bundle.py",
+        "sha256": "a1d88312c5d1cab676e5e24e21eb67797900c7b065ccf170599899123268d58e"
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "path": "oos_signal_daily.csv",
+      "bytes": 3125303,
+      "sha256": "30159222312d54286eec54f4686c24a78111463e828bc23b78861dae5b700b0d",
+      "rows": 11088,
+      "columns": [
+        "date",
+        "signal_id",
+        "model_id",
+        "direction",
+        "version",
+        "fold_id",
+        "validation_year",
+        "test_year",
+        "raw_value",
+        "pred_score",
+        "threshold",
+        "triggered",
+        "universe_size",
+        "valid_count",
+        "truth_intensity",
+        "pred_probability_5d",
+        "actual_entry_within_5d",
+        "pred_probability_10d",
+        "actual_entry_within_10d",
+        "pred_probability_20d",
+        "actual_entry_within_20d",
+        "episode_id",
+        "episode_number",
+        "episode_day",
+        "episode_stage",
+        "event_onset",
+        "event_continuation",
+        "event_exit",
+        "event_capped_confirmation",
+        "capped_confirmation_reason",
+        "capped_confirmation_n"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "oos_signal_episodes.csv",
+      "bytes": 42861,
+      "sha256": "0bbb310c9d466f787345c3b1f3bbbaf5c9169a322481a5473310e9087a6556a8",
+      "rows": 203,
+      "columns": [
+        "episode_id",
+        "signal_id",
+        "direction",
+        "version",
+        "episode_number",
+        "onset_date",
+        "last_active_date",
+        "exit_date",
+        "active_days",
+        "status",
+        "capped_confirmation_n",
+        "capped_confirmation_date",
+        "capped_confirmation_reason",
+        "confirmation_status",
+        "series_start_date",
+        "series_end_date"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "probability_metrics.csv",
+      "bytes": 19449,
+      "sha256": "6b9580afd3572cb67185140ad2c5409249cad3c5a9a1bfbb9c4fb02a4be686df",
+      "rows": 144,
+      "columns": [
+        "fold_id",
+        "test_year",
+        "model_id",
+        "direction",
+        "horizon_trade_days",
+        "rows",
+        "positives",
+        "prevalence",
+        "brier_score",
+        "log_loss",
+        "roc_auc",
+        "average_precision"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "folds.csv",
+      "bytes": 1325,
+      "sha256": "ad72cea6ed3b6d18fd3ff78ea363e632f1efde0eb6140bc6054751fd32b3c5a3",
+      "rows": 8,
+      "columns": [
+        "fold_id",
+        "validation_year",
+        "test_year",
+        "raw_train_rows",
+        "train_rows",
+        "raw_validation_rows",
+        "validation_rows",
+        "test_rows",
+        "train_start_date",
+        "train_end_date",
+        "raw_train_end_date",
+        "validation_start_date",
+        "validation_end_date",
+        "raw_validation_end_date",
+        "test_start_date",
+        "test_end_date",
+        "boundary_gap_trade_days"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "thresholds.csv",
+      "bytes": 3382,
+      "sha256": "f5fe89dc164cbd1f9ee2b35d94551bb9eeaa4969e250452ca224333eb5a3ab5e",
+      "rows": 48,
+      "columns": [
+        "fold_id",
+        "validation_year",
+        "test_year",
+        "model_id",
+        "direction",
+        "annual_episode_budget",
+        "threshold",
+        "validation_episode_count",
+        "validation_active_days",
+        "test_episode_count",
+        "test_active_days"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "fit_audit.csv",
+      "bytes": 9203,
+      "sha256": "f3b31d7795e897099e9a57575046e31962ad18ed62f7c822c4246aa6ed2cca56",
+      "rows": 144,
+      "columns": [
+        "fold_id",
+        "model_id",
+        "direction",
+        "horizon_trade_days",
+        "train_rows",
+        "train_positives",
+        "validation_rows",
+        "validation_positives",
+        "model_fit_status",
+        "calibration_status"
+      ],
+      "encoding": "utf-8"
+    }
+  ],
+  "counts": {
+    "folds": 8,
+    "oos_daily_rows": 11088,
+    "oos_episodes": 203,
+    "metric_rows": 144,
+    "threshold_rows": 48,
+    "fit_rows": 144,
+    "test_years": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "triggered_days": {
+      "simple_rule:top": 95,
+      "simple_rule:bottom": 321,
+      "elastic_net:top": 406,
+      "elastic_net:bottom": 329,
+      "shallow_xgboost:top": 321,
+      "shallow_xgboost:bottom": 436
+    }
+  }
+}
