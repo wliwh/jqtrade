@@ -10,6 +10,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 from plotly.offline import get_plotlyjs
+from plotly.subplots import make_subplots
 
 from ..adapters.tdx import INDEX_SPECS, read_tdx_daily, threshold_for_index
 from ..ground_truth.labels import directional_change_labels
@@ -28,6 +29,7 @@ COLORS = {
     "bottom": "#167153",
     "initial": "#737982",
     "pending": "#C58B22",
+    "breadth": "#46596F",
 }
 
 PHASE_OPACITY = {
@@ -37,6 +39,14 @@ PHASE_OPACITY = {
 }
 REGION_ENVELOPE_OPACITY = 0.025
 REGION_LOBE_OPACITY = 0.11
+BASE_CHART_HEIGHT = 540
+MA20_CHART_HEIGHT = 720
+MA20_EXTREME_TOP = 0.70
+MA20_EXTREME_BOTTOM = 0.30
+MA20_SIGNAL_IDS = {
+    "top": "ma20_breadth_reversal_top",
+    "bottom": "ma20_breadth_reversal_bottom",
+}
 
 
 @dataclass(frozen=True)
@@ -48,6 +58,25 @@ class ViewerPage:
     subtitle_suffix: str = ""
     extra_css: str = ""
     extra_legend_html: str = ""
+
+
+MA20_PAGE = ViewerPage(
+    browser_title="指数顶底区域与全 A MA20 宽度",
+    heading="指数顶底区域与全 A MA20 宽度",
+    subtitle_suffix=" · 下排固定为全 A MA20 宽度 · 上排空心圆点为点时信号",
+    extra_css="""
+    .phase-swatch.is-ma20-top,
+    .phase-swatch.is-ma20-bottom { background: transparent; border-radius: 50%; }
+    .phase-swatch.is-ma20-top { border: 2px solid var(--top); }
+    .phase-swatch.is-ma20-bottom { border: 2px solid var(--bottom); }
+    """,
+    extra_legend_html=(
+        '<span class="phase-key" role="listitem"><i class="phase-swatch '
+        'is-ma20-top" aria-hidden="true"></i>MA20顶部信号</span>'
+        '<span class="phase-key" role="listitem"><i class="phase-swatch '
+        'is-ma20-bottom" aria-hidden="true"></i>MA20底部信号</span>'
+    ),
+)
 
 
 @dataclass
@@ -65,8 +94,10 @@ def make_figure(
     index_name: str,
     threshold: float = 0.10,
     index_id: str = "visual",
+    ma20_breadth: pd.DataFrame | None = None,
+    ma20_signals: pd.DataFrame | None = None,
 ) -> go.Figure:
-    """Build one OHLC chart with causal phases and post-hoc regions."""
+    """Build an OHLC audit chart, optionally with full-A MA20 breadth below."""
 
     labels = directional_change_labels(daily["high"], daily["low"], threshold)
     small_labels = directional_change_labels(
@@ -87,21 +118,31 @@ def make_figure(
     calendar = pd.date_range(daily.index.min(), daily.index.max(), freq="D")
     non_trading_dates = calendar.difference(daily.index)
 
-    figure = go.Figure(
-        go.Candlestick(
-            x=daily.index,
-            open=daily["open"],
-            high=daily["high"],
-            low=daily["low"],
-            close=daily["close"],
-            name="日K",
-            increasing_line_color=COLORS["up"],
-            increasing_fillcolor=COLORS["up"],
-            decreasing_line_color=COLORS["down"],
-            decreasing_fillcolor=COLORS["down"],
-            hoverlabel=dict(namelength=0),
-        )
+    candlestick = go.Candlestick(
+        x=daily.index,
+        open=daily["open"],
+        high=daily["high"],
+        low=daily["low"],
+        close=daily["close"],
+        name="日K",
+        increasing_line_color=COLORS["up"],
+        increasing_fillcolor=COLORS["up"],
+        decreasing_line_color=COLORS["down"],
+        decreasing_fillcolor=COLORS["down"],
+        hoverlabel=dict(namelength=0),
     )
+    has_ma20_breadth = ma20_breadth is not None
+    if has_ma20_breadth:
+        figure = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.045,
+            row_heights=[0.72, 0.28],
+        )
+        figure.add_trace(candlestick, row=1, col=1)
+    else:
+        figure = go.Figure(candlestick)
 
     figure.update_layout(
         shapes=(
@@ -113,6 +154,44 @@ def make_figure(
     _add_region_lobe_markers(figure, regions, lobes, "bottom")
     _add_initial_marker(figure, daily, initial)
     _add_pending_marker(figure, daily, pending)
+    if ma20_signals is not None:
+        _add_ma20_signal_markers(figure, daily, ma20_signals)
+    if ma20_breadth is not None:
+        _add_ma20_breadth(figure, ma20_breadth)
+
+    rangebreaks = [dict(values=non_trading_dates.strftime("%Y-%m-%d").tolist())]
+    rangeselector = dict(
+        x=1,
+        xanchor="right",
+        y=1.12,
+        yanchor="top",
+        bgcolor=COLORS["background"],
+        activecolor=COLORS["line"],
+        buttons=[
+            dict(count=1, label="1年", step="year", stepmode="backward"),
+            dict(count=3, label="3年", step="year", stepmode="backward"),
+            dict(count=5, label="5年", step="year", stepmode="backward"),
+            dict(step="all", label="全部"),
+        ],
+    )
+    xaxis = dict(
+        title=None,
+        showgrid=False,
+        rangebreaks=rangebreaks,
+        rangeselector=rangeselector,
+    )
+    if has_ma20_breadth:
+        xaxis["showticklabels"] = False
+        xaxis["rangeslider"] = dict(visible=False)
+        xaxis2 = dict(
+            title=None,
+            showgrid=False,
+            rangebreaks=rangebreaks,
+            rangeslider=dict(visible=True, thickness=0.10),
+        )
+    else:
+        xaxis["rangeslider"] = dict(visible=True, thickness=0.07)
+        xaxis2 = None
 
     figure.update_layout(
         title=dict(
@@ -123,7 +202,7 @@ def make_figure(
         ),
         template="plotly_white",
         autosize=True,
-        height=540,
+        height=MA20_CHART_HEIGHT if has_ma20_breadth else BASE_CHART_HEIGHT,
         paper_bgcolor=COLORS["paper"],
         plot_bgcolor=COLORS["paper"],
         font=dict(
@@ -143,26 +222,8 @@ def make_figure(
             bgcolor="rgba(255,255,255,0)",
             font=dict(size=12),
         ),
-        xaxis=dict(
-            title=None,
-            showgrid=False,
-            rangebreaks=[dict(values=non_trading_dates.strftime("%Y-%m-%d").tolist())],
-            rangeslider=dict(visible=True, thickness=0.07),
-            rangeselector=dict(
-                x=1,
-                xanchor="right",
-                y=1.12,
-                yanchor="top",
-                bgcolor=COLORS["background"],
-                activecolor=COLORS["line"],
-                buttons=[
-                    dict(count=1, label="1年", step="year", stepmode="backward"),
-                    dict(count=3, label="3年", step="year", stepmode="backward"),
-                    dict(count=5, label="5年", step="year", stepmode="backward"),
-                    dict(step="all", label="全部"),
-                ],
-            ),
-        ),
+        xaxis=xaxis,
+        xaxis2=xaxis2,
         yaxis=dict(
             title=None,
             fixedrange=False,
@@ -170,8 +231,235 @@ def make_figure(
             gridwidth=0.7,
             zeroline=False,
         ),
+        yaxis2=(
+            dict(
+                title=dict(text="全 A MA20<br>宽度", font=dict(size=12)),
+                range=[0.0, 1.0],
+                tickformat=".0%",
+                dtick=0.2,
+                fixedrange=False,
+                gridcolor=COLORS["line"],
+                gridwidth=0.7,
+                zeroline=False,
+            )
+            if has_ma20_breadth
+            else None
+        ),
     )
     return figure
+
+
+def _add_ma20_signal_markers(
+    figure: go.Figure,
+    daily: pd.DataFrame,
+    frame: pd.DataFrame,
+) -> None:
+    onsets = _validate_ma20_signal_onsets(frame)
+    for direction in ("top", "bottom"):
+        selected = onsets[onsets["direction"].eq(direction)].copy()
+        in_range = selected["date"].between(daily.index.min(), daily.index.max())
+        missing_dates = pd.DatetimeIndex(selected.loc[in_range, "date"]).difference(
+            daily.index
+        )
+        if not missing_dates.empty:
+            raise ValueError(
+                "MA20 signal dates are missing from index OHLC: "
+                + ", ".join(missing_dates.strftime("%Y-%m-%d"))
+            )
+        selected = selected[selected["date"].isin(daily.index)].copy()
+        if selected.empty:
+            continue
+
+        dates = pd.DatetimeIndex(selected["date"])
+        is_top = direction == "top"
+        price_column = "high" if is_top else "low"
+        visual_price = daily.loc[dates, price_column].astype(float).to_numpy()
+        visual_price *= 1.035 if is_top else 0.965
+        customdata = [
+            [
+                int(row.episode_number),
+                float(row.raw_value),
+                float(row.breadth_change_5d),
+                str(row.episode_id),
+            ]
+            for row in selected.itertuples(index=False)
+        ]
+        figure.add_trace(
+            go.Scatter(
+                x=dates,
+                y=visual_price,
+                mode="markers",
+                name="MA20顶部信号首日" if is_top else "MA20底部信号首日",
+                marker=dict(
+                    symbol="circle-open-dot",
+                    size=11,
+                    color=COLORS[direction],
+                    line=dict(color="#FFFFFF", width=0.8),
+                ),
+                opacity=0.96,
+                cliponaxis=False,
+                customdata=customdata,
+                hovertemplate=(
+                    ("MA20顶部点时信号" if is_top else "MA20底部点时信号")
+                    + "<br>episode 首日 %{x|%Y-%m-%d} · 第 %{customdata[0]} 段"
+                    + "<br>全 A MA20 宽度 %{customdata[1]:.1%}"
+                    + "<br>5 日变化 %{customdata[2]:+.1%}"
+                    + "<br>episode %{customdata[3]}<extra></extra>"
+                ),
+            )
+        )
+
+
+def _validate_ma20_signal_onsets(frame: pd.DataFrame) -> pd.DataFrame:
+    if not isinstance(frame, pd.DataFrame):
+        raise TypeError("ma20_signals must be a pandas DataFrame")
+    required = {
+        "date",
+        "signal_id",
+        "direction",
+        "raw_value",
+        "breadth_change_5d",
+        "triggered",
+        "event_onset",
+        "episode_id",
+        "episode_number",
+        "ma_window",
+    }
+    missing = required.difference(frame.columns)
+    if missing:
+        raise ValueError(f"ma20_signals is missing columns: {sorted(missing)}")
+
+    result = frame[frame["signal_id"].isin(MA20_SIGNAL_IDS.values())].copy()
+    if result.empty or set(result["signal_id"]) != set(MA20_SIGNAL_IDS.values()):
+        raise ValueError("ma20_signals must contain both MA20 reversal series")
+    result["date"] = pd.to_datetime(result["date"], errors="coerce")
+    if result["date"].isna().any():
+        raise ValueError("ma20_signals contains an invalid date")
+    if result.duplicated(["signal_id", "date"]).any():
+        raise ValueError("ma20_signals contains duplicate signal dates")
+    if any(
+        not group["date"].is_monotonic_increasing
+        for _, group in result.groupby("signal_id", sort=False)
+    ):
+        raise ValueError("ma20_signals dates must be increasing within each series")
+
+    for column in ("triggered", "event_onset"):
+        values = result[column]
+        if not pd.api.types.is_bool_dtype(values):
+            values = values.map({True: True, False: False, "True": True, "False": False})
+        if values.isna().any():
+            raise ValueError(f"ma20_signals {column} must be boolean")
+        result[column] = values.astype(bool)
+    if (result["ma_window"] != 20).any():
+        raise ValueError("ma20_signals contains a non-MA20 row")
+    for direction, signal_id in MA20_SIGNAL_IDS.items():
+        selected = result[result["signal_id"].eq(signal_id)]
+        if not selected["direction"].eq(direction).all():
+            raise ValueError(f"ma20_signals direction mismatch: {signal_id}")
+    if (result["event_onset"] & ~result["triggered"]).any():
+        raise ValueError("MA20 signal onset must also be triggered")
+
+    onsets = result[result["event_onset"]].copy()
+    if onsets.empty:
+        raise ValueError("ma20_signals contains no episode onsets")
+    for column in ("raw_value", "breadth_change_5d", "episode_number"):
+        onsets[column] = pd.to_numeric(onsets[column], errors="coerce")
+    if onsets[["raw_value", "breadth_change_5d", "episode_number"]].isna().any().any():
+        raise ValueError("MA20 signal onset contains incomplete marker data")
+    if not onsets["raw_value"].between(0.0, 1.0).all():
+        raise ValueError("MA20 signal raw_value must be between zero and one")
+    if onsets["episode_id"].isna().any():
+        raise ValueError("MA20 signal onset is missing episode_id")
+    return onsets.sort_values(["date", "direction"]).reset_index(drop=True)
+
+
+def _add_ma20_breadth(figure: go.Figure, frame: pd.DataFrame) -> None:
+    breadth = _validate_ma20_breadth(frame)
+    change = breadth["breadth_ma20"].diff(5)
+    customdata = [
+        [
+            int(row.above_count_ma20),
+            int(row.valid_count_ma20),
+            "—" if pd.isna(delta) else f"{float(delta):+.1%}",
+        ]
+        for row, delta in zip(breadth.itertuples(index=False), change)
+    ]
+    figure.add_trace(
+        go.Scatter(
+            x=pd.DatetimeIndex(breadth["date"]),
+            y=breadth["breadth_ma20"],
+            xaxis="x2",
+            yaxis="y2",
+            mode="lines",
+            name="全 A MA20 宽度",
+            line=dict(color=COLORS["breadth"], width=1.6),
+            customdata=customdata,
+            hovertemplate=(
+                "全 A MA20 宽度 %{y:.1%}"
+                "<br>站上 MA20 %{customdata[0]:,} / %{customdata[1]:,}"
+                "<br>5 日变化 %{customdata[2]}<extra></extra>"
+            ),
+        )
+    )
+    for value, color, name in (
+        (MA20_EXTREME_TOP, COLORS["top"], "ma20-threshold:top"),
+        (MA20_EXTREME_BOTTOM, COLORS["bottom"], "ma20-threshold:bottom"),
+    ):
+        figure.add_shape(
+            type="line",
+            xref="x2 domain",
+            yref="y2",
+            x0=0,
+            x1=1,
+            y0=value,
+            y1=value,
+            line=dict(color=color, width=1, dash="dot"),
+            opacity=0.58,
+            layer="below",
+            name=name,
+        )
+
+
+def _validate_ma20_breadth(frame: pd.DataFrame) -> pd.DataFrame:
+    if not isinstance(frame, pd.DataFrame):
+        raise TypeError("ma20_breadth must be a pandas DataFrame")
+    required = {
+        "date",
+        "breadth_ma20",
+        "above_count_ma20",
+        "valid_count_ma20",
+    }
+    missing = required.difference(frame.columns)
+    if missing:
+        raise ValueError(f"ma20_breadth is missing columns: {sorted(missing)}")
+    if frame.empty:
+        raise ValueError("ma20_breadth must not be empty")
+
+    result = frame.loc[:, sorted(required)].copy()
+    result["date"] = pd.to_datetime(result["date"], errors="coerce")
+    if result["date"].isna().any():
+        raise ValueError("ma20_breadth contains an invalid date")
+    if result["date"].duplicated().any():
+        raise ValueError("ma20_breadth contains duplicate dates")
+    if not result["date"].is_monotonic_increasing:
+        raise ValueError("ma20_breadth dates must be strictly increasing")
+
+    for column in ("breadth_ma20", "above_count_ma20", "valid_count_ma20"):
+        result[column] = pd.to_numeric(result[column], errors="coerce")
+    if result[list(required - {"date"})].isna().any().any():
+        raise ValueError("ma20_breadth contains non-numeric values")
+    if not result["breadth_ma20"].between(0.0, 1.0).all():
+        raise ValueError("breadth_ma20 must be between zero and one")
+    if (
+        (result["above_count_ma20"] < 0).any()
+        or (result["valid_count_ma20"] <= 0).any()
+        or (result["above_count_ma20"] > result["valid_count_ma20"]).any()
+    ):
+        raise ValueError("MA20 counts are inconsistent")
+    expected = result["above_count_ma20"].div(result["valid_count_ma20"])
+    if not expected.sub(result["breadth_ma20"]).abs().le(1e-9).all():
+        raise ValueError("breadth_ma20 does not match above/valid counts")
+    return result
 
 
 def _phase_intervals(
@@ -480,20 +768,35 @@ def _add_pending_marker(
 def build_viewer_panels(
     vipdoc: Path | str,
     threshold: float = 0.10,
+    ma20_breadth: pd.DataFrame | None = None,
+    ma20_signals: pd.DataFrame | None = None,
 ) -> list[ViewerPanel]:
-    """Build the seven base figures without choosing a page variant."""
+    """Build the seven figures, with full A first for the default panel."""
 
     if not 0.0 < threshold < 1.0:
         raise ValueError("threshold must be between 0 and 1")
 
     vipdoc = Path(vipdoc)
     result = []
-    for index_id, index_name, _, relative_path, float_prices in INDEX_SPECS:
+    for index_id, index_name, _, relative_path, float_prices in _ordered_index_specs():
         daily = read_tdx_daily(vipdoc / relative_path, float_prices=float_prices)
         adjusted_threshold = threshold_for_index(index_id, threshold)
-        figure = make_figure(daily, index_name, adjusted_threshold, index_id=index_id)
+        figure = make_figure(
+            daily,
+            index_name,
+            adjusted_threshold,
+            index_id=index_id,
+            ma20_breadth=ma20_breadth,
+            ma20_signals=ma20_signals,
+        )
         result.append(ViewerPanel(index_id, index_name, daily, figure))
     return result
+
+
+def _ordered_index_specs() -> tuple[tuple[object, ...], ...]:
+    """Put full A first while preserving the configured order of other indices."""
+
+    return tuple(sorted(INDEX_SPECS, key=lambda spec: spec[0] != "all_a"))
 
 
 def write_viewer_panels(
@@ -515,6 +818,9 @@ def write_viewer_panels(
     tabs = []
     panel_html = []
     chart_specs = []
+    chart_height = max(
+        int(panel.figure.layout.height or BASE_CHART_HEIGHT) for panel in panels
+    )
     for position, panel in enumerate(panels):
         chart_id = f"chart-{panel.index_id}"
         chart_specs.append(f'"{chart_id}":{pio.to_json(panel.figure)}')
@@ -536,6 +842,7 @@ def write_viewer_panels(
         plotly_js=get_plotlyjs(),
         threshold=threshold,
         chart_specs="{" + ",".join(chart_specs) + "}",
+        chart_height=chart_height,
         page=page,
     )
     output_path.write_text(html, encoding="utf-8")
@@ -546,13 +853,20 @@ def write_viewer(
     vipdoc: Path | str,
     output_path: Path | str,
     threshold: float = 0.10,
+    ma20_breadth: pd.DataFrame | None = None,
+    ma20_signals: pd.DataFrame | None = None,
 ) -> Path:
     """Write the base offline viewer."""
 
     return write_viewer_panels(
-        build_viewer_panels(vipdoc, threshold),
+        build_viewer_panels(vipdoc, threshold, ma20_breadth, ma20_signals),
         output_path,
         threshold,
+        page=(
+            MA20_PAGE
+            if ma20_breadth is not None or ma20_signals is not None
+            else ViewerPage()
+        ),
     )
 
 
@@ -563,6 +877,7 @@ def _page_html(
     plotly_js: str,
     threshold: float,
     chart_specs: str,
+    chart_height: int,
     page: ViewerPage = ViewerPage(),
 ) -> str:
     return f"""<!doctype html>
@@ -629,7 +944,7 @@ def _page_html(
     .panel {{ display: none; width: 100%; }}
     .panel.is-active {{ display: block; }}
     .chart-shell {{
-      position: relative; width: 100%; height: 540px; background: var(--paper);
+      position: relative; width: 100%; height: {chart_height}px; background: var(--paper);
     }}
     .chart-shell::before {{
       content: "载入图表…"; position: absolute; inset: 0; display: grid; place-items: center;
@@ -643,10 +958,13 @@ def _page_html(
     }}
     @media (max-width: 760px) {{
       .topbar {{ display: block; padding: 10px 12px 8px; }}
-      .heading {{ margin-bottom: 7px; }}
-      .phase-legend {{ margin-bottom: 7px; }}
+      .heading {{ min-width: 0; margin-bottom: 7px; }}
+      .heading span {{ white-space: normal; }}
+      .phase-legend {{
+        flex-wrap: wrap; gap: 5px 10px; margin-bottom: 7px; white-space: normal;
+      }}
       main {{ padding: 8px 0 0; }}
-      .chart-shell {{ height: 540px; }}
+      .chart-shell {{ max-width: 100%; min-width: 0; height: {chart_height}px; }}
     }}
   </style>
   <script>{plotly_js}</script>
@@ -679,7 +997,18 @@ def _page_html(
       if (!renderPromises.has(chartId)) {{
         const chart = document.getElementById(chartId);
         const spec = chartSpecs[chartId];
-        const promise = Plotly.newPlot(chart, spec.data, spec.layout, plotConfig).then(() => {{
+        const layout = {{...spec.layout}};
+        if (window.matchMedia('(max-width: 760px)').matches) {{
+          layout.showlegend = false;
+          layout.margin = {{...layout.margin, l: 50, r: 10, t: 66}};
+          layout.title = {{
+            ...layout.title,
+            font: {{...layout.title.font, size: 17}},
+          }};
+          layout.xaxis = {{...layout.xaxis}};
+          delete layout.xaxis.rangeselector;
+        }}
+        const promise = Plotly.newPlot(chart, spec.data, layout, plotConfig).then(() => {{
           chart.closest('.chart-shell').classList.add('is-rendered');
           return chart;
         }});
