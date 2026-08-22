@@ -1,0 +1,326 @@
+{
+  "training_version": "all_a_ml_today_walk_forward_v1",
+  "generated_at_utc": "2026-08-22T08:06:36.912487+00:00",
+  "purpose": "Retrospective expanding walk-forward estimation of the probability that the current all-A date belongs to a frozen strict top/bottom lobe; not untouched forward evidence or a trading strategy.",
+  "definition": {
+    "index_id": "all_a",
+    "models": [
+      "elastic_net",
+      "shallow_gbdt"
+    ],
+    "model_parameters": {
+      "elastic_net": {
+        "estimator": "sklearn.linear_model.LogisticRegression",
+        "penalty": "elasticnet",
+        "solver": "saga",
+        "l1_ratio": 0.5,
+        "C": 0.05,
+        "class_weight": "balanced",
+        "max_iter": 3000
+      },
+      "shallow_gbdt": {
+        "estimator": "sklearn.ensemble.GradientBoostingClassifier",
+        "n_estimators": 60,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_samples_leaf": 20,
+        "subsample": 0.8,
+        "sample_weight": "balanced"
+      },
+      "random_state": 20260821
+    },
+    "runtime": {
+      "python_executable": "/home/hh01/anaconda3/envs/fin/bin/python",
+      "python_version": "3.9.0",
+      "pandas": "2.2.3",
+      "scikit_learn": "1.5.2"
+    },
+    "observation_time": "After the current trading day's close.",
+    "target_semantics": "Probability that the current date belongs to the direction's frozen strict lobe.",
+    "target_id": "today_strict_lobe_membership",
+    "score_formula": "100 * pred_probability_today",
+    "intensity_role": "Post-hoc auxiliary evaluation only; never fitted as the probability target.",
+    "first_validation_year": 2018,
+    "first_test_year": 2019,
+    "boundary_gap_trade_days": 20,
+    "calibration": "Validation-only sigmoid calibration; smoothed validation prevalence fallback for a one-class validation slice.",
+    "annual_episode_budget": 6,
+    "threshold_selection": "Validation probabilities only; maximize contiguous episode count at or below budget, with higher threshold winning ties.",
+    "alert_duration_policy": "No duration suppression.",
+    "feature_columns": [
+      "breadth_ma20",
+      "breadth_ma20_change_5d",
+      "breadth_ma60",
+      "breadth_ma60_change_10d",
+      "new_high_low_net_ratio_60",
+      "new_high_low_net_ratio_60_change_5d",
+      "limit_hit_net_ratio",
+      "limit_hit_net_ratio_change_5d",
+      "turnover_ratio_pct_p50",
+      "turnover_ratio_pct_p50_change_10d",
+      "index_close_to_ma60",
+      "index_drawdown_60d",
+      "index_rebound_60d",
+      "index_return_5d",
+      "index_volatility_20d"
+    ]
+  },
+  "inputs": {
+    "dataset_manifest": {
+      "path": "research/index_turning_points/artifacts/modeling/all_a_ml_today_dataset_v1_20120705_20260814/manifest.json",
+      "bytes": 11590,
+      "sha256": "19dcc8036012085aec3a54cf01f4a1639114f34d4f8e50a6c0095575bbe0f613"
+    },
+    "source_files": [
+      {
+        "source": "all_a_ml_today_dataset_v1",
+        "path": "training_daily.csv",
+        "bytes": 1027680,
+        "sha256": "2550e74732d3469318ce74f9625b552a0922e0c355807b508c957c8469993173",
+        "rows": 3429,
+        "columns": [
+          "date",
+          "breadth_ma20",
+          "breadth_ma20_change_5d",
+          "breadth_ma60",
+          "breadth_ma60_change_10d",
+          "new_high_low_net_ratio_60",
+          "new_high_low_net_ratio_60_change_5d",
+          "limit_hit_net_ratio",
+          "limit_hit_net_ratio_change_5d",
+          "turnover_ratio_pct_p50",
+          "turnover_ratio_pct_p50_change_10d",
+          "index_close_to_ma60",
+          "index_drawdown_60d",
+          "index_rebound_60d",
+          "index_return_5d",
+          "index_volatility_20d",
+          "index_price_available",
+          "target_available",
+          "truth_top_intensity",
+          "truth_top_in_strict_lobe",
+          "truth_bottom_intensity",
+          "truth_bottom_in_strict_lobe"
+        ],
+        "encoding": "utf-8"
+      }
+    ]
+  },
+  "logic": {
+    "combined_sha256": "8eb68856c8448e77018ebcbc9546ad757d59b8a14daa1dcdcbdf0c08732e5e59",
+    "files": [
+      {
+        "path": "modeling/walk_forward.py",
+        "sha256": "fccc1734bd3a12789988739d7daf8b6b8a06574510bfb29ace9fad13bfb7425d"
+      },
+      {
+        "path": "modeling/models.py",
+        "sha256": "eedec5450299cd9385016e200d0af4cd1ef7e10c16944625fd68feea5bbc26dc"
+      },
+      {
+        "path": "modeling/alerts.py",
+        "sha256": "6ffa9289ebbff83e9eaebe5dfd23762ba1f067e6c72fa31da7d525ecccb14eaa"
+      },
+      {
+        "path": "modeling/training.py",
+        "sha256": "bc937c81081caf27e4509d5d2dbd96664f8c4e769ff3f9d401d21403463cd156"
+      },
+      {
+        "path": "modeling/today_training.py",
+        "sha256": "722dac3f88c6802ea1ea27bad8206529cb40cb0059e4d1e1d011a22601d57827"
+      },
+      {
+        "path": "signals/events.py",
+        "sha256": "fb671928ee85725090a28e96a9025bf76aad5cac182512548a88b3dba46c24cd"
+      },
+      {
+        "path": "docs/ml_today_probability_v1_spec.md",
+        "sha256": "bddb9f7926ee6e87bf5de56079dcf23068e5a0dab29c8dd8d25e68fe0243e948"
+      },
+      {
+        "path": "pipelines/train_ml_today_walk_forward.py",
+        "sha256": "cf1e08c15185448c3423a403b444013099206fc4f18e29fb9ed0f07df9f698fe"
+      },
+      {
+        "path": "pipelines/signal_bundle.py",
+        "sha256": "a1d88312c5d1cab676e5e24e21eb67797900c7b065ccf170599899123268d58e"
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "path": "oos_signal_daily.csv",
+      "bytes": 1870783,
+      "sha256": "4b798ef18a8ee14fc60658c916c886a65ce479344259ba63b97662475393972c",
+      "rows": 7392,
+      "columns": [
+        "date",
+        "signal_id",
+        "model_id",
+        "direction",
+        "version",
+        "fold_id",
+        "validation_year",
+        "test_year",
+        "raw_value",
+        "pred_score",
+        "pred_probability_today",
+        "threshold",
+        "raw_triggered",
+        "triggered",
+        "universe_size",
+        "valid_count",
+        "truth_intensity",
+        "actual_in_strict_lobe_today",
+        "episode_id",
+        "episode_number",
+        "episode_day",
+        "episode_stage",
+        "event_onset",
+        "event_continuation",
+        "event_exit",
+        "event_capped_confirmation",
+        "capped_confirmation_reason",
+        "capped_confirmation_n"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "oos_signal_episodes.csv",
+      "bytes": 36718,
+      "sha256": "5c890af81a0127671a6abb90752ed93058435f87cc6594e1cfc36b8fb05506fc",
+      "rows": 157,
+      "columns": [
+        "episode_id",
+        "signal_id",
+        "direction",
+        "version",
+        "episode_number",
+        "onset_date",
+        "last_active_date",
+        "exit_date",
+        "active_days",
+        "status",
+        "capped_confirmation_n",
+        "capped_confirmation_date",
+        "capped_confirmation_reason",
+        "confirmation_status",
+        "series_start_date",
+        "series_end_date"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "probability_metrics.csv",
+      "bytes": 5343,
+      "sha256": "dccc3f03ca700a49cd04378e613f982fdd281c8f19f2635584ebe66f45388d38",
+      "rows": 32,
+      "columns": [
+        "fold_id",
+        "test_year",
+        "model_id",
+        "direction",
+        "horizon_trade_days",
+        "rows",
+        "positives",
+        "prevalence",
+        "brier_score",
+        "log_loss",
+        "roc_auc",
+        "average_precision",
+        "target_semantics"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "folds.csv",
+      "bytes": 1325,
+      "sha256": "ad72cea6ed3b6d18fd3ff78ea363e632f1efde0eb6140bc6054751fd32b3c5a3",
+      "rows": 8,
+      "columns": [
+        "fold_id",
+        "validation_year",
+        "test_year",
+        "raw_train_rows",
+        "train_rows",
+        "raw_validation_rows",
+        "validation_rows",
+        "test_rows",
+        "train_start_date",
+        "train_end_date",
+        "raw_train_end_date",
+        "validation_start_date",
+        "validation_end_date",
+        "raw_validation_end_date",
+        "test_start_date",
+        "test_end_date",
+        "boundary_gap_trade_days"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "thresholds.csv",
+      "bytes": 3234,
+      "sha256": "ae17449a7bd3514a6ed36a510ee89ac32a0fb07c200076ee858d66507eb0f5d8",
+      "rows": 32,
+      "columns": [
+        "fold_id",
+        "validation_year",
+        "test_year",
+        "model_id",
+        "direction",
+        "target_semantics",
+        "annual_episode_budget",
+        "threshold",
+        "validation_episode_count",
+        "validation_active_days",
+        "test_episode_count",
+        "test_active_days"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "fit_audit.csv",
+      "bytes": 2912,
+      "sha256": "0c6b6655f96fe3125ef1ebc0bb8b8dba3fda041c999acdb48ec3bcbb3e3eda10",
+      "rows": 32,
+      "columns": [
+        "fold_id",
+        "model_id",
+        "direction",
+        "target_semantics",
+        "train_rows",
+        "train_positives",
+        "validation_rows",
+        "validation_positives",
+        "model_fit_status",
+        "calibration_status"
+      ],
+      "encoding": "utf-8"
+    }
+  ],
+  "counts": {
+    "folds": 8,
+    "oos_daily_rows": 7392,
+    "oos_episodes": 157,
+    "metric_rows": 32,
+    "threshold_rows": 32,
+    "fit_rows": 32,
+    "test_years": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "triggered_days": {
+      "elastic_net:top": 296,
+      "elastic_net:bottom": 335,
+      "shallow_gbdt:top": 304,
+      "shallow_gbdt:bottom": 460
+    }
+  }
+}

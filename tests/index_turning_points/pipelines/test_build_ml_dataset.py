@@ -4,7 +4,12 @@ import json
 import pandas as pd
 import pytest
 
-from research.index_turning_points.modeling.dataset import feature_columns
+from research.index_turning_points.modeling.dataset import (
+    TODAY_DATASET_VERSION,
+    TODAY_TARGET_MODE,
+    feature_columns,
+    today_feature_columns,
+)
 from research.index_turning_points.pipelines import build_ml_dataset as pipeline
 
 
@@ -55,3 +60,39 @@ def test_pipeline_rejects_nonempty_output_directory(tmp_path):
             pipeline.DEFAULT_VIPDOC,
             output_dir,
         )
+
+
+def test_pipeline_builds_compact_today_membership_dataset(tmp_path):
+    output_dir = tmp_path / "today_modeling"
+
+    outputs = pipeline.run_pipeline(
+        pipeline.DEFAULT_INPUT_DIR,
+        pipeline.DEFAULT_GROUND_TRUTH_DIR,
+        pipeline.DEFAULT_VIPDOC,
+        output_dir,
+        target_mode=TODAY_TARGET_MODE,
+    )
+
+    daily = pd.read_csv(outputs["training_daily"])
+    manifest = json.loads(outputs["manifest"].read_text(encoding="utf-8"))
+    expected_columns = {
+        "date",
+        *today_feature_columns(),
+        "index_price_available",
+        "target_available",
+        "truth_top_intensity",
+        "truth_top_in_strict_lobe",
+        "truth_bottom_intensity",
+        "truth_bottom_in_strict_lobe",
+    }
+    assert set(daily.columns) == expected_columns
+    assert not any(column.startswith("target_top_within_") for column in daily)
+    assert manifest["dataset_version"] == TODAY_DATASET_VERSION
+    assert manifest["definition"]["target_mode"] == TODAY_TARGET_MODE
+    assert manifest["definition"]["probability_targets"] == {
+        "top": "truth_top_in_strict_lobe",
+        "bottom": "truth_bottom_in_strict_lobe",
+    }
+    assert manifest["definition"]["feature_columns"] == list(
+        today_feature_columns()
+    )

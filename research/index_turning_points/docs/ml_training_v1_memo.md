@@ -2,6 +2,8 @@
 
 状态：V2 首次建模及 V3 结果知情改版均已完成回顾性 walk-forward 与统一区域定位/OHLC 评测；V3 修正了长时间连续报警，但区域定位结果有得有失，不构成前瞻证据。任何标签、特征、切分、模型参数、报警预算、评分公式或告警语义变更都必须升级版本，不覆盖既有产物。
 
+本备忘只记录“当日或未来 5/10/20 日进入 strict 峰瓣”的旧实验。后来另立的“当日是否属于 strict 峰瓣”单一概率任务见 [`ml_today_probability_v1_spec.md`](ml_today_probability_v1_spec.md) 与 [`ml_today_probability_v1_results.md`](ml_today_probability_v1_results.md)，不回写 V1/V2/V3。
+
 ## 目标与范围
 
 - 主任务只训练全 A `000985.XSHG` 的 `top_score` 与 `bottom_score`，二者独立且不要求和为 100。

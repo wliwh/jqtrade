@@ -21,6 +21,9 @@ from .targets import (
 
 
 DATASET_VERSION = "all_a_ml_dataset_v1"
+TODAY_DATASET_VERSION = "all_a_ml_today_dataset_v1"
+FUTURE_ENTRY_TARGET_MODE = "future_entry"
+TODAY_TARGET_MODE = "today_strict_lobe_membership"
 MODEL_START_DATE = pd.Timestamp("2012-07-05")
 MARKET_LEVEL_FEATURES = (
     "breadth_ma20",
@@ -47,6 +50,23 @@ COVERAGE_FEATURES = {
     "market_limit_coverage": "valid_count_limit",
     "market_turnover_coverage": "turnover_valid_count",
 }
+TODAY_FEATURE_COLUMNS = (
+    "breadth_ma20",
+    "breadth_ma20_change_5d",
+    "breadth_ma60",
+    "breadth_ma60_change_10d",
+    "new_high_low_net_ratio_60",
+    "new_high_low_net_ratio_60_change_5d",
+    "limit_hit_net_ratio",
+    "limit_hit_net_ratio_change_5d",
+    "turnover_ratio_pct_p50",
+    "turnover_ratio_pct_p50_change_10d",
+    "index_close_to_ma60",
+    "index_drawdown_60d",
+    "index_rebound_60d",
+    "index_return_5d",
+    "index_volatility_20d",
+)
 
 
 def build_all_a_training_daily(
@@ -61,13 +81,78 @@ def build_all_a_training_daily(
 ) -> pd.DataFrame:
     """Merge causal features and post-hoc targets on the all-A calendar."""
 
+    return _build_all_a_daily(
+        market_features,
+        index_daily,
+        regions,
+        lobes,
+        threshold=threshold,
+        start_date=start_date,
+        horizons=horizons,
+    )
+
+
+def build_all_a_today_training_daily(
+    market_features: pd.DataFrame,
+    index_daily: pd.DataFrame,
+    regions: pd.DataFrame,
+    lobes: pd.DataFrame,
+    *,
+    threshold: float = 0.10,
+    start_date: str | pd.Timestamp = MODEL_START_DATE,
+) -> pd.DataFrame:
+    """Build the compact current-day strict-lobe probability dataset.
+
+    The frozen strict-lobe membership columns are the binary probability
+    targets. Post-hoc intensity is retained only for diagnosis and evaluation;
+    future-entry targets and unused V1 features are omitted from the bundle.
+    """
+
+    full = _build_all_a_daily(
+        market_features,
+        index_daily,
+        regions,
+        lobes,
+        threshold=threshold,
+        start_date=start_date,
+        horizons=None,
+    )
+    columns = (
+        "date",
+        *today_feature_columns(),
+        "index_price_available",
+        "target_available",
+        "truth_top_intensity",
+        "truth_top_in_strict_lobe",
+        "truth_bottom_intensity",
+        "truth_bottom_in_strict_lobe",
+    )
+    return full.loc[:, columns].copy()
+
+
+def _build_all_a_daily(
+    market_features: pd.DataFrame,
+    index_daily: pd.DataFrame,
+    regions: pd.DataFrame,
+    lobes: pd.DataFrame,
+    *,
+    threshold: float,
+    start_date: str | pd.Timestamp,
+    horizons: tuple[int, ...] | None,
+) -> pd.DataFrame:
+    """Assemble shared point-in-time context with one requested target family."""
+
     market = _build_market_features(market_features)
     index_features = build_index_features(index_daily)
     phase = point_in_time_directional_state(index_daily, threshold=threshold)
     intensity = build_lobe_intensity_targets(
         index_daily, regions, lobes, index_id="all_a"
     )
-    targets = add_future_entry_targets(intensity, horizons=horizons)
+    targets = (
+        add_future_entry_targets(intensity, horizons=horizons)
+        if horizons is not None
+        else intensity
+    )
     index_context = index_features.merge(
         phase, on="date", how="inner", validate="one_to_one"
     ).merge(targets, on="date", how="inner", validate="one_to_one")
@@ -124,6 +209,12 @@ def feature_columns() -> tuple[str, ...]:
         "index_phase_up",
         "index_phase_down",
     )
+
+
+def today_feature_columns() -> tuple[str, ...]:
+    """Return the frozen compact current-day model feature names."""
+
+    return TODAY_FEATURE_COLUMNS
 
 
 def _build_market_features(frame: pd.DataFrame) -> pd.DataFrame:

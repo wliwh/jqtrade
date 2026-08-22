@@ -1,4 +1,4 @@
-"""Build the immutable first-pass all-A ML daily dataset bundle."""
+"""Build an immutable all-A ML daily dataset bundle."""
 
 from __future__ import annotations
 
@@ -12,9 +12,14 @@ import pandas as pd
 from ..adapters.tdx import read_tdx_daily, threshold_for_index
 from ..modeling.dataset import (
     DATASET_VERSION,
+    FUTURE_ENTRY_TARGET_MODE,
     MODEL_START_DATE,
+    TODAY_DATASET_VERSION,
+    TODAY_TARGET_MODE,
+    build_all_a_today_training_daily,
     build_all_a_training_daily,
     feature_columns,
+    today_feature_columns,
 )
 from ..modeling.targets import DEFAULT_HORIZONS
 from .signal_bundle import (
@@ -59,11 +64,21 @@ def run_pipeline(
     vipdoc: Path | str,
     output_dir: Path | str,
     *,
-    dataset_version: str = DATASET_VERSION,
+    dataset_version: str | None = None,
     start_date: str | pd.Timestamp = MODEL_START_DATE,
     horizons: tuple[int, ...] = DEFAULT_HORIZONS,
+    target_mode: str = FUTURE_ENTRY_TARGET_MODE,
 ) -> dict[str, Path]:
     """Validate frozen inputs and write one auditable training-day bundle."""
+
+    if target_mode not in {FUTURE_ENTRY_TARGET_MODE, TODAY_TARGET_MODE}:
+        raise ValueError(f"unknown target_mode: {target_mode}")
+    if dataset_version is None:
+        dataset_version = (
+            TODAY_DATASET_VERSION
+            if target_mode == TODAY_TARGET_MODE
+            else DATASET_VERSION
+        )
 
     input_dir = Path(input_dir)
     ground_truth_dir = Path(ground_truth_dir)
@@ -93,30 +108,57 @@ def run_pipeline(
     )
     prices, price_record = _load_all_a_prices(vipdoc, ground_truth_manifest)
     threshold = threshold_for_index("all_a", 0.10)
-    training_daily = build_all_a_training_daily(
-        market,
-        prices,
-        regions,
-        lobes,
-        threshold=threshold,
-        start_date=start_date,
-        horizons=horizons,
-    )
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    outputs = {
-        "training_daily": output_dir / "training_daily.csv",
-        "manifest": output_dir / "manifest.json",
-    }
-    training_daily.to_csv(outputs["training_daily"], index=False)
-    manifest = {
-        "dataset_version": dataset_version,
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "purpose": (
+    if target_mode == TODAY_TARGET_MODE:
+        training_daily = build_all_a_today_training_daily(
+            market,
+            prices,
+            regions,
+            lobes,
+            threshold=threshold,
+            start_date=start_date,
+        )
+        selected_feature_columns = today_feature_columns()
+        purpose = (
+            "All-A compact point-in-time features plus post-hoc current-day "
+            "strict-lobe membership targets; not a fitted model or trading strategy."
+        )
+        definition = {
+            "index_id": "all_a",
+            "index_code": "000985.XSHG",
+            "start_date": pd.Timestamp(start_date).strftime("%Y-%m-%d"),
+            "label_version": LABEL_VERSION,
+            "target_mode": TODAY_TARGET_MODE,
+            "probability_targets": {
+                "top": "truth_top_in_strict_lobe",
+                "bottom": "truth_bottom_in_strict_lobe",
+            },
+            "target_semantics": (
+                "Binary membership of the current date in the direction's "
+                "frozen strict lobe."
+            ),
+            "observation_time": "After the current trading day's close.",
+            "intensity": (
+                "Auxiliary post-hoc 0-100 proximity to each strict lobe's own "
+                "representative high/low; never used as the probability target."
+            ),
+            "feature_columns": list(selected_feature_columns),
+        }
+    else:
+        training_daily = build_all_a_training_daily(
+            market,
+            prices,
+            regions,
+            lobes,
+            threshold=threshold,
+            start_date=start_date,
+            horizons=horizons,
+        )
+        selected_feature_columns = feature_columns()
+        purpose = (
             "All-A point-in-time features plus post-hoc strict-lobe targets for "
             "the frozen first ML experiment; not a fitted model or trading strategy."
-        ),
-        "definition": {
+        )
+        definition = {
             "index_id": "all_a",
             "index_code": "000985.XSHG",
             "start_date": pd.Timestamp(start_date).strftime("%Y-%m-%d"),
@@ -131,8 +173,20 @@ def run_pipeline(
                 "0-100 relative price distance from each strict lobe's own "
                 "representative high/low; non-lobe dates are zero."
             ),
-            "feature_columns": list(feature_columns()),
-        },
+            "feature_columns": list(selected_feature_columns),
+        }
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    outputs = {
+        "training_daily": output_dir / "training_daily.csv",
+        "manifest": output_dir / "manifest.json",
+    }
+    training_daily.to_csv(outputs["training_daily"], index=False)
+    manifest = {
+        "dataset_version": dataset_version,
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "purpose": purpose,
+        "definition": definition,
         "inputs": {
             "market_manifest": input_file_record(input_manifest_path),
             "ground_truth_manifest": input_file_record(
@@ -150,6 +204,11 @@ def run_pipeline(
                 PROJECT_DIR / "modeling" / "targets.py",
                 PROJECT_DIR / "modeling" / "features.py",
                 PROJECT_DIR / "modeling" / "dataset.py",
+                *(
+                    [PROJECT_DIR / "docs" / "ml_today_probability_v1_spec.md"]
+                    if target_mode == TODAY_TARGET_MODE
+                    else []
+                ),
                 PROJECT_DIR / "ground_truth" / "labels.py",
                 PROJECT_DIR / "adapters" / "tdx.py",
                 Path(__file__),
@@ -169,13 +228,6 @@ def run_pipeline(
             "missing_index_dates": training_daily.loc[
                 ~training_daily["index_price_available"], "date"
             ].dt.strftime("%Y-%m-%d").tolist(),
-            "phase_state_days": {
-                str(state): int(count)
-                for state, count in training_daily["index_phase_pti"]
-                .value_counts()
-                .sort_index()
-                .items()
-            },
             "positive_intensity_days": {
                 "top": int(training_daily["truth_top_intensity"].gt(0).sum()),
                 "bottom": int(training_daily["truth_bottom_intensity"].gt(0).sum()),
@@ -194,17 +246,25 @@ def run_pipeline(
                     .sum()
                 ),
             },
-            "complete_target_dates": {
-                str(horizon): int(
-                    training_daily[f"target_complete_{horizon}d"]
-                    .astype("boolean")
-                    .fillna(False)
-                    .sum()
-                )
-                for horizon in horizons
-            },
         },
     }
+    if target_mode == FUTURE_ENTRY_TARGET_MODE:
+        manifest["counts"]["phase_state_days"] = {
+            str(state): int(count)
+            for state, count in training_daily["index_phase_pti"]
+            .value_counts()
+            .sort_index()
+            .items()
+        }
+        manifest["counts"]["complete_target_dates"] = {
+            str(horizon): int(
+                training_daily[f"target_complete_{horizon}d"]
+                .astype("boolean")
+                .fillna(False)
+                .sum()
+            )
+            for horizon in horizons
+        }
     write_manifest(outputs["manifest"], manifest)
     return outputs
 
@@ -304,7 +364,12 @@ def main() -> None:
     )
     parser.add_argument("--vipdoc", type=Path, default=DEFAULT_VIPDOC)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--dataset-version", default=DATASET_VERSION)
+    parser.add_argument("--dataset-version")
+    parser.add_argument(
+        "--target-mode",
+        choices=(FUTURE_ENTRY_TARGET_MODE, TODAY_TARGET_MODE),
+        default=FUTURE_ENTRY_TARGET_MODE,
+    )
     parser.add_argument("--start-date", default=MODEL_START_DATE.strftime("%Y-%m-%d"))
     args = parser.parse_args()
     outputs = run_pipeline(
@@ -314,6 +379,7 @@ def main() -> None:
         args.output_dir,
         dataset_version=args.dataset_version,
         start_date=args.start_date,
+        target_mode=args.target_mode,
     )
     for name, path in outputs.items():
         print(f"{name}: {path}")
