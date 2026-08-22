@@ -1,0 +1,321 @@
+{
+  "dataset_version": "all_a_ma20_episode_dataset_v1",
+  "generated_at_utc": "2026-08-22T09:55:19.933406+00:00",
+  "purpose": "One row per causal MA20 breadth candidate episode with close-time features and post-hoc episode-match labels; not a trading strategy.",
+  "definition": {
+    "index_id": "all_a",
+    "candidate_signal_ids": {
+      "top": "ma20_breadth_reversal_top",
+      "bottom": "ma20_breadth_reversal_bottom"
+    },
+    "observation_time": "After the candidate onset trading day's close.",
+    "target": "target_operational_match",
+    "target_semantics": "A one-to-one same-direction match when the candidate onset is inside a strict core lobe or within +/-5 trading days of the anchor.",
+    "operational_label_version": "ma20_episode_operational_window_v1",
+    "operational_window_trade_days": 5,
+    "legacy_audit_targets": [
+      "target_legacy_window_20d_match",
+      "target_legacy_loose_match",
+      "target_legacy_strict_match"
+    ],
+    "feature_columns": [
+      "breadth_ma20",
+      "breadth_ma20_change_5d",
+      "breadth_ma60",
+      "breadth_ma60_change_10d",
+      "new_high_low_net_ratio_60",
+      "new_high_low_net_ratio_60_change_5d",
+      "limit_hit_net_ratio",
+      "turnover_ratio_pct_p50",
+      "index_close_to_ma60",
+      "index_drawdown_60d",
+      "index_rebound_60d",
+      "index_volatility_20d",
+      "candidate_gap_trade_days"
+    ]
+  },
+  "inputs": {
+    "signal_manifest": {
+      "path": "/home/hh01/Documents/jqtrade/research/index_turning_points/artifacts/signals/ma_period_breadth_decomposition_v1_20120104_20260814/manifest.json",
+      "bytes": 10501,
+      "sha256": "b4cb64baa7997c601c1180aab9bdfe43b6fe689f63daa9024f70bb74cfd88df5"
+    },
+    "feature_dataset_manifest": {
+      "path": "/home/hh01/Documents/jqtrade/research/index_turning_points/artifacts/modeling/all_a_ml_today_dataset_v1_20120705_20260814/manifest.json",
+      "bytes": 11590,
+      "sha256": "19dcc8036012085aec3a54cf01f4a1639114f34d4f8e50a6c0095575bbe0f613"
+    },
+    "ground_truth_manifest": {
+      "path": "/home/hh01/Documents/jqtrade/research/index_turning_points/artifacts/ground_truth/index_ohlc_20260814/regions/top_bottom_regions_v2/manifest.json",
+      "bytes": 5835,
+      "sha256": "ebdab2bfae97d8554d0bde770c7152bb40310814dc9228fec0b42a5bbf456924"
+    },
+    "source_files": [
+      {
+        "source": "ma_period_breadth_decomposition_v1_20120104_20260814",
+        "path": "signal_daily.csv",
+        "bytes": 4702746,
+        "sha256": "b0576ddc76f8dff841ce5d9b289ca9981890f81efe6d828b0158933cd5626dff",
+        "rows": 21294,
+        "columns": [
+          "date",
+          "signal_id",
+          "direction",
+          "raw_value",
+          "triggered",
+          "universe_size",
+          "valid_count",
+          "version",
+          "ma_window",
+          "ma_breadth",
+          "breadth_change_5d",
+          "change_available",
+          "above_count",
+          "ma_valid_count",
+          "episode_id",
+          "episode_number",
+          "episode_day",
+          "episode_stage",
+          "event_onset",
+          "event_continuation",
+          "event_exit",
+          "event_capped_confirmation",
+          "capped_confirmation_reason",
+          "capped_confirmation_n"
+        ],
+        "encoding": "utf-8"
+      },
+      {
+        "source": "ma_period_breadth_decomposition_v1_20120104_20260814",
+        "path": "signal_episodes.csv",
+        "bytes": 109010,
+        "sha256": "f42868579adc1f446e29a694dd8b377bc1c4e56746578b192748f9067acd1300",
+        "rows": 375,
+        "columns": [
+          "episode_id",
+          "signal_id",
+          "direction",
+          "version",
+          "episode_number",
+          "onset_date",
+          "last_active_date",
+          "exit_date",
+          "active_days",
+          "status",
+          "capped_confirmation_n",
+          "capped_confirmation_date",
+          "capped_confirmation_reason",
+          "confirmation_status",
+          "series_start_date",
+          "series_end_date"
+        ],
+        "encoding": "utf-8"
+      },
+      {
+        "source": "all_a_ml_today_dataset_v1",
+        "path": "training_daily.csv",
+        "bytes": 1027680,
+        "sha256": "2550e74732d3469318ce74f9625b552a0922e0c355807b508c957c8469993173",
+        "rows": 3429,
+        "columns": [
+          "date",
+          "breadth_ma20",
+          "breadth_ma20_change_5d",
+          "breadth_ma60",
+          "breadth_ma60_change_10d",
+          "new_high_low_net_ratio_60",
+          "new_high_low_net_ratio_60_change_5d",
+          "limit_hit_net_ratio",
+          "limit_hit_net_ratio_change_5d",
+          "turnover_ratio_pct_p50",
+          "turnover_ratio_pct_p50_change_10d",
+          "index_close_to_ma60",
+          "index_drawdown_60d",
+          "index_rebound_60d",
+          "index_return_5d",
+          "index_volatility_20d",
+          "index_price_available",
+          "target_available",
+          "truth_top_intensity",
+          "truth_top_in_strict_lobe",
+          "truth_bottom_intensity",
+          "truth_bottom_in_strict_lobe"
+        ],
+        "encoding": "utf-8"
+      },
+      {
+        "source": "top_bottom_regions_v2",
+        "path": "regions/top_bottom_regions_v2/turning_point_regions.csv",
+        "bytes": 245806,
+        "sha256": "b793ad841a1bda4a54fa21559bd5e41008ad8402e8c1294009bf50d26b8bf928",
+        "rows": 975,
+        "columns": [
+          "region_id",
+          "index_id",
+          "index_name",
+          "event_type",
+          "scale",
+          "status",
+          "eligible",
+          "region_start",
+          "region_end",
+          "region_start_position",
+          "region_end_position",
+          "anchor_date",
+          "anchor_position",
+          "anchor_price",
+          "first_core_date",
+          "last_core_date",
+          "lobe_count",
+          "confirmation_date",
+          "confirmation_position",
+          "confirmation_price",
+          "confirmation_lag",
+          "reversal_return",
+          "threshold",
+          "price_band_pct",
+          "price_band_fraction_of_threshold",
+          "max_price_band_pct",
+          "max_side_days",
+          "max_lobe_gap",
+          "label_version"
+        ],
+        "encoding": "utf-8"
+      },
+      {
+        "source": "top_bottom_regions_v2",
+        "path": "regions/top_bottom_regions_v2/turning_point_region_lobes.csv",
+        "bytes": 304989,
+        "sha256": "13806218f7639c5d8ad848120e71ee0fd51e315b433e4394dfc422bc398ee8b6",
+        "rows": 1494,
+        "columns": [
+          "region_id",
+          "lobe_id",
+          "index_id",
+          "index_name",
+          "event_type",
+          "scale",
+          "lobe_number",
+          "lobe_start",
+          "lobe_end",
+          "lobe_start_position",
+          "lobe_end_position",
+          "representative_date",
+          "representative_position",
+          "representative_price",
+          "relative_anchor_price",
+          "core_days",
+          "gap_from_previous_lobe",
+          "small_pivot_count",
+          "small_pivot_dates",
+          "label_version"
+        ],
+        "encoding": "utf-8"
+      }
+    ]
+  },
+  "logic": {
+    "combined_sha256": "018984ebfb9f153622cadbb6f01842348723c11a34fb0fa03950e07fbdf68da8",
+    "files": [
+      {
+        "path": "evaluation/region_matching.py",
+        "sha256": "fae43172a96a0d5044d695e878c551211456fc94ee3a6034c357dfc4b4bf6ca9"
+      },
+      {
+        "path": "modeling/episode_targets.py",
+        "sha256": "e5968b5f3874397d6c5bbb01d0894e9fe3c9ec7fae5f66391ae7d12bb0476708"
+      },
+      {
+        "path": "modeling/ma20_episode_dataset.py",
+        "sha256": "8c835a4b29919e980ac6e2f4bf939b7d8804bdae61bafa9b55d98e6c0dcefafd"
+      },
+      {
+        "path": "docs/ma20_episode_ml_v1_spec.md",
+        "sha256": "0bd037607703ea5c4e3168c71dffb5b10b880a6dadbeaecf1d587a9a92911d52"
+      },
+      {
+        "path": "pipelines/build_ma20_episode_dataset.py",
+        "sha256": "54450f1d3ae16db646c4d5e7b34b5eab7ea42be8e9a959b64f392f86f3642f9d"
+      },
+      {
+        "path": "pipelines/signal_bundle.py",
+        "sha256": "a1d88312c5d1cab676e5e24e21eb67797900c7b065ccf170599899123268d58e"
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "path": "candidate_episodes.csv",
+      "bytes": 78160,
+      "sha256": "485f3266eb264313a465003b37bb10f7b7e88757b5b8116ef94c254b284655ef",
+      "rows": 161,
+      "columns": [
+        "candidate_episode_id",
+        "source_signal_id",
+        "direction",
+        "onset_date",
+        "source_last_active_date",
+        "source_active_days",
+        "source_episode_status",
+        "candidate_year",
+        "candidate_gap_trade_days",
+        "breadth_ma20",
+        "breadth_ma20_change_5d",
+        "breadth_ma60",
+        "breadth_ma60_change_10d",
+        "new_high_low_net_ratio_60",
+        "new_high_low_net_ratio_60_change_5d",
+        "limit_hit_net_ratio",
+        "turnover_ratio_pct_p50",
+        "index_close_to_ma60",
+        "index_drawdown_60d",
+        "index_rebound_60d",
+        "index_volatility_20d",
+        "operational_match_status",
+        "operational_primary_match",
+        "target_operational_match",
+        "target_operational_strict_match",
+        "operational_region_id",
+        "operational_match_level",
+        "operational_lead_lag_days",
+        "operational_label_version",
+        "operational_window_trade_days",
+        "legacy_match_status",
+        "target_legacy_window_20d_match",
+        "target_legacy_loose_match",
+        "target_legacy_strict_match",
+        "legacy_region_id",
+        "legacy_lead_lag_days"
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "path": "daily_calendar.csv",
+      "bytes": 51466,
+      "sha256": "1d9f0a1933ef8fe7aee3201d82dd23ccdaee01d40958313a6271f3de4eeec980",
+      "rows": 3429,
+      "columns": [
+        "date",
+        "universe_size",
+        "valid_count"
+      ],
+      "encoding": "utf-8"
+    }
+  ],
+  "counts": {
+    "calendar_dates": 3429,
+    "candidate_episodes": 161,
+    "by_direction": {
+      "top": 80,
+      "bottom": 81
+    },
+    "operational_matches": {
+      "top": 19,
+      "bottom": 23
+    },
+    "legacy_window_20d_matches": {
+      "top": 26,
+      "bottom": 28
+    }
+  }
+}

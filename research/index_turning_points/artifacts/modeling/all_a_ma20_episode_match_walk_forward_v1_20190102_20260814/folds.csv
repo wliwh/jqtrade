@@ -1,0 +1,17 @@
+fold_id,test_year,direction,training_cutoff_date,boundary_gap_trade_days,train_candidates,train_matches,calibration_candidates,calibration_matches,test_candidates,test_matches
+episode_wf_2019,2019,top,2018-11-30,20,46,11,14,4,6,1
+episode_wf_2019,2019,bottom,2018-11-30,20,47,13,28,5,7,1
+episode_wf_2020,2020,top,2019-12-03,20,51,12,19,5,3,2
+episode_wf_2020,2020,bottom,2019-12-03,20,54,14,35,6,3,2
+episode_wf_2021,2021,top,2020-12-03,20,55,14,23,7,3,0
+episode_wf_2021,2021,bottom,2020-12-03,20,57,16,38,8,1,0
+episode_wf_2022,2022,top,2021-12-03,20,58,14,26,7,4,1
+episode_wf_2022,2022,bottom,2021-12-03,20,58,16,39,8,6,2
+episode_wf_2023,2023,top,2022-12-02,20,62,15,30,8,2,1
+episode_wf_2023,2023,bottom,2022-12-02,20,63,18,44,10,2,0
+episode_wf_2024,2024,top,2023-12-01,20,64,16,32,9,7,2
+episode_wf_2024,2024,bottom,2023-12-01,20,65,18,46,10,9,1
+episode_wf_2025,2025,top,2024-12-03,20,71,18,39,11,6,0
+episode_wf_2025,2025,bottom,2024-12-03,20,74,19,55,11,3,2
+episode_wf_2026,2026,top,2025-12-03,20,77,18,45,11,3,1
+episode_wf_2026,2026,bottom,2025-12-03,20,78,21,59,13,3,2
