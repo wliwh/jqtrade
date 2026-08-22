@@ -1,0 +1,11 @@
+item,value
+research_id,momentum_signal_p1_multi_universe_v2
+source_path,research/momentum_signal_validation/p1_jq_signal_validation.py
+runtime_logic_hash,800fd99dc6304baf852d2d4e3545b48a8326139a3e3128a1bcab18267858b180
+python_version,"3.6.7 |Anaconda, Inc.| (default, Oct 23 2018, 19:16:44)  [GCC 7.3.0]"
+pandas_version,0.23.4
+numpy_version,1.14.6
+jqdata_imported,True
+get_price_source,python_builtins
+get_industries_source,module_globals
+run_time,2026-08-22 09:28:05
