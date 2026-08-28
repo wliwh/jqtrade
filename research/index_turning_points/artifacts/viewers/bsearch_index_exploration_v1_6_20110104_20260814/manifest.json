@@ -1,0 +1,127 @@
+{
+  "viewer_version": "bsearch_index_exploration_v1_6_20110104_20260814",
+  "purpose": "Exploratory offline visualization; not a frozen signal or trading rule.",
+  "bsearch_path": "/home/hh01/Documents/jqtrade/research/index_turning_points/data/inputs/bsearch_index/bsearch_index.csv",
+  "bsearch_sha256": "fc4d7564a2a1e6eff9d0ec5af459e861807c249dde83e958707c0012ec40b4f4",
+  "region_path": "/home/hh01/Documents/jqtrade/research/index_turning_points/artifacts/ground_truth/index_ohlc_20260814/regions/top_bottom_regions_v2/turning_point_regions.csv",
+  "region_sha256": "b793ad841a1bda4a54fa21559bd5e41008ad8402e8c1294009bf50d26b8bf928",
+  "price_sources": [
+    {
+      "index_id": "sse_composite",
+      "path": "sh/lday/sh999999.day",
+      "sha256": "217c9678077a88b27d5ad8f894517d51a96b8c3daa674ba8546dfe67ef175b6e"
+    },
+    {
+      "index_id": "sse50",
+      "path": "sh/lday/sh000016.day",
+      "sha256": "8bcee960313fa5e73d91d8d085e726e6d471d19a1faa3a0fb3473c2e8f748554"
+    },
+    {
+      "index_id": "csi300",
+      "path": "sh/lday/sh000300.day",
+      "sha256": "86a48a6f4bf6f3f5fdfd0b794132837cbbbf5f75dd2bad80df189bafb189d63b"
+    },
+    {
+      "index_id": "csi500",
+      "path": "sh/lday/sh000905.day",
+      "sha256": "e00329d5d46e5e096b1b4ebe36d4424245e428f781ad186e5789fd31ff7f589d"
+    },
+    {
+      "index_id": "csi1000",
+      "path": "sh/lday/sh000852.day",
+      "sha256": "e9a5cb9d80b0c8989243241c1db864139fcbc83846d657d04fc2f23bafc7a5a2"
+    },
+    {
+      "index_id": "cni2000",
+      "path": "sz/lday/sz399303.day",
+      "sha256": "35a7f3063f451098cb9d6fce0379fd18650d2839be5fb70ca96ba62451a64b83"
+    },
+    {
+      "index_id": "chinext",
+      "path": "sz/lday/sz399006.day",
+      "sha256": "a2330069399db4a4364e7be51f05a16de9867dfde4754f28cd1c1e6f31b284c0"
+    },
+    {
+      "index_id": "star50",
+      "path": "sh/lday/sh000688.day",
+      "sha256": "6220983d9f38df0ba8e7ef2fbd099aa259c852451410b5684c6f4d598bfb1c6e"
+    },
+    {
+      "index_id": "szse_component",
+      "path": "sz/lday/sz399001.day",
+      "sha256": "ce9e2bc340da36efababdaa76ed3dc581ef54e0a895cc22a07d3ac4abe4e0332"
+    },
+    {
+      "index_id": "microcap",
+      "path": "sh/lday/sh880823.day",
+      "sha256": "33e90e87615b77b96c61aac36c6e8426d240534493144634a3734fe46d590ce0"
+    },
+    {
+      "index_id": "all_a",
+      "path": "ds/lday/62#000985.day",
+      "sha256": "36ed9682cabe99e06bf2950d1f560b418bf0027ffe5ce00725d2803b67f67016"
+    }
+  ],
+  "keyword_specs": [
+    {
+      "keyword": "上证指数",
+      "index_id": "sse_composite"
+    },
+    {
+      "keyword": "股票",
+      "index_id": "sse_composite"
+    },
+    {
+      "keyword": "a股",
+      "index_id": "sse_composite"
+    },
+    {
+      "keyword": "基金",
+      "index_id": "sse_composite"
+    },
+    {
+      "keyword": "股市",
+      "index_id": "sse_composite"
+    },
+    {
+      "keyword": "上证",
+      "index_id": "sse_composite"
+    },
+    {
+      "keyword": "熊市",
+      "index_id": "sse_composite"
+    },
+    {
+      "keyword": "沪深300",
+      "index_id": "csi300"
+    },
+    {
+      "keyword": "上证50",
+      "index_id": "sse50"
+    },
+    {
+      "keyword": "牛市",
+      "index_id": "sse_composite"
+    },
+    {
+      "keyword": "中证500",
+      "index_id": "csi500"
+    },
+    {
+      "keyword": "创业板指",
+      "index_id": "chinext"
+    },
+    {
+      "keyword": "科创50",
+      "index_id": "star50"
+    }
+  ],
+  "output_path": "/home/hh01/Documents/jqtrade/research/index_turning_points/artifacts/viewers/bsearch_index_exploration_v1_6_20110104_20260814/bsearch_index_exploration.html",
+  "output_bytes": 6655747,
+  "output_sha256": "9a15a7cde6aba77ff7745439f78b4bd1068f30765dc6c245e39e0b082bc68315",
+  "generated_at_utc": "2026-08-25T10:15:14.347551+00:00",
+  "python_executable": "/home/hh01/anaconda3/envs/fin/bin/python",
+  "selection_policy": "retain source keywords only when a meaningful local comparison index exists; exact-name matches use their local index and broad A-share terms use SSE; no outcome-based selection",
+  "point_in_time_policy": "Z252 uses log1p(count) standardized against the prior 252 aligned trading days; minimum 60 prior days",
+  "page_policy": "The index panel uses local OHLC candlesticks; changing a keyword selects its default local comparison index while the index remains manually overridable; the heat panel shows raw heat and point-in-time Z252 together and supports keyword-scoped manual peak annotations stored in browser localStorage with validated full-bundle JSON export/import; annotation mode keeps click-to-mark, drag-to-pan, wheel-to-zoom, and modebar zoom available together; no correlation or forward-return statistics are rendered on the page"
+}

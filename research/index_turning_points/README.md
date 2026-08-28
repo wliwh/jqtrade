@@ -25,6 +25,7 @@
 | 输入快照 | [`data/`](data/README.md) |
 | 评测实现 | [`evaluation/`](evaluation/README.md) |
 | 版本化结果 | [`artifacts/`](artifacts/README.md) |
+| 搜索热度探索查看器 | [`bsearch_index_exploration_v1_6`](artifacts/viewers/bsearch_index_exploration_v1_6_20110104_20260814/bsearch_index_exploration.html) |
 | 协作与目录边界 | [`AGENTS.md`](AGENTS.md) |
 
 ## 常用命令

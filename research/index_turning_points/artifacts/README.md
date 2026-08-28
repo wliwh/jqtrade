@@ -11,6 +11,10 @@
 
 现行人工审计入口为 [`top_bottom_regions_ma20_v1/index_turning_points_ma20.html`](viewers/top_bottom_regions_ma20_v1/index_turning_points_ma20.html)：上排显示所选指数及 `top_bottom_regions_v2`，下排显示同一条点时全 A MA20 宽度，默认标签为全 A。旧 `top_bottom_regions_v2` 与四行业 V1 HTML 保留为历史查看器。
 
+[`bsearch_index_exploration_v1_6`](viewers/bsearch_index_exploration_v1_6_20110104_20260814/bsearch_index_exploration.html) 是唯一保留的搜索热度查看器。它展示 13 个有本地可比指数的原始关键词、11 个本地指数、OHLC K线、原始热度和实线点时 Z252；自动匹配的指数仍可手动改选，CSV 非交易日会被跳过。
+
+峰值标注按关键词保存在浏览器 `localStorage`，也可通过带源数据哈希的 JSON 整包导入/导出。标注模式保留平移和缩放；页面不展示统计结果，也不写回输入或冻结标签。
+
 现有 [`ground_truth/index_ohlc_20260814/`](ground_truth/index_ohlc_20260814/) 是目录重组前已经生成的 bundle。其 CSV、manifest、哈希和 manifest 内的旧逻辑文件路径均保持原样，代表生成时事实；新 bundle 由 `pipelines/build_ground_truth.py` 写入一个全新目录。
 
 评测 bundle 由 `pipelines/evaluate_signal.py` 写入全新目录，拒绝覆盖非空目录，并要求 TDX OHLC 与 ground-truth manifest 的来源哈希一致。区域与信号后结果不合成总分。

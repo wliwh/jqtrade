@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <title>搜索热度 × 指数顶底｜离线研究查看器</title>
+  <style>
+    :root {
+      --paper: #f7f5ef;
+      --surface: #efede6;
+      --surface-strong: #e4e1d8;
+      --ink: #192028;
+      --muted: #68717b;
+      --hairline: #c9cdd0;
+      --heat: #b77815;
+      --heat-z: #765a2b;
+      --top: #b34f3f;
+      --bottom: #237f72;
+      --focus: #4c7895;
+      --plot-grid: #d9dcdd;
+      --plot-paper: #f7f5ef;
+      --plot-surface: #f7f5ef;
+      --radius: 6px;
+      --space: 8px;
+      --ease: 140ms ease-out;
+    }
+    html[data-theme="dark"] {
+      --paper: #20262c;
+      --surface: #272f36;
+      --surface-strong: #303a43;
+      --ink: #ecede8;
+      --muted: #a8afb4;
+      --hairline: #47525c;
+      --heat: #dda23b;
+      --heat-z: #f1c873;
+      --top: #d47b68;
+      --bottom: #65aa9d;
+      --focus: #81afca;
+      --plot-grid: #3b4650;
+      --plot-paper: #20262c;
+      --plot-surface: #20262c;
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--paper); }
+    body {
+      margin: 0;
+      min-width: 320px;
+      overflow-x: clip;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      transition: background-color var(--ease), color var(--ease);
+    }
+    button,
+    select {
+      min-height: 44px;
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+      background: var(--paper);
+      color: var(--ink);
+      font: inherit;
+      transition: border-color var(--ease), background-color var(--ease), color var(--ease);
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--focus); }
+    button:active { background: var(--surface-strong); }
+    button:disabled { cursor: not-allowed; opacity: .38; }
+    button:focus-visible,
+    select:focus-visible {
+      outline: 3px solid color-mix(in oklch, var(--focus) 35%, transparent);
+      outline-offset: 2px;
+    }
+    .shell {
+      width: min(1680px, 100%);
+      max-width: 100vw;
+      margin: 0 auto;
+      padding: clamp(20px, 3vw, 48px);
+    }
+    header > div,
+    .toolbar > *,
+    .control,
+    .segmented,
+    .chart-shell { min-width: 0; }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: calc(var(--space) * 3);
+      align-items: start;
+      padding-bottom: calc(var(--space) * 3);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .eyebrow,
+    .micro-label {
+      margin: 0 0 var(--space);
+      color: var(--muted);
+      font-family: "JetBrains Mono", "Noto Sans Mono CJK SC", monospace;
+      font-size: 12px;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 980px;
+      margin: 0;
+      font-size: clamp(32px, 4.2vw, 68px);
+      font-weight: 650;
+      line-height: .98;
+      letter-spacing: -.045em;
+      overflow-wrap: anywhere;
+      text-wrap: balance;
+    }
+    .dek {
+      max-width: 800px;
+      margin: calc(var(--space) * 2) 0 0;
+      color: var(--muted);
+      font-size: clamp(16px, 1.5vw, 20px);
+      text-wrap: pretty;
+    }
+    .theme-button {
+      width: 48px;
+      padding: 0;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+    }
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(160px, .8fr) minmax(180px, 1fr) minmax(250px, 1.2fr) minmax(350px, 1.5fr) auto;
+      gap: calc(var(--space) * 2);
+      align-items: end;
+      margin: calc(var(--space) * 3) 0;
+    }
+    .control label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .control select { width: 100%; padding: 0 12px; }
+    .segmented {
+      display: grid;
+      gap: 4px;
+      width: 100%;
+    }
+    .segmented.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .segmented button { min-width: 0; padding: 0 6px; white-space: nowrap; }
+    .segmented button[aria-pressed="true"] {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 4px;
+      color: var(--muted);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .meta-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .meta-item {
+      min-height: 88px;
+      padding: calc(var(--space) * 2);
+      background: var(--surface);
+      border-right: 1px solid var(--hairline);
+    }
+    .meta-item:last-child { border-right: 0; }
+    .meta-value { display: block; font-size: 20px; font-weight: 620; }
+    .meta-note { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; text-wrap: pretty; }
+    .chart-section {
+      margin-top: calc(var(--space) * 3);
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .chart-heading {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px 24px;
+      align-items: center;
+      padding: calc(var(--space) * 2) 0 var(--space);
+    }
+
+    .chart-title h2 { margin: 0; font-size: 18px; font-weight: 620; }
+    .chart-title p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-row { display: inline-grid; grid-template-columns: 14px auto; gap: 7px; align-items: center; }
+    .swatch { width: 14px; height: 3px; }
+    .swatch.ohlc {
+      height: 10px;
+      border: 1px solid var(--hairline);
+      background: linear-gradient(90deg, var(--top) 0 50%, var(--bottom) 50% 100%);
+    }
+    .swatch.heat { background: var(--heat); }
+    .swatch.heat-z {
+      height: 2px;
+      background: var(--heat-z);
+    }
+    .swatch.peak {
+      width: 9px;
+      height: 9px;
+      margin-left: 2px;
+      border: 2px solid var(--top);
+      background: transparent;
+      transform: rotate(45deg);
+    }
+    .swatch.top { height: 10px; background: color-mix(in oklch, var(--top) 35%, transparent); border: 1px solid var(--top); }
+    .swatch.bottom { height: 10px; background: color-mix(in oklch, var(--bottom) 35%, transparent); border: 1px solid var(--bottom); }
+    .legend-row.is-muted { opacity: .36; }
+
+    .chart-shell {
+      position: relative;
+      min-height: 720px;
+    }
+
+    #chart { width: 100%; height: 720px; }
+    .loading,
+    .error-state {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 3;
+      background: var(--paper);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .loading[hidden],
+    .error-state[hidden] { display: none; }
+    .error-state strong { display: block; margin-bottom: 6px; color: var(--ink); }
+
+    .notes {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+      gap: calc(var(--space) * 4);
+      margin-top: calc(var(--space) * 4);
+    }
+
+    .note-block {
+      padding-top: calc(var(--space) * 2);
+      border-top: 1px solid var(--ink);
+    }
+
+    .note-block h2 { margin: 0 0 10px; font-size: 17px; }
+    .note-block p { margin: 0; color: var(--muted); font-size: 14px; text-wrap: pretty; }
+    .note-block p + p { margin-top: 8px; }
+
+    details {
+      border-top: 1px solid var(--hairline);
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    summary {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 620;
+    }
+
+    details p { padding: 0 0 14px; }
+
+    footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px 20px;
+      margin-top: calc(var(--space) * 5);
+      padding-top: calc(var(--space) * 2);
+      border-top: 1px solid var(--hairline);
+      color: var(--muted);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+    }
+
+    @media (max-width: 1120px) {
+      .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .status { white-space: normal; }
+    }
+
+    @media (max-width: 760px) {
+      .shell { padding: 20px 16px 32px; }
+      header { grid-template-columns: minmax(0, 1fr); }
+      .theme-button { position: absolute; top: 20px; right: 16px; }
+      h1 { max-width: 100%; padding-right: 52px; word-break: break-all; }
+      .dek { max-width: 100%; word-break: break-all; }
+      .toolbar { grid-template-columns: minmax(0, 1fr); }
+      .meta-strip { grid-template-columns: minmax(0, 1fr); }
+      .meta-item { border-right: 0; border-bottom: 1px solid var(--hairline); }
+      .meta-item:last-child { border-bottom: 0; }
+      .chart-heading { align-items: flex-start; }
+      .chart-shell,
+      #chart { min-height: 620px; height: 620px; }
+      .notes { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">BSEARCH × INDEX / OFFLINE EXPLORATION V1.6</p>
+        <h1>搜索热度是否靠近指数顶底？</h1>
+        <p class="dek">上排以OHLC K线呈现指数，下排同时查看原始搜索热度与Z252，并可点击人工标注峰值。切换关键词会自动匹配默认指数，也可随后手动改选。</p>
+      </div>
+      <button class="theme-button" id="themeButton" type="button" aria-label="切换明暗主题" title="切换明暗主题">明暗</button>
+    </header>
+
+    <section class="toolbar" aria-label="查看器筛选项">
+      <div class="control">
+        <label for="indexSelect">指数</label>
+        <select id="indexSelect"></select>
+      </div>
+      <div class="control">
+        <label for="keywordSelect">关键词（有本地可比指数）</label>
+        <select id="keywordSelect"></select>
+      </div>
+      <div class="control">
+        <label>显示区间</label>
+        <div class="segmented four" id="rangeButtons">
+          <button type="button" data-years="1" aria-pressed="false">1年</button>
+          <button type="button" data-years="3" aria-pressed="false">3年</button>
+          <button type="button" data-years="5" aria-pressed="true">5年</button>
+          <button type="button" data-years="all" aria-pressed="false">全部</button>
+        </div>
+      </div>
+      <div class="control">
+        <label>第二栏峰值标注与文件</label>
+        <div class="segmented four" id="peakButtons">
+          <button type="button" id="peakModeButton" aria-pressed="false">标注峰值</button>
+          <button type="button" id="clearPeaksButton" disabled>清空（0）</button>
+          <button type="button" id="exportPeaksButton" disabled>导出（0）</button>
+          <button type="button" id="importPeaksButton">导入JSON</button>
+        </div>
+        <input id="peakFileInput" type="file" accept=".json,application/json" hidden>
+      </div>
+      <div class="status" id="statusText">正在读取内嵌数据…</div>
+    </section>
+
+    <section class="meta-strip" aria-label="当前数据概况">
+      <div class="meta-item">
+        <span class="micro-label">当前指数</span>
+        <span class="meta-value" id="mappedIndex">—</span>
+        <span class="meta-note" id="mappingNote">—</span>
+      </div>
+      <div class="meta-item">
+        <span class="micro-label">交易日覆盖</span>
+        <span class="meta-value" id="coverageValue">—</span>
+        <span class="meta-note" id="coverageNote">—</span>
+      </div>
+      <div class="meta-item">
+        <span class="micro-label">热度口径</span>
+        <span class="meta-value" id="heatValue">count + Z252</span>
+        <span class="meta-note" id="heatNote">两条序列同时显示；悬停查看实际数值</span>
+      </div>
+    </section>
+
+    <section class="chart-section">
+      <div class="chart-heading">
+        <div class="chart-title">
+          <h2 id="chartTitle">指数价格 × 关键词热度</h2>
+          <p id="chartSubtitle">上排价格，下排热度；横轴联动缩放</p>
+        </div>
+        <div class="legend" aria-label="图例">
+          <span class="legend-row"><span class="swatch ohlc"></span><span>OHLC K线（红涨/绿跌）</span></span>
+          <span class="legend-row"><span class="swatch heat"></span><span>原始热度</span></span>
+          <span class="legend-row"><span class="swatch heat-z"></span><span>Z252</span></span>
+          <span class="legend-row"><span class="swatch peak"></span><span id="peakLegendText">手工峰值（0）</span></span>
+          <span class="legend-row" id="topLegend"><span class="swatch top"></span><span>事后顶部</span></span>
+          <span class="legend-row" id="bottomLegend"><span class="swatch bottom"></span><span>事后底部</span></span>
+        </div>
+      </div>
+      <div class="chart-shell">
+        <div id="chart" role="img" aria-label="指数OHLC K线与搜索热度联动图"></div>
+        <div class="loading" id="loadingState">正在渲染本地数据…</div>
+        <div class="error-state" id="errorState" hidden>
+          <div><strong>图表未能渲染</strong><span id="errorMessage">请重新打开该HTML文件。</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="notes">
+      <article class="note-block">
+        <h2>阅读方式</h2>
+        <p>上排K线展示所选指数每日开、高、低、收；下排原始热度和Z252始终同时显示。开启“标注峰值”后，单击下排任一热度曲线会吸附到该交易日并添加标记，再次单击同日即可取消；拖拽仍可平移，滚轮仍可缩放。</p>
+        <p>手工标注按关键词保存在当前浏览器本地，不写回输入CSV或冻结标签；更换指数不会改变该关键词的标注。Z252基线只读取当天以前的数据。</p>
+        <p>“导出”保存全部关键词的标注JSON；“导入”会校验格式、源数据哈希、关键词与交易日期，确认后整包替换浏览器中的现有标注。</p>
+        <p>红绿区域是所选指数已有的冻结事后标准答案，仅用于对照；没有自身标签的指数不会借用其他指数标签。</p>
+      </article>
+      <article class="note-block">
+        <h2>关键词筛选</h2>
+        <details>
+          <summary>哪些原始关键词会进入页面</summary>
+          <p>保留能够映射本地指数的13个原始关键词：同名指数词匹配对应指数，泛A股与市场情绪词默认匹配上证指数。恒生、纳指、道指、美股、港股、中概股、商品与人民币汇率类词因缺少本地可比指数而排除；筛选不使用未来收益或顶底命中成绩。</p>
+        </details>
+      </article>
+    </section>
+
+    <footer>
+      <span id="versionText">viewer —</span>
+      <span>本地单文件 · 无网络请求 · 探索性研究，不是交易信号</span>
+    </footer>
+  </main>
+
+  <script>/*__PLOTLY_JS__*/</script>
+  <script>
+    (() => {
+      'use strict';
+
+      const DATASET = /*__BSEARCH_PAYLOAD__*/;
+      const METADATA = /*__BSEARCH_METADATA__*/;
+      const PEAK_STORAGE_KEY = 'bsearch-index-manual-peaks-v1';
+      const PEAK_EXPORT_SCHEMA = 'bsearch-index-manual-peaks/v1';
+      const numberFormat = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 });
+
+      const elements = {
+        root: document.documentElement,
+        index: document.getElementById('indexSelect'),
+        keyword: document.getElementById('keywordSelect'),
+        theme: document.getElementById('themeButton'),
+        rangeButtons: [...document.querySelectorAll('#rangeButtons button')],
+        peakMode: document.getElementById('peakModeButton'),
+        clearPeaks: document.getElementById('clearPeaksButton'),
+        exportPeaks: document.getElementById('exportPeaksButton'),
+        importPeaks: document.getElementById('importPeaksButton'),
+        peakFile: document.getElementById('peakFileInput'),
+        peakLegendText: document.getElementById('peakLegendText'),
+        status: document.getElementById('statusText'),
+        mappedIndex: document.getElementById('mappedIndex'),
+        mappingNote: document.getElementById('mappingNote'),
+        coverageValue: document.getElementById('coverageValue'),
+        coverageNote: document.getElementById('coverageNote'),
+        heatValue: document.getElementById('heatValue'),
+        heatNote: document.getElementById('heatNote'),
+        title: document.getElementById('chartTitle'),
+        subtitle: document.getElementById('chartSubtitle'),
+        topLegend: document.getElementById('topLegend'),
+        bottomLegend: document.getElementById('bottomLegend'),
+        chart: document.getElementById('chart'),
+        loading: document.getElementById('loadingState'),
+        error: document.getElementById('errorState'),
+        errorMessage: document.getElementById('errorMessage'),
+        version: document.getElementById('versionText')
+      };
+
+      const state = {
+        indexId: DATASET.index_ids[0],
+        years: '5',
+        keyword: DATASET.keywords[0],
+        theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+        annotationMode: false,
+        manualPeaks: loadPeakAnnotations()
+      };
+
+      let chartEventsBound = false;
+
+      function loadPeakAnnotations() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(PEAK_STORAGE_KEY) || '{}');
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+          const cleaned = {};
+          DATASET.keywords.forEach(keyword => {
+            if (!Array.isArray(parsed[keyword])) return;
+            const validDates = new Set(DATASET.series[keyword].date);
+            const dates = [...new Set(parsed[keyword].filter(date => validDates.has(date)))];
+            dates.sort((left, right) => DATASET.series[keyword].date.indexOf(left) - DATASET.series[keyword].date.indexOf(right));
+            if (dates.length) cleaned[keyword] = dates;
+          });
+          return cleaned;
+        } catch (_) {
+          return {};
+        }
+      }
+
+      function savePeakAnnotations() {
+        try { localStorage.setItem(PEAK_STORAGE_KEY, JSON.stringify(state.manualPeaks)); } catch (_) { /* session-only fallback */ }
+      }
+
+      function currentPeakDates() {
+        return state.manualPeaks[state.keyword] || [];
+      }
+
+      function totalPeakCount(annotations = state.manualPeaks) {
+        return Object.values(annotations).reduce((total, dates) => total + dates.length, 0);
+      }
+
+      function peakTraceData(series) {
+        const values = new Map(series.date.map((date, position) => [date, series.count[position]]));
+        const dates = currentPeakDates().filter(date => values.has(date));
+        return { dates, counts: dates.map(date => values.get(date)) };
+      }
+
+      function updateAnnotationControls() {
+        const count = currentPeakDates().length;
+        const total = totalPeakCount();
+        elements.peakMode.setAttribute('aria-pressed', String(state.annotationMode));
+        elements.peakMode.textContent = state.annotationMode ? '退出标注' : '标注峰值';
+        elements.clearPeaks.disabled = count === 0;
+        elements.clearPeaks.textContent = `清空（${count}）`;
+        elements.exportPeaks.disabled = total === 0;
+        elements.exportPeaks.textContent = `导出（${total}）`;
+        elements.peakLegendText.textContent = `手工峰值（${count}）`;
+      }
+
+      function buildPeakExport() {
+        const annotations = {};
+        DATASET.keywords.forEach(keyword => {
+          const dates = state.manualPeaks[keyword];
+          if (dates?.length) annotations[keyword] = [...dates];
+        });
+        return {
+          schema: PEAK_EXPORT_SCHEMA,
+          exported_at_utc: new Date().toISOString(),
+          viewer_version: METADATA.viewer_version,
+          bsearch_sha256: METADATA.bsearch_sha256,
+          annotations
+        };
+      }
+
+      function exportPeakAnnotations() {
+        const total = totalPeakCount();
+        if (!total) return;
+        const payload = buildPeakExport();
+        const blob = new Blob([JSON.stringify(payload, null, 2) + '\n'], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const stamp = payload.exported_at_utc.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+        link.href = url;
+        link.download = `bsearch_manual_peaks_${stamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        elements.status.textContent = `已导出${total}个峰值标注 · ${link.download}`;
+      }
+
+      function validatePeakImport(payload) {
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('JSON根节点必须是对象');
+        if (payload.schema !== PEAK_EXPORT_SCHEMA) throw new Error('不支持的标注JSON格式');
+        if (payload.bsearch_sha256 !== METADATA.bsearch_sha256) throw new Error('搜索热度源数据哈希不匹配');
+        if (!payload.annotations || typeof payload.annotations !== 'object' || Array.isArray(payload.annotations)) {
+          throw new Error('annotations必须是对象');
+        }
+        const cleaned = {};
+        Object.entries(payload.annotations).forEach(([keyword, dates]) => {
+          const series = DATASET.series[keyword];
+          if (!series) throw new Error(`未知关键词：${keyword}`);
+          if (!Array.isArray(dates)) throw new Error(`“${keyword}”的标注必须是日期数组`);
+          const validDates = new Set(series.date);
+          dates.forEach(date => {
+            if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !validDates.has(date)) {
+              throw new Error(`“${keyword}”包含无效交易日期：${String(date)}`);
+            }
+          });
+          const unique = [...new Set(dates)];
+          const positions = new Map(series.date.map((date, index) => [date, index]));
+          unique.sort((left, right) => positions.get(left) - positions.get(right));
+          if (unique.length) cleaned[keyword] = unique;
+        });
+        return cleaned;
+      }
+
+      async function importPeakAnnotations(file) {
+        try {
+          if (file.size > 2 * 1024 * 1024) throw new Error('文件超过2MB限制');
+          const payload = JSON.parse(await file.text());
+          const imported = validatePeakImport(payload);
+          const importedCount = totalPeakCount(imported);
+          const existingCount = totalPeakCount();
+          if (existingCount && !window.confirm(`导入将用${importedCount}个峰值替换当前${existingCount}个标注，是否继续？`)) return;
+          state.manualPeaks = imported;
+          savePeakAnnotations();
+          await refreshPeakMarkers();
+          elements.importPeaks.removeAttribute('aria-invalid');
+          elements.status.textContent = `已导入${importedCount}个峰值标注 · ${file.name}`;
+        } catch (error) {
+          elements.importPeaks.setAttribute('aria-invalid', 'true');
+          elements.status.textContent = `导入失败：${error instanceof Error ? error.message : String(error)}`;
+        } finally {
+          elements.peakFile.value = '';
+        }
+      }
+
+      function css(name) {
+        return getComputedStyle(elements.root).getPropertyValue(name).trim();
+      }
+
+      function populateKeywords() {
+        DATASET.keywords.forEach(keyword => {
+          const option = document.createElement('option');
+          option.value = keyword;
+          option.textContent = keyword;
+          elements.keyword.appendChild(option);
+        });
+        elements.keyword.value = state.keyword;
+      }
+
+      function populateIndices() {
+        DATASET.index_ids.forEach(indexId => {
+          const index = DATASET.indices[indexId];
+          const option = document.createElement('option');
+          option.value = indexId;
+          option.textContent = index.index_name;
+          elements.index.appendChild(option);
+        });
+        elements.index.value = state.indexId;
+      }
+
+      function setPressed(buttons, predicate) {
+        buttons.forEach(button => button.setAttribute('aria-pressed', String(predicate(button))));
+      }
+
+      function regionShapes(index, view) {
+        const regions = DATASET.regions_by_index[index.index_id] || [];
+        return regions
+          .filter(region => region.end >= view.startDate && region.start <= view.endDate)
+          .map(region => ({
+            type: 'rect',
+            xref: 'x',
+            yref: 'y domain',
+            x0: region.start,
+            x1: region.end,
+            y0: 0,
+            y1: 1,
+            line: { width: 0 },
+            fillcolor: region.event_type === 'top' ? css('--top') : css('--bottom'),
+            opacity: 0.105,
+            layer: 'below'
+          }));
+      }
+
+      function heatGuideShapes() {
+        return [0, 2].map((value, index) => ({
+          type: 'line',
+          xref: 'paper',
+          yref: 'y3',
+          x0: 0,
+          x1: 1,
+          y0: value,
+          y1: value,
+          line: {
+            color: index === 0 ? css('--hairline') : css('--heat-z'),
+            width: index === 0 ? 1 : 1.2,
+            dash: index === 0 ? 'solid' : 'dot'
+          },
+          opacity: index === 0 ? .7 : .75,
+          layer: 'below'
+        }));
+      }
+
+      function requestedRange(view) {
+        if (state.years === 'all') return [view.startDate, view.endDate];
+        const end = new Date(`${view.endDate}T00:00:00`);
+        const start = new Date(end);
+        start.setFullYear(start.getFullYear() - Number(state.years));
+        const iso = start.toISOString().slice(0, 10);
+        return [iso < view.startDate ? view.startDate : iso, view.endDate];
+      }
+
+      function makeView(index, series) {
+        const startDate = index.start_date > series.start_date ? index.start_date : series.start_date;
+        const endDate = index.end_date < series.end_date ? index.end_date : series.end_date;
+        if (startDate > endDate) throw new Error('所选指数与关键词没有重叠日期。');
+        const indexDates = new Set(index.date);
+        const alignedRows = series.date.reduce((total, date) => total + Number(indexDates.has(date)), 0);
+        return {
+          startDate,
+          endDate,
+          alignedRows,
+          missingWeekdays: [...new Set([...index.missing_weekdays, ...series.missing_weekdays])]
+        };
+      }
+
+      function buildTraces(index, series) {
+        const heatCustom = series.count.map((count, position) => [count, series.heat_z252[position]]);
+        const peaks = peakTraceData(series);
+        return [
+          {
+            type: 'candlestick',
+            name: index.index_name,
+            x: index.date,
+            open: index.open,
+            high: index.high,
+            low: index.low,
+            close: index.close,
+            yaxis: 'y',
+            increasing: { line: { color: css('--top'), width: 1 }, fillcolor: css('--top') },
+            decreasing: { line: { color: css('--bottom'), width: 1 }, fillcolor: css('--bottom') },
+            whiskerwidth: .35,
+            meta: { role: 'index_ohlc' }
+          },
+          {
+            type: 'scatter',
+            mode: 'lines',
+            name: `${series.keyword} 原始热度`,
+            x: series.date,
+            y: series.count,
+            customdata: heatCustom,
+            yaxis: 'y2',
+            line: { color: css('--heat'), width: 1.35 },
+            meta: { role: 'raw_heat' },
+            hovertemplate: '<b>%{x}</b><br>原始热度 %{customdata[0]:,.0f}<extra></extra>'
+          },
+          {
+            type: 'scatter',
+            mode: 'lines',
+            name: `${series.keyword} Z252`,
+            x: series.date,
+            y: series.heat_z252,
+            customdata: heatCustom,
+            yaxis: 'y3',
+            line: { color: css('--heat-z'), width: 1.6, dash: 'solid' },
+            meta: { role: 'heat_z' },
+            hovertemplate: '<b>%{x}</b><br>Z252 %{customdata[1]:.2f}<extra></extra>'
+          },
+          {
+            type: 'scatter',
+            mode: 'markers',
+            name: `${series.keyword} 手工峰值`,
+            x: peaks.dates,
+            y: peaks.counts,
+            yaxis: 'y2',
+            marker: {
+              symbol: 'diamond-open',
+              size: 12,
+              color: css('--top'),
+              line: { color: css('--top'), width: 2 }
+            },
+            meta: { role: 'manual_peak' },
+            cliponaxis: false,
+            hovertemplate: '<b>%{x}</b><br>手工峰值 %{y:,.0f}<br>标注模式下点击可取消<extra></extra>'
+          }
+        ];
+      }
+
+      function buildLayout(index, series, view) {
+        const range = requestedRange(view);
+        const shapes = [...regionShapes(index, view), ...heatGuideShapes()];
+        return {
+          autosize: true,
+          height: window.matchMedia('(max-width: 760px)').matches ? 620 : 720,
+          margin: { l: 72, r: 76, t: 18, b: 52 },
+          paper_bgcolor: css('--plot-paper'),
+          plot_bgcolor: css('--plot-surface'),
+          font: {
+            family: '"Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif',
+            color: css('--ink'),
+            size: 12
+          },
+          showlegend: false,
+          hovermode: state.annotationMode ? 'closest' : 'x unified',
+          hoverlabel: { bgcolor: css('--surface'), bordercolor: css('--hairline'), font: { color: css('--ink') } },
+          dragmode: 'pan',
+          clickmode: 'event',
+          xaxis: {
+            type: 'date',
+            range,
+            anchor: 'y2',
+            rangeslider: { visible: false },
+            rangebreaks: [
+              { bounds: ['sat', 'mon'] },
+              { values: view.missingWeekdays }
+            ],
+            showgrid: false,
+            showline: true,
+            linecolor: css('--hairline'),
+            tickcolor: css('--hairline'),
+            tickformat: '%Y-%m',
+            fixedrange: false
+          },
+          yaxis: {
+            domain: [.40, 1],
+            title: { text: `${index.index_name} · OHLC`, standoff: 10 },
+            showgrid: true,
+            gridcolor: css('--plot-grid'),
+            zeroline: false,
+            fixedrange: false,
+            automargin: true
+          },
+          yaxis2: {
+            domain: [0, .29],
+            title: { text: `${series.keyword} · count`, standoff: 10 },
+            showgrid: true,
+            gridcolor: css('--plot-grid'),
+            zeroline: false,
+            fixedrange: false,
+            automargin: true,
+            rangemode: 'tozero'
+          },
+          yaxis3: {
+            domain: [0, .29],
+            overlaying: 'y2',
+            side: 'right',
+            title: { text: `${series.keyword} · Z252`, standoff: 10 },
+            showgrid: false,
+            zeroline: false,
+            fixedrange: false,
+            automargin: true
+          },
+          shapes,
+          annotations: [
+            {
+              xref: 'paper', yref: 'paper', x: 0, y: 1.025,
+              text: `${index.index_name} OHLC K线`, showarrow: false,
+              xanchor: 'left', font: { color: css('--muted'), size: 11 }
+            },
+            {
+              xref: 'paper', yref: 'paper', x: 0, y: .315,
+              text: `${series.keyword}原始热度（左轴）与Z252（右轴）`, showarrow: false,
+              xanchor: 'left', font: { color: css('--muted'), size: 11 }
+            }
+          ]
+        };
+      }
+
+      function updateCopy(index, series, view) {
+        elements.mappedIndex.textContent = index.index_name;
+        elements.mappingNote.textContent = `“${series.keyword}”默认匹配${series.recommended_index_name}；可手动改选`;
+        elements.coverageValue.textContent = numberFormat.format(view.alignedRows) + ' 日';
+        elements.coverageNote.textContent = `${view.startDate}—${view.endDate}；关键词源数据跳过${numberFormat.format(series.skipped_rows)}条非交易日或无行情记录`;
+        elements.heatValue.textContent = 'count + Z252';
+        elements.heatNote.textContent = `左轴原始值；右轴为Z252；当前手工峰值${currentPeakDates().length}个`;
+        elements.title.textContent = `${index.index_name} × “${series.keyword}”热度`;
+        elements.subtitle.textContent = '上排OHLC K线；下排原始热度与Z252双轴同屏，可手工标峰；横轴联动缩放';
+        const annotationStatus = state.annotationMode ? ' · 标注模式' : '';
+        elements.status.textContent = `${index.index_name} · ${series.keyword} · ${state.years === 'all' ? '全部' : state.years + '年'} · ${numberFormat.format(view.alignedRows)}个交易日${annotationStatus}`;
+        const regionsAvailable = (DATASET.regions_by_index[index.index_id] || []).length > 0;
+        elements.topLegend.classList.toggle('is-muted', !regionsAvailable);
+        elements.bottomLegend.classList.toggle('is-muted', !regionsAvailable);
+        elements.topLegend.title = regionsAvailable ? '' : '所选指数没有自身冻结标签，且不会借用其他指数标签';
+        elements.bottomLegend.title = elements.topLegend.title;
+      }
+
+      async function render() {
+        const index = DATASET.indices[state.indexId];
+        const series = DATASET.series[state.keyword];
+        elements.error.hidden = true;
+        try {
+          const view = makeView(index, series);
+          updateCopy(index, series, view);
+          await Plotly.react(
+            elements.chart,
+            buildTraces(index, series),
+            buildLayout(index, series, view),
+            {
+              responsive: true,
+              displaylogo: false,
+              scrollZoom: true,
+              modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+              toImageButtonOptions: { format: 'png', filename: `bsearch_${index.index_id}_${series.keyword}`, scale: 2 }
+            }
+          );
+          if (!chartEventsBound) {
+            elements.chart.on('plotly_click', handleChartClick);
+            chartEventsBound = true;
+          }
+          updateAnnotationControls();
+          elements.loading.hidden = true;
+        } catch (error) {
+          elements.loading.hidden = true;
+          elements.error.hidden = false;
+          elements.errorMessage.textContent = error instanceof Error ? error.message : String(error);
+          console.error(error);
+        }
+      }
+
+      function normalizedDate(value) {
+        if (typeof value === 'string') return value.slice(0, 10);
+        const date = new Date(value);
+        return Number.isNaN(date.valueOf()) ? '' : date.toISOString().slice(0, 10);
+      }
+
+      function handleChartClick(event) {
+        if (!state.annotationMode || !event?.points?.length) return;
+        const point = event.points.find(item => ['raw_heat', 'heat_z', 'manual_peak'].includes(item.data?.meta?.role));
+        if (!point) return;
+        const date = normalizedDate(point.x);
+        const series = DATASET.series[state.keyword];
+        if (!series.date.includes(date)) return;
+        const dates = [...currentPeakDates()];
+        const existing = dates.indexOf(date);
+        if (existing >= 0) dates.splice(existing, 1);
+        else dates.push(date);
+        const positions = new Map(series.date.map((item, index) => [item, index]));
+        dates.sort((left, right) => positions.get(left) - positions.get(right));
+        if (dates.length) state.manualPeaks[state.keyword] = dates;
+        else delete state.manualPeaks[state.keyword];
+        savePeakAnnotations();
+        refreshPeakMarkers();
+      }
+
+      async function refreshPeakMarkers() {
+        const index = DATASET.indices[state.indexId];
+        const series = DATASET.series[state.keyword];
+        const peaks = peakTraceData(series);
+        await Plotly.restyle(elements.chart, { x: [peaks.dates], y: [peaks.counts] }, [3]);
+        updateAnnotationControls();
+        updateCopy(index, series, makeView(index, series));
+      }
+
+      elements.keyword.addEventListener('change', event => {
+        state.keyword = event.target.value;
+        state.indexId = DATASET.series[state.keyword].recommended_index_id;
+        elements.index.value = state.indexId;
+        render();
+      });
+
+      elements.index.addEventListener('change', event => {
+        state.indexId = event.target.value;
+        render();
+      });
+
+      elements.rangeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          state.years = button.dataset.years;
+          setPressed(elements.rangeButtons, item => item === button);
+          render();
+        });
+      });
+
+      elements.peakMode.addEventListener('click', () => {
+        state.annotationMode = !state.annotationMode;
+        Plotly.relayout(elements.chart, {
+          hovermode: state.annotationMode ? 'closest' : 'x unified',
+          dragmode: 'pan'
+        });
+        updateAnnotationControls();
+        const index = DATASET.indices[state.indexId];
+        const series = DATASET.series[state.keyword];
+        updateCopy(index, series, makeView(index, series));
+      });
+
+      elements.clearPeaks.addEventListener('click', () => {
+        const count = currentPeakDates().length;
+        if (!count || !window.confirm(`清空“${state.keyword}”的${count}个人工峰值标注？`)) return;
+        delete state.manualPeaks[state.keyword];
+        savePeakAnnotations();
+        refreshPeakMarkers();
+      });
+
+      elements.exportPeaks.addEventListener('click', exportPeakAnnotations);
+      elements.importPeaks.addEventListener('click', () => elements.peakFile.click());
+      elements.peakFile.addEventListener('change', event => {
+        const file = event.target.files?.[0];
+        if (file) importPeakAnnotations(file);
+      });
+
+      elements.theme.addEventListener('click', () => {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark';
+        elements.root.dataset.theme = state.theme;
+        try { localStorage.setItem('bsearch-viewer-theme', state.theme); } catch (_) { /* file URLs may restrict storage */ }
+        render();
+      });
+
+      try {
+        const savedTheme = localStorage.getItem('bsearch-viewer-theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') state.theme = savedTheme;
+      } catch (_) { /* file URLs may restrict storage */ }
+      elements.root.dataset.theme = state.theme;
+      elements.version.textContent = METADATA.viewer_version;
+      populateIndices();
+      populateKeywords();
+      render();
+
+      if ('ResizeObserver' in window) {
+        const observer = new ResizeObserver(() => {
+          if (elements.chart.data) Plotly.Plots.resize(elements.chart);
+        });
+        observer.observe(elements.chart.parentElement);
+      }
+    })();
+  </script>
+</body>
+</html>
